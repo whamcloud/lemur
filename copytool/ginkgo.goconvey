@@ -1,0 +1,3 @@
+ -ginkgo.noColor=true
+# -ginkgo.slowSpecThreshold=15
+#  -ginkgo.v=true
