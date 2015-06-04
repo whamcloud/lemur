@@ -24,7 +24,7 @@ func CoordinatorStateIs(expected string) func() bool {
 func TestCopytool(t *testing.T) {
 	BeforeSuite(func() {
 		log.AddDebugLogger(&log.ClosingGinkgoWriter{GinkgoWriter})
-		CopytoolCLI, err := gexec.Build("github.intel.com/hpdd/lustrecli/cmd/copytool")
+		CopytoolCLI, err := gexec.Build("github.intel.com/hpdd/policy/pdm/copytool")
 		Ω(err).ShouldNot(HaveOccurred())
 		harness.SetTestBinary("copytool", CopytoolCLI)
 
