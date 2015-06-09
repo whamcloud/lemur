@@ -6,34 +6,27 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"time"
 
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
 
-	"github.com/crowdmob/goamz/aws"
-	"github.com/crowdmob/goamz/s3"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/golang/glog"
 )
 
 type (
 	// S3Backend provides an HSM interface for S3.
 	S3Backend struct {
-		root       fs.RootDir
-		s          *s3.S3
-		bucketName string
-		bucket     *s3.Bucket
-		prefix     string
+		root   fs.RootDir
+		s      *s3.S3
+		bucket string
+		prefix string
 	}
 )
 
 // NewS3Backend initializes an S3 backend object.
 func NewS3Backend(root fs.RootDir, rawurl string) *S3Backend {
-	auth, err := aws.GetAuth("", "", "", time.Time{})
-	if err != nil {
-		glog.Fatal(err)
-	}
-
 	u, err := url.Parse(rawurl)
 	if err != nil {
 		glog.Error(err)
@@ -41,20 +34,18 @@ func NewS3Backend(root fs.RootDir, rawurl string) *S3Backend {
 	}
 
 	// Open Bucket
-	s := s3.New(auth, aws.USEast)
-	bucket := s.Bucket(u.Host)
+	s := s3.New(&aws.Config{Region: "us-east-1"})
 
 	return &S3Backend{
-		root:       root,
-		bucketName: u.Host,
-		prefix:     u.Path,
-		s:          s,
-		bucket:     bucket,
+		root:   root,
+		bucket: u.Host,
+		prefix: u.Path,
+		s:      s,
 	}
 }
 
 func (back S3Backend) String() string {
-	return fmt.Sprintf("S3 backend for %v  s3://%s/%s", back.root, back.bucketName, back.prefix)
+	return fmt.Sprintf("S3 backend for %v  s3://%s/%s", back.root, back.bucket, back.prefix)
 }
 
 func (back S3Backend) destination(id string) string {
@@ -98,7 +89,13 @@ func (back S3Backend) Archive(aih hsm.ActionHandle) ActionResult {
 	defer inFile.Close()
 
 	keyName := back.destination(fileKey)
-	err = back.bucket.PutReader(keyName, inFile, fi.Size(), "application/octet-stream", s3.Private, s3.Options{})
+
+	_, err = back.s.PutObject(&s3.PutObjectInput{
+		Body:        inFile,
+		Bucket:      &back.bucket,
+		Key:         &keyName,
+		ContentType: aws.String("application/octet-stream"),
+	})
 	if err != nil {
 		glog.Error(err)
 		return ErrorResult(err, -1)
@@ -123,12 +120,15 @@ func (back S3Backend) Restore(aih hsm.ActionHandle) ActionResult {
 	glog.Infof("%v %v %v\n", aih, names, fileID)
 
 	keyName := back.destination(fileID)
-	in, err := back.bucket.GetReader(keyName)
+	result, err := back.s.GetObject(&s3.GetObjectInput{
+		Bucket: &back.bucket,
+		Key:    &keyName,
+	})
 	if err != nil {
 		glog.Error(err)
 		return ErrorResult(err, -1)
 	}
-	defer in.Close()
+	defer result.Body.Close()
 
 	dataFid, err := aih.DataFid()
 	if err != nil {
@@ -142,7 +142,7 @@ func (back S3Backend) Restore(aih hsm.ActionHandle) ActionResult {
 	}
 	defer out.Close()
 
-	n, err := io.Copy(out, in)
+	n, err := io.Copy(out, result.Body)
 	if err != nil {
 		glog.Error(err)
 		return ErrorResult(err, -1)

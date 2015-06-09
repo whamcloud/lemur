@@ -5,13 +5,12 @@ import (
 	"io"
 	"net/url"
 	"os"
-	"time"
 
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
 
-	"github.com/crowdmob/goamz/aws"
-	"github.com/crowdmob/goamz/s3"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/golang/glog"
 )
 
@@ -23,13 +22,8 @@ type (
 )
 
 func NewS3MirrorBackend(root fs.RootDir) *S3MirrorBackend {
-	auth, err := aws.GetAuth("", "", "", time.Time{})
-	if err != nil {
-		glog.Fatal(err)
-	}
-
 	// Open S3 connection
-	s := s3.New(auth, aws.USEast)
+	s := s3.New(&aws.Config{Region: "us-east-1"})
 
 	return &S3MirrorBackend{
 		root: root,
@@ -57,13 +51,16 @@ func (be S3MirrorBackend) Restore(aih hsm.ActionHandle) ActionResult {
 		glog.Error(err)
 		return ErrorResult(err, -1)
 	}
-	bucket := be.s.Bucket(u.Host)
-	in, err := bucket.GetReader(u.Path)
+
+	result, err := be.s.GetObject(&s3.GetObjectInput{
+		Bucket: &u.Host,
+		Key:    &u.Path,
+	})
 	if err != nil {
 		glog.Error(err)
 		return ErrorResult(err, -1)
 	}
-	defer in.Close()
+	defer result.Body.Close()
 
 	dataFid, err := aih.DataFid()
 	if err != nil {
@@ -77,7 +74,7 @@ func (be S3MirrorBackend) Restore(aih hsm.ActionHandle) ActionResult {
 	}
 	defer out.Close()
 
-	n, err := io.Copy(out, in)
+	n, err := io.Copy(out, result.Body)
 	if err != nil {
 		glog.Error(err)
 		return ErrorResult(err, -1)
