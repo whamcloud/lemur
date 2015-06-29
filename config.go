@@ -16,9 +16,10 @@ type (
 
 	// HSMConfig is the container for HSM Configuration.
 	HSMConfig struct {
-		Lustre    string             `json:"lustre"`
-		Processes int                `json:"processes"`
-		Archives  map[string]Archive `json:"archives"`
+		Lustre      string             `json:"lustre"`
+		RedisServer string             `json:"redis_server"`
+		Processes   int                `json:"processes"`
+		Archives    map[string]Archive `json:"archives"`
 	}
 
 	// Archive is the configuration for one backend archive.
@@ -36,13 +37,15 @@ type (
 
 var (
 	defaultConfig = HSMConfig{
-		Processes: 4,
-		Archives:  map[string]Archive{},
+		Processes:   4,
+		Archives:    map[string]Archive{},
+		RedisServer: ":6379",
 	}
 
 	// CLI parameters
 	hsmConfig     string
 	mnt           string
+	redisServer   string
 	processes     int
 	archives      cliArchives
 	disableMirror bool
@@ -110,6 +113,7 @@ func init() {
 	flag.BoolVar(&disableMirror, "disable-mirror", false, "disable mirror archive type")
 	flag.StringVar(&hsmConfig, "config", defaultHsmConfig, "Lustre HSM config file")
 	flag.StringVar(&mnt, "mnt", "", "Lustre mount point.")
+	flag.StringVar(&redisServer, "redis", "", "Redis server address.")
 	flag.IntVar(&processes, "np", 0, "Number of processes")
 	flag.Var(&archives, "archive", "Archive definition(s) (name:type:number:s3url:posixdir:snapshots)")
 	flag.Usage = func() {
@@ -172,6 +176,10 @@ func ConfigInitMust() *HSMConfig {
 
 	if mnt != "" {
 		cfg.Lustre = mnt
+	}
+
+	if redisServer != "" {
+		cfg.RedisServer = redisServer
 	}
 
 	if processes > 0 {

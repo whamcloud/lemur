@@ -23,25 +23,22 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
 
-	"github.com/garyburd/redigo/redis"
 	"github.com/golang/glog"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
 	"github.intel.com/hpdd/lustre/llapi"
 	"github.intel.com/hpdd/policy/pdm"
-	"github.intel.com/hpdd/policy/pkg/mq"
+	"github.intel.com/hpdd/policy/pkg/workq"
 )
 
 type (
 	// CopyTool for a single filesytem and a collection of backends.
 	CopyTool struct {
-		root     fs.RootDir
-		agent    hsm.Agent
-		requestQ mq.Sender
-		replyQ   mq.Receiver
-		wg       sync.WaitGroup
+		root  fs.RootDir
+		agent hsm.Agent
+		queue *workq.Master
+		wg    sync.WaitGroup
 	}
 )
 
@@ -102,12 +99,16 @@ func (ct *CopyTool) handleActions() {
 			Params:     "",
 		}
 		log.Printf("Request: %#v", req)
-		ct.requestQ.Put(req)
+		ct.queue.Put(req)
 
 		reply := &pdm.Result{}
-		err = ct.replyQ.Get(reply)
+		o, err := ct.queue.Wait()
 		if err != nil {
 			log.Printf("queue error: %v\n", err)
+		}
+		err = o.GetData(reply)
+		if err != nil {
+			log.Fatal(err)
 		}
 		log.Printf("reply: %v\n", reply)
 		// XXX for develoment, prevent coordinator constipation
@@ -124,9 +125,7 @@ func (ct *CopyTool) addHandler() {
 	}()
 }
 
-func agent(conf *pdm.HSMConfig, pool *redis.Pool) {
-	requestQName := "pdm:request" // get from config
-	replyQName := "pdm:reply"     // should be specific to this agent
+func agent(conf *pdm.HSMConfig) {
 	root, err := fs.MountRoot(conf.Lustre)
 	if err != nil {
 		glog.Fatal(err)
@@ -134,9 +133,8 @@ func agent(conf *pdm.HSMConfig, pool *redis.Pool) {
 
 	done := make(chan struct{})
 	ct := &CopyTool{
-		root:     root,
-		requestQ: mq.RedisMQSender(pool, requestQName),
-		replyQ:   mq.RedisMQ(pool, replyQName),
+		root:  root,
+		queue: workq.NewMaster("pdm", conf.RedisServer),
 	}
 
 	interruptHandler(func() {
@@ -161,33 +159,6 @@ func agent(conf *pdm.HSMConfig, pool *redis.Pool) {
 
 }
 
-func newPool(server, password string, logger *log.Logger) *redis.Pool {
-	return &redis.Pool{
-		MaxIdle:     3,
-		IdleTimeout: 240 * time.Second,
-		Dial: func() (redis.Conn, error) {
-			c, err := redis.Dial("tcp", server)
-			if err != nil {
-				return nil, err
-			}
-			if logger != nil {
-				c = redis.NewLoggingConn(c, logger, "redis")
-			}
-			if password != "" {
-				if _, err := c.Do("AUTH", password); err != nil {
-					c.Close()
-					return nil, err
-				}
-			}
-			return c, err
-		},
-		TestOnBorrow: func(c redis.Conn, t time.Time) error {
-			_, err := c.Do("PING")
-			return err
-		},
-	}
-}
-
 var (
 	reset = false
 	trace = false
@@ -200,16 +171,10 @@ func init() {
 
 func main() {
 	flag.Parse()
-	server := ":6379"
-	password := ""
+	// server := ":6379"
+	//	password := ""
 
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
-	var logger *log.Logger
-	if trace {
-		logger = log.New(os.Stderr, "", log.LstdFlags)
-	}
-	pool := newPool(server, password, logger)
 
 	//	if reset {
 	//		mq.RedisMQReset(pool, queueName)
@@ -220,7 +185,7 @@ func main() {
 	conf := pdm.ConfigInitMust()
 	glog.V(2).Infof("current configuration:\n%v", conf.String())
 
-	agent(conf, pool)
+	agent(conf)
 }
 
 func interruptHandler(once func()) {

@@ -23,21 +23,18 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
 
-	"github.com/garyburd/redigo/redis"
 	"github.com/golang/glog"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/policy/pdm"
-	"github.intel.com/hpdd/policy/pkg/mq"
+	"github.intel.com/hpdd/policy/pkg/workq"
 )
 
 type (
 	// Mover for a single filesytem and a collection of backends.
 	Mover struct {
 		root     fs.RootDir
-		requestQ mq.Receiver
-		replyQ   mq.Sender
+		queue    *workq.Worker
 		backends map[uint]Backend
 		wg       sync.WaitGroup
 	}
@@ -78,15 +75,16 @@ func (mover *Mover) initBackends(conf *pdm.HSMConfig) error {
 func (mover *Mover) Worker() {
 	for {
 		var r pdm.Request
-		err := mover.requestQ.Get(&r)
-		if err != nil && err != redis.ErrNil {
-			panic(err)
+		o, err := mover.queue.Get()
+		if err != nil {
+			log.Fatal(err)
 		}
+		err = o.GetData(&r)
 		var backend Backend
 		result, err := handleAction(backend, &r)
 		log.Printf("received: %v %v\n", r, err)
 
-		mover.replyQ.Put(result)
+		mover.queue.Complete(o, result)
 	}
 }
 
@@ -98,9 +96,7 @@ func (mover *Mover) addWorker() {
 	}()
 }
 
-func mover(conf *pdm.HSMConfig, pool *redis.Pool) {
-	requestQName := "pdm:request" // get from config
-	replyQName := "pdm:reply"     // should be specific to this agent
+func mover(conf *pdm.HSMConfig) {
 	root, err := fs.MountRoot(conf.Lustre)
 	if err != nil {
 		glog.Fatal(err)
@@ -108,9 +104,8 @@ func mover(conf *pdm.HSMConfig, pool *redis.Pool) {
 
 	done := make(chan struct{})
 	mover := &Mover{
-		root:     root,
-		requestQ: mq.RedisMQ(pool, requestQName),
-		replyQ:   mq.RedisMQSender(pool, replyQName),
+		root:  root,
+		queue: workq.NewWorker("pdm", conf.RedisServer),
 	}
 
 	interruptHandler(func() {
@@ -134,33 +129,6 @@ func mover(conf *pdm.HSMConfig, pool *redis.Pool) {
 	mover.wg.Wait()
 }
 
-func newPool(server, password string, logger *log.Logger) *redis.Pool {
-	return &redis.Pool{
-		MaxIdle:     3,
-		IdleTimeout: 240 * time.Second,
-		Dial: func() (redis.Conn, error) {
-			c, err := redis.Dial("tcp", server)
-			if err != nil {
-				return nil, err
-			}
-			if logger != nil {
-				c = redis.NewLoggingConn(c, logger, "redis")
-			}
-			if password != "" {
-				if _, err := c.Do("AUTH", password); err != nil {
-					c.Close()
-					return nil, err
-				}
-			}
-			return c, err
-		},
-		TestOnBorrow: func(c redis.Conn, t time.Time) error {
-			_, err := c.Do("PING")
-			return err
-		},
-	}
-}
-
 var (
 	reset = false
 	trace = false
@@ -173,37 +141,19 @@ func init() {
 
 func main() {
 	flag.Parse()
-	server := ":6379"
-	password := ""
-	requestQName := "pdm:request" // get from config
-	replyQName := "pdm:reply"     // should be specific to this agent
 
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
-	var logger *log.Logger
-	if trace {
-		logger = log.New(os.Stderr, "", log.LstdFlags)
-	}
-	pool := newPool(server, password, logger)
-
-	if reset {
-		mq.RedisMQReset(pool, requestQName)
-		mq.RedisMQReset(pool, replyQName)
-	}
 
 	defer glog.Flush()
 	conf := pdm.ConfigInitMust()
 
-	mover(conf, pool)
+	if reset {
+		workq.Reset("pdm", conf.RedisServer)
+	}
 
-	// go sender(mq.RedisMQSender(pool, queueName))
-
-	// q := mq.RedisMQ(pool, queueName)
-	// for i := 0; i < ReceiverCount; i++ {
-	// 	name := fmt.Sprintf("recv%d", i)
-	// 	go receiver(name, q)
-	// }
+	mover(conf)
 }
+
 func interruptHandler(once func()) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGQUIT, syscall.SIGTERM)
