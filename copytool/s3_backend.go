@@ -34,7 +34,7 @@ func NewS3Backend(root fs.RootDir, rawurl string) *S3Backend {
 	}
 
 	// Open Bucket
-	s := s3.New(&aws.Config{Region: "us-east-1"})
+	s := s3.New(&aws.Config{Region: aws.String("us-east-1")})
 
 	return &S3Backend{
 		root:   root,

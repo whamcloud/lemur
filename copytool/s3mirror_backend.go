@@ -23,7 +23,7 @@ type (
 
 func NewS3MirrorBackend(root fs.RootDir) *S3MirrorBackend {
 	// Open S3 connection
-	s := s3.New(&aws.Config{Region: "us-east-1"})
+	s := s3.New(&aws.Config{Region: aws.String("us-east-1")})
 
 	return &S3MirrorBackend{
 		root: root,
