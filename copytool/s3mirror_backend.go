@@ -10,6 +10,7 @@ import (
 	"github.intel.com/hpdd/lustre/hsm"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/golang/glog"
 )
@@ -23,7 +24,7 @@ type (
 
 func NewS3MirrorBackend(root fs.RootDir) *S3MirrorBackend {
 	// Open S3 connection
-	s := s3.New(&aws.Config{Region: aws.String("us-east-1")})
+	s := s3.New(session.New(&aws.Config{Region: aws.String("us-east-1")}))
 
 	return &S3MirrorBackend{
 		root: root,
