@@ -35,10 +35,12 @@ import (
 type (
 	// CopyTool for a single filesytem and a collection of backends.
 	CopyTool struct {
-		root  fs.RootDir
-		agent hsm.Agent
-		queue *workq.Master
-		wg    sync.WaitGroup
+		root     fs.RootDir
+		agent    hsm.Agent
+		queue    *workq.Master
+		wg       sync.WaitGroup
+		m        sync.Mutex
+		requests map[uint64]hsm.ActionHandle
 	}
 )
 
@@ -78,6 +80,7 @@ func hsm2pdmCommand(a llapi.HsmAction) (c pdm.CommandType) {
 }
 
 func (ct *CopyTool) handleActions() {
+
 	ch := ct.agent.Actions()
 	for ai := range ch {
 		log.Printf("incoming: %s", ai)
@@ -99,22 +102,31 @@ func (ct *CopyTool) handleActions() {
 			Params:     "",
 		}
 		log.Printf("Request: %#v", req)
-		ct.queue.Put(req)
+		ct.m.Lock()
+		ct.requests[aih.Cookie()] = aih
+		ct.m.Unlock()
+		ct.queue.Send(req)
 
-		reply := &pdm.Result{}
-		o, err := ct.queue.Wait()
-		if err != nil {
-			log.Printf("queue error: %v\n", err)
-		}
-		err = o.GetData(reply)
-		if err != nil {
-			log.Fatal(err)
-		}
-		log.Printf("reply: %v\n", reply)
-		// XXX for develoment, prevent coordinator constipation
-		log.Printf("end: %s", ai)
-		aih.End(0, 0, 0, -1)
 	}
+}
+
+func (ct *CopyTool) Update(d workq.StatusDelivery) error {
+	reply := &pdm.Result{}
+	if err := d.Payload(reply); err != nil {
+		log.Println(err)
+		return err
+	}
+	log.Printf("reply: %v\n", reply)
+	ct.m.Lock()
+	defer ct.m.Unlock()
+	if aih, ok := ct.requests[reply.Cookie]; ok {
+		delete(ct.requests, reply.Cookie)
+		log.Printf("end: %s", aih)
+		aih.End(0, 0, 0, -1)
+	} else {
+		log.Printf("! unknown handle: %s", reply.Cookie)
+	}
+	return nil
 }
 
 func (ct *CopyTool) addHandler() {
@@ -133,8 +145,9 @@ func agent(conf *pdm.HSMConfig) {
 
 	done := make(chan struct{})
 	ct := &CopyTool{
-		root:  root,
-		queue: workq.NewMaster("pdm", conf.RedisServer),
+		root:     root,
+		queue:    workq.NewMaster("pdm", conf.RedisServer),
+		requests: make(map[uint64]hsm.ActionHandle),
 	}
 
 	interruptHandler(func() {
@@ -151,6 +164,7 @@ func agent(conf *pdm.HSMConfig) {
 
 		for i := 0; i < conf.Processes; i++ {
 			ct.addHandler()
+			ct.queue.AddReceiver(ct)
 		}
 	}()
 
@@ -176,13 +190,14 @@ func main() {
 
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	//	if reset {
-	//		mq.RedisMQReset(pool, queueName)
-	//	}
-
 	defer glog.Flush()
 
 	conf := pdm.ConfigInitMust()
+	if reset {
+		workq.MasterReset("pdm", conf.RedisServer)
+		os.Exit(0)
+	}
+
 	glog.V(2).Infof("current configuration:\n%v", conf.String())
 
 	agent(conf)

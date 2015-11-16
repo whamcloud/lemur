@@ -72,28 +72,19 @@ func (mover *Mover) initBackends(conf *pdm.HSMConfig) error {
 	return nil
 }
 
-func (mover *Mover) Worker() {
-	for {
-		var r pdm.Request
-		o, err := mover.queue.Get()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = o.GetData(&r)
-		var backend Backend
-		result, err := handleAction(backend, &r)
-		log.Printf("received: %v %v\n", r, err)
-
-		mover.queue.Complete(o, result)
-	}
-}
-
-func (mover *Mover) addWorker() {
+func (mover *Mover) Process(d workq.Delivery) error {
 	mover.wg.Add(1)
-	go func() {
-		defer mover.wg.Done()
-		mover.Worker()
-	}()
+	defer mover.wg.Done()
+	var r pdm.Request
+	if err := d.Payload(r); err != nil {
+		return err
+	}
+	var backend Backend
+	result, err := handleAction(backend, &r)
+	log.Printf("received: %v %v\n", r, err)
+
+	d.Status(result)
+	return nil
 }
 
 func mover(conf *pdm.HSMConfig) {
@@ -121,7 +112,7 @@ func mover(conf *pdm.HSMConfig) {
 		}
 
 		for i := 0; i < conf.Processes; i++ {
-			mover.addWorker()
+			mover.queue.AddProcessor(mover)
 		}
 	}()
 
@@ -147,9 +138,11 @@ func main() {
 	defer glog.Flush()
 	conf := pdm.ConfigInitMust()
 
-	if reset {
-		workq.Reset("pdm", conf.RedisServer)
-	}
+	/*
+		if reset {
+			workq.Reset("pdm", conf.RedisServer)
+		}
+	*/
 
 	mover(conf)
 }
