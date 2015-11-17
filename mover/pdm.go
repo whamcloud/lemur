@@ -76,7 +76,8 @@ func (mover *Mover) Process(d workq.Delivery) error {
 	mover.wg.Add(1)
 	defer mover.wg.Done()
 	var r pdm.Request
-	if err := d.Payload(r); err != nil {
+	if err := d.Payload(&r); err != nil {
+		log.Println(err)
 		return err
 	}
 	var backend Backend
