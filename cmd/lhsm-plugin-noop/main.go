@@ -67,7 +67,7 @@ func noop(client pb.DataMoverClient) {
 		if err != nil {
 			log.Fatalf("Failed to receive a message: %v", err)
 		}
-		fmt.Printf("\nGot message %x op: %d\n", action.Cookie, action.Op)
+		fmt.Printf("\nGot message %x op: %#v\n", action.Cookie, action)
 		rate.Mark(1)
 		err = acks.Send(&pb.ActionStatus{Cookie: action.Cookie, Completed: true, Error: 1, Handle: handle})
 		if err != nil {

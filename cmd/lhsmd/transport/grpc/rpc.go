@@ -140,9 +140,18 @@ func (s *dataMoverServer) GetActions(h *pb.Handle, stream pb.DataMover_GetAction
 		ep.actions[uint64(aih.Cookie())] = aih
 		ep.mu.Unlock()
 
+		dfid, err := aih.DataFid()
+		if err != nil {
+			log.Fatal(err)
+		}
 		if err := stream.Send(&pb.ActionItem{
-			Cookie: aih.Cookie(),
-			Op:     uint32(aih.Action()),
+			Cookie:     aih.Cookie(),
+			Op:         uint32(aih.Action()),
+			PrimaryFid: aih.Fid().String(),
+			WriteFid:   dfid.String(),
+			Offset:     aih.Offset(),
+			Length:     aih.Length(),
+			Data:       aih.Data(),
 		}); err != nil {
 			//			log.Printf("message %d failed to sen in %v\n", id, time.Since(ep.actions[id]))
 			log.Println(err)

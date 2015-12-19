@@ -22,11 +22,11 @@ message Handle {
 message ActionItem {
     uint64 cookie = 1;
     uint32 op = 2;
-    string internal_fid = 3;
+    string primary_fid = 3;
     string write_fid = 4;
     uint64 offset = 5;
     uint64 length = 6;
-    // buffer for request data
+    bytes data = 7;
 }
 
 message ActionStatus {
