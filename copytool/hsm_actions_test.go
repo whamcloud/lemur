@@ -184,17 +184,17 @@ var _ = Describe("When HSM is enabled,", func() {
 				Ω(err).ShouldNot(HaveOccurred())
 				Ω(markFileForHsmAction(testFile, "archive")).Should(Succeed())
 				Eventually(func() bool {
-					state, err := hsm.State(testFile)
+					st, err := hsm.GetFileStatus(testFile)
 					Ω(err).ShouldNot(HaveOccurred())
-					log.Debug("%s: %s", testFile, state.String())
-					return state.Archived()
+					log.Debug("%s: %s", testFile, st)
+					return st.Archived()
 				}, hsmActionTimeout, 0.5).Should(BeTrue())
 				Ω(markFileForHsmAction(testFile, "release")).Should(Succeed())
 				Eventually(func() bool {
-					state, err := hsm.State(testFile)
+					st, err := hsm.GetFileStatus(testFile)
 					Ω(err).ShouldNot(HaveOccurred())
-					log.Debug("%s: %s", testFile, state.String())
-					return state.Released()
+					log.Debug("%s: %s", testFile, st)
+					return st.Released()
 				}, hsmActionTimeout, 0.5).Should(BeTrue())
 			})
 
@@ -202,10 +202,10 @@ var _ = Describe("When HSM is enabled,", func() {
 				Ω(markFileForHsmAction(testFile, "restore")).Should(Succeed())
 
 				Eventually(func() bool {
-					state, err := hsm.State(testFile)
+					st, err := hsm.GetFileStatus(testFile)
 					Ω(err).ShouldNot(HaveOccurred())
-					log.Debug("%s: %s", testFile, state.String())
-					return state.Released()
+					log.Debug("%s: %s", testFile, st)
+					return st.Released()
 				}, hsmActionTimeout, 0.5).Should(BeFalse())
 				newMd5Sum, err := getFileMd5Sum(testFile)
 				Ω(err).ShouldNot(HaveOccurred())
