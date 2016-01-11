@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/codegangsta/cli"
@@ -290,7 +291,8 @@ func submitHsmRequest(actionName string, archiveID uint, paths ...string) error 
 	// TODO: Occurs to me that it might be better to break up a large
 	// batch into multiple batches, each serviced by its own goroutine.
 	for _, path := range paths {
-		if !strings.HasPrefix(path, string(fsRoot)) {
+		absPath, err := filepath.Abs(path)
+		if !strings.HasPrefix(absPath, string(fsRoot)) {
 			return fmt.Errorf("All files in HSM request must be in the same filesystem (%s is not in %s)", path, fsRoot)
 		}
 
