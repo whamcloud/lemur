@@ -39,7 +39,7 @@ func init() {
 						Usage: "Null-separated paths are read from stdin (e.g. piped from find -print0)",
 					},
 				},
-				Action: hsmAction,
+				Action: hsmRequestAction(hsm.RequestArchive),
 			},
 			{
 				Name:      "release",
@@ -51,7 +51,7 @@ func init() {
 						Usage: "Null-separated paths are read from stdin (e.g. piped from find -print0)",
 					},
 				},
-				Action: hsmAction,
+				Action: hsmRequestAction(hsm.RequestRelease),
 			},
 			{
 				Name:      "restore",
@@ -63,7 +63,7 @@ func init() {
 						Usage: "Null-separated paths are read from stdin (e.g. piped from find -print0)",
 					},
 				},
-				Action: hsmAction,
+				Action: hsmRequestAction(hsm.RequestRestore),
 			},
 			{
 				Name:      "remove",
@@ -75,7 +75,7 @@ func init() {
 						Usage: "Null-separated paths are read from stdin (e.g. piped from find -print0)",
 					},
 				},
-				Action: hsmAction,
+				Action: hsmRequestAction(hsm.RequestRemove),
 			},
 			{
 				Name:      "cancel",
@@ -87,7 +87,7 @@ func init() {
 						Usage: "Null-separated paths are read from stdin (e.g. piped from find -print0)",
 					},
 				},
-				Action: hsmAction,
+				Action: hsmRequestAction(hsm.RequestCancel),
 			},
 			{
 				Name:      "set",
@@ -260,18 +260,22 @@ func hsmStatusAction(c *cli.Context) {
 	}
 }
 
-func hsmAction(c *cli.Context) {
-	paths, err := getFilePaths(c)
-	if err != nil {
-		applog.Fail(err)
-	}
+type hsmRequestFn func(fs.RootDir, uint, []*lustre.Fid) error
 
-	if err := submitHsmRequest(c.Command.Name, uint(c.Int("id")), paths...); err != nil {
-		applog.Fail(err)
+func hsmRequestAction(requestFn func(fs.RootDir, uint, []*lustre.Fid) error) func(*cli.Context) {
+	return func(c *cli.Context) {
+		paths, err := getFilePaths(c)
+		if err != nil {
+			applog.Fail(err)
+		}
+		err = submitHsmRequest(c.Command.Name, hsmRequestFn(requestFn), uint(c.Int("id")), paths...)
+		if err != nil {
+			applog.Fail(err)
+		}
 	}
 }
 
-func submitHsmRequest(actionName string, archiveID uint, paths ...string) error {
+func submitHsmRequest(actionName string, requestFn hsmRequestFn, archiveID uint, paths ...string) error {
 	var fids []*lustre.Fid
 
 	if len(paths) < 1 {
@@ -288,7 +292,8 @@ func submitHsmRequest(actionName string, archiveID uint, paths ...string) error 
 	for _, path := range paths {
 		absPath, err := filepath.Abs(path)
 		if !strings.HasPrefix(absPath, string(fsRoot)) {
-			return fmt.Errorf("All files in HSM request must be in the same filesystem (%s is not in %s)", path, fsRoot)
+			return fmt.Errorf("All files in HSM request must be in the same filesystem (%s is not in %s)",
+				path, fsRoot)
 		}
 
 		fid, err := fs.LookupFid(path)
@@ -298,18 +303,9 @@ func submitHsmRequest(actionName string, archiveID uint, paths ...string) error 
 		fids = append(fids, fid)
 	}
 
-	switch actionName {
-	case "archive":
-		err = hsm.RequestArchive(fsRoot, archiveID, fids)
-	case "release":
-		err = hsm.RequestRelease(fsRoot, archiveID, fids)
-	case "restore":
-		err = hsm.RequestRestore(fsRoot, archiveID, fids)
-	case "remove":
-		err = hsm.RequestRemove(fsRoot, archiveID, fids)
-	case "cancel":
-		err = hsm.RequestCancel(fsRoot, archiveID, fids)
-	default:
+	if requestFn != nil {
+		err = requestFn(fsRoot, archiveID, fids)
+	} else {
 		err = fmt.Errorf("Unhandled HSM action: %s", actionName)
 	}
 
