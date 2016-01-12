@@ -12,7 +12,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/dustin/go-humanize"
 
-	"github.intel.com/hpdd/ce-tools/pkg/applog"
+	"github.intel.com/hpdd/applog"
 	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
@@ -210,6 +210,8 @@ func getPathStatus(c *cli.Context, filePath string) (string, error) {
 }
 
 func hsmSetAction(c *cli.Context) {
+	logContext(c)
+
 	paths, err := getFilePaths(c)
 	if err != nil {
 		applog.Fail(err)
@@ -242,6 +244,8 @@ func hsmSetAction(c *cli.Context) {
 }
 
 func hsmStatusAction(c *cli.Context) {
+	logContext(c)
+
 	paths, err := getFilePaths(c)
 	if err != nil {
 		applog.Fail(err)
@@ -264,6 +268,8 @@ type hsmRequestFn func(fs.RootDir, uint, []*lustre.Fid) error
 
 func hsmRequestAction(requestFn func(fs.RootDir, uint, []*lustre.Fid) error) func(*cli.Context) {
 	return func(c *cli.Context) {
+		logContext(c)
+
 		paths, err := getFilePaths(c)
 		if err != nil {
 			applog.Fail(err)

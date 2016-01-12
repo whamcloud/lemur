@@ -2,10 +2,11 @@ package main
 
 import (
 	"os"
+	"strings"
 
 	"github.com/codegangsta/cli"
 
-	"github.intel.com/hpdd/ce-tools/pkg/applog"
+	"github.intel.com/hpdd/applog"
 	"github.intel.com/hpdd/liblog"
 )
 
@@ -42,9 +43,22 @@ func main() {
 
 func configureLogging(c *cli.Context) error {
 	if c.Bool("debug") {
+		applog.SetLevel(applog.DEBUG)
 		liblog.Enable()
 	}
-	liblog.SetWriter(c.String("logfile"))
+	applog.SetJournal(c.String("logfile"))
+	liblog.SetWriter(applog.Writer("liblog"))
 
 	return nil
+}
+
+func logContext(c *cli.Context) {
+	for {
+		if c.Parent() == nil {
+			break
+		}
+		c = c.Parent()
+	}
+
+	applog.Debug("Context: %s", strings.Join(c.Args(), " "))
 }
