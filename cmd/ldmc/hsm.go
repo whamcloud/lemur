@@ -254,7 +254,7 @@ func hsmStatusAction(c *cli.Context) {
 	for _, path := range paths {
 		status, err := getPathStatus(c, path)
 		if err != nil {
-			applog.Fail(err)
+			applog.Fail("%s: %v", path, err)
 		}
 		fmt.Println(status)
 	}
@@ -276,11 +276,6 @@ func submitHsmRequest(actionName string, archiveID uint, paths ...string) error 
 
 	if len(paths) < 1 {
 		return fmt.Errorf("HSM %s request must be made with at least 1 path", actionName)
-	}
-
-	fsID, err := fs.GetID(paths[0])
-	if err != nil {
-		return fmt.Errorf("Error getting fs ID from %s: %s", paths[0], err)
 	}
 
 	fsRoot, err := fs.MountRoot(paths[0])
@@ -305,15 +300,15 @@ func submitHsmRequest(actionName string, archiveID uint, paths ...string) error 
 
 	switch actionName {
 	case "archive":
-		err = hsm.RequestArchive(fsID, archiveID, fids)
+		err = hsm.RequestArchive(fsRoot, archiveID, fids)
 	case "release":
-		err = hsm.RequestRelease(fsID, archiveID, fids)
+		err = hsm.RequestRelease(fsRoot, archiveID, fids)
 	case "restore":
-		err = hsm.RequestRestore(fsID, archiveID, fids)
+		err = hsm.RequestRestore(fsRoot, archiveID, fids)
 	case "remove":
-		err = hsm.RequestRemove(fsID, archiveID, fids)
+		err = hsm.RequestRemove(fsRoot, archiveID, fids)
 	case "cancel":
-		err = hsm.RequestCancel(fsID, archiveID, fids)
+		err = hsm.RequestCancel(fsRoot, archiveID, fids)
 	default:
 		err = fmt.Errorf("Unhandled HSM action: %s", actionName)
 	}
