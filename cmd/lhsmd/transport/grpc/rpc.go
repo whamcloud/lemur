@@ -8,7 +8,9 @@ import (
 	"sync"
 	"time"
 
+	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
+	"github.intel.com/hpdd/lustre/llapi"
 	"github.intel.com/hpdd/policy/pdm"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/agent"
 	pb "github.intel.com/hpdd/policy/pdm/pdm"
@@ -84,9 +86,10 @@ func (s *dataMoverServer) Register(context context.Context, e *pb.Endpoint) (*pb
 			log.Fatalf("not an rpc endpoint: %#v", ep)
 		}
 		if rpcEp.state == Connected {
+			log.Printf("register rejected for  %v already connected\n", e)
 			return nil, errors.New("Archived already connected")
 		} else {
-			// TODO: should flush and perhasp even delete the existing Endpoint
+			// TODO: should flush and perhaps even delete the existing Endpoint
 			// instead of just reusing it.
 			handle, err = s.agent.Endpoints.NewHandle(e.Archive)
 			if err != nil {
@@ -108,6 +111,23 @@ func (s *dataMoverServer) Register(context context.Context, e *pb.Endpoint) (*pb
 
 }
 
+func hsm2Command(a llapi.HsmAction) (c pb.Command) {
+	switch a {
+	case llapi.HsmActionArchive:
+		c = pb.Command_ARCHIVE
+	case llapi.HsmActionRestore:
+		c = pb.Command_RESTORE
+	case llapi.HsmActionRemove:
+		c = pb.Command_REMOVE
+	case llapi.HsmActionCancel:
+		c = pb.Command_CANCEL
+	default:
+		log.Fatalf("unknown command: %v", a)
+	}
+
+	return
+}
+
 /*
  * GetActions establish a connection the backend for a particular archive ID. The Endpoint
 * remains in Connected status as long as the backend is receiving messages from the agent.
@@ -127,35 +147,42 @@ func (s *dataMoverServer) GetActions(h *pb.Handle, stream pb.DataMover_GetAction
 	/* Should use atomic CAS here */
 	ep.state = Connected
 	defer func() {
+		log.Printf("user disconnected %v\n", h)
 		ep.state = Disconnected
 		s.agent.Endpoints.RemoveHandle((*agent.Handle)(&h.Id))
 	}()
 
-	for aih := range ep.actionCh {
-		// log.Printf("Got %q from user, sending %d to stream\n", msg, id)
-		s.stats.Count.Inc(1)
-		s.stats.Rate.Mark(1)
+	for {
+		select {
+		case <-stream.Context().Done():
+			return stream.Context().Err()
+		case aih := <-ep.actionCh:
+			// log.Printf("Got %q from user, sending %d to stream\n", msg, id)
+			s.stats.Count.Inc(1)
+			s.stats.Rate.Mark(1)
 
-		ep.mu.Lock()
-		ep.actions[uint64(aih.Cookie())] = aih
-		ep.mu.Unlock()
+			ep.mu.Lock()
+			ep.actions[uint64(aih.Cookie())] = aih
+			ep.mu.Unlock()
 
-		dfid, err := aih.DataFid()
-		if err != nil {
-			log.Fatal(err)
-		}
-		if err := stream.Send(&pb.ActionItem{
-			Cookie:     aih.Cookie(),
-			Op:         uint32(aih.Action()),
-			PrimaryFid: aih.Fid().String(),
-			WriteFid:   dfid.String(),
-			Offset:     aih.Offset(),
-			Length:     aih.Length(),
-			Data:       aih.Data(),
-		}); err != nil {
-			//			log.Printf("message %d failed to sen in %v\n", id, time.Since(ep.actions[id]))
-			log.Println(err)
-			return err
+			dfid, err := aih.DataFid()
+			if err != nil {
+				log.Fatal(err)
+			}
+			if err := stream.Send(&pb.ActionItem{
+				Cookie:      aih.Cookie(),
+				Op:          hsm2Command(aih.Action()),
+				PrimaryPath: fs.FidRelativePath(aih.Fid()),
+				WritePath:   fs.FidRelativePath(dfid),
+				Offset:      aih.Offset(),
+				Length:      aih.Length(),
+				Data:        aih.Data(),
+			}); err != nil {
+				//			log.Printf("message %d failed to sen in %v\n", id, time.Since(ep.actions[id]))
+				log.Println(err)
+				aih.End(0, 0, 0, int(-1))
+				return err
+			}
 		}
 	}
 	return nil
@@ -223,7 +250,7 @@ func newServer(a *agent.HsmAgent) *dataMoverServer {
 		agent: a,
 	}
 
-	srv.startStats()
+	//	srv.startStats()
 
 	return srv
 }

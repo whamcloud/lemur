@@ -6,12 +6,13 @@ package pdm;
 
 // Interface exported by the server.
 service DataMover {
-    rpc Register(Endpoint) returns (Handle) {}
-    rpc GetActions(Handle) returns (stream ActionItem) {}
-    rpc StatusStream(stream ActionStatus) returns (Empty) {}
+    rpc Register(Endpoint) returns (Handle);
+    rpc GetActions(Handle) returns (stream ActionItem);
+    rpc StatusStream(stream ActionStatus) returns (Empty);
 }
 
 message Endpoint {
+    string fs_url = 2;
     uint32 archive = 1;
 }
 
@@ -19,23 +20,33 @@ message Handle {
     uint64 id = 1;
 }
 
+enum Command {
+    NONE = 0;
+    ARCHIVE = 1;
+    RESTORE = 2;
+    REMOVE = 3;
+    CANCEL = 4;
+}
+
 message ActionItem {
-    uint64 cookie = 1;
-    uint32 op = 2;
-    string primary_fid = 3;
-    string write_fid = 4;
-    uint64 offset = 5;
-    uint64 length = 6;
-    bytes data = 7;
+    uint64 cookie = 1; // Unique indentifier for this action, must be used in status messages
+    Command op = 2; 
+    string primary_path = 3; // Path to primary file (for metadata or reading)
+    string write_path = 4; // Path for writing data (for restore)
+    uint64 offset = 5; // Start IO at offset
+    uint64 length = 6; // Number of bytes to copy
+    string file_id = 7; // Archive ID of file (provided with Restore command)
+    bytes data = 8; // Arbitrary data passed to action. Data Mover specific.
 }
 
 message ActionStatus {
-    uint64 cookie = 1;
-    bool  completed = 2;
-    int32  error = 3;
-    uint64 offset = 4;
+    uint64 cookie = 1; // Unique identifier for action
+    bool  completed = 2; // True if this is last update
+    int32  error = 3; // Non-zero indicates an error 
+    uint64 offset = 4; 
     uint64  length = 5;
     Handle handle = 6;
+    string file_id = 7; // Included with completion of Archive
 }
 
 

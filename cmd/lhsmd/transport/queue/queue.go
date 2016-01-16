@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"flag"
 	"log"
 	"sync"
 
@@ -20,11 +21,20 @@ type (
 	queueTransport struct{}
 )
 
+var reset, trace bool
+
 func init() {
+	flag.BoolVar(&reset, "reset", false, "Reset queue")
+	flag.BoolVar(&trace, "trace", false, "Print redis trace")
+
 	agent.RegisterTransport(&queueTransport{})
 }
 
 func (t *queueTransport) Init(conf *pdm.HSMConfig, a *agent.HsmAgent) {
+	if reset {
+		log.Println("Reseting pdm queue")
+		workq.MasterReset("pdm", conf.RedisServer)
+	}
 	log.Println("Initializing queue transport")
 	qep := &QueueEndpoint{
 		queue:    workq.NewMaster("pdm", conf.RedisServer),

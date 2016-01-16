@@ -35,13 +35,13 @@ type (
 	Mover struct {
 		root     fs.RootDir
 		queue    *workq.Worker
-		backends map[uint]Backend
+		backends map[uint32]Backend
 		wg       sync.WaitGroup
 	}
 )
 
 func (mover *Mover) initBackends(conf *pdm.HSMConfig) error {
-	mover.backends = make(map[uint]Backend, 0)
+	mover.backends = make(map[uint32]Backend, 0)
 	root, err := fs.MountRoot(conf.Lustre)
 	if err != nil {
 		glog.Fatal(err)

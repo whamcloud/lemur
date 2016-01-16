@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"time"
 
@@ -41,6 +42,27 @@ func init() {
 
 }
 
+func handler(actions chan *pb.ActionItem, status chan *pb.ActionStatus) {
+	for action := range actions {
+		switch action.Op {
+		case pb.Command_ARCHIVE:
+			log.Printf("%v not implemented: %x\n", action.Op, action.Cookie)
+
+		case pb.Command_RESTORE:
+			log.Printf("%v not implemented: %x\n", action.Op, action.Cookie)
+
+		case pb.Command_REMOVE:
+			log.Printf("%v not implemented: %x\n", action.Op, action.Cookie)
+
+		case pb.Command_CANCEL:
+			log.Printf("%v not implemented: %x\n", action.Op, action.Cookie)
+		}
+		time.Sleep((time.Duration(rand.Intn(3)) + 1) * time.Second)
+		rate.Mark(1)
+		status <- &pb.ActionStatus{Cookie: action.Cookie, Completed: true, Error: 1}
+	}
+}
+
 func noop(client pb.DataMoverClient) {
 	ctx := context.Background()
 	handle, err := client.Register(ctx, &pb.Endpoint{Archive: uint32(archive)})
@@ -54,10 +76,26 @@ func noop(client pb.DataMoverClient) {
 		log.Fatalf("GetActions() failed: %v", err)
 	}
 
-	acks, err := client.StatusStream(ctx)
-	if err != nil {
-		log.Fatalf("StatusStream() failed: %v", err)
-	}
+	actions := make(chan *pb.ActionItem)
+	status := make(chan *pb.ActionStatus)
+	go func() {
+		acks, err := client.StatusStream(ctx)
+		if err != nil {
+			log.Fatalf("StatusStream() failed: %v", err)
+		}
+		for reply := range status {
+			reply.Handle = handle
+			log.Printf("Sent reply  %x error: %#v\n", reply.Cookie, reply.Error)
+			err := acks.Send(reply)
+			if err != nil {
+				log.Fatalf("Failed to ack message %x: %v", reply.Cookie, err)
+			}
+
+		}
+	}()
+
+	go handler(actions, status)
+	go handler(actions, status)
 
 	for {
 		action, err := stream.Recv()
@@ -65,14 +103,13 @@ func noop(client pb.DataMoverClient) {
 			return
 		}
 		if err != nil {
+			close(actions)
+			close(status)
 			log.Fatalf("Failed to receive a message: %v", err)
 		}
-		fmt.Printf("\nGot message %x op: %#v\n", action.Cookie, action)
-		rate.Mark(1)
-		err = acks.Send(&pb.ActionStatus{Cookie: action.Cookie, Completed: true, Error: 1, Handle: handle})
-		if err != nil {
-			log.Fatalf("Failed to ack message %x: %v", action.Cookie, err)
-		}
+		log.Printf("Got message %x op: %v %v\n", action.Cookie, action.Op, action.PrimaryPath)
+
+		actions <- action
 	}
 }
 

@@ -26,7 +26,7 @@ type (
 	Archive struct {
 		Name             string `json:"name"`
 		Type             string `json:"type"`
-		ArchiveID        uint   `json:"archive_id"`
+		ArchiveID        uint32 `json:"archive_id"`
 		S3Url            string `json:"s3_url"`
 		PosixDir         string `json:"posix_dir"`
 		SnapshotsEnabled bool   `json:"snapshots_enabled"`
@@ -74,7 +74,7 @@ func parseArchiveFlag(value string, newArchive *Archive) error {
 			if val, err := strconv.Atoi(item); err != nil {
 				return err
 			} else {
-				newArchive.ArchiveID = uint(val)
+				newArchive.ArchiveID = uint32(val)
 			}
 
 		case 3:

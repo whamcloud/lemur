@@ -23,15 +23,15 @@ import (
 	"sync"
 	"syscall"
 
-	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
 	"github.intel.com/hpdd/policy/pdm"
+	"github.intel.com/hpdd/policy/pkg/client"
 )
 
 type (
 	// HsmAgent for a single filesytem and a collection of backends.
 	HsmAgent struct {
-		root      fs.RootDir
+		client    *client.Client
 		agent     hsm.Agent
 		wg        sync.WaitGroup
 		Endpoints *Endpoints
@@ -51,7 +51,7 @@ func (ct *HsmAgent) Stop() {
 
 func (ct *HsmAgent) initAgent(done chan struct{}) error {
 	var err error
-	ct.agent, err = hsm.Start(ct.root, done)
+	ct.agent, err = hsm.Start(ct.client.Root(), done)
 
 	if err != nil {
 		return err
@@ -72,9 +72,10 @@ func (ct *HsmAgent) handleActions() {
 		}
 
 		if e, ok := ct.Endpoints.Get(uint32(aih.ArchiveID())); ok {
-			log.Printf("Request: %#v", aih)
+			log.Printf("Request: %v", aih)
 			e.Send(aih)
 		} else {
+			log.Printf("No handler for archive %d", aih.ArchiveID())
 			aih.End(0, 0, 0, -1)
 		}
 
@@ -96,14 +97,14 @@ func RegisterTransport(t Transport) {
 }
 
 func Daemon(conf *pdm.HSMConfig) {
-	root, err := fs.MountRoot(conf.Lustre)
+	client, err := client.New(conf.Lustre)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	done := make(chan struct{})
 	ct := &HsmAgent{
-		root:      root,
+		client:    client,
 		Endpoints: NewEndpoints(),
 	}
 
