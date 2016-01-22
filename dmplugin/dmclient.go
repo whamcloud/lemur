@@ -1,4 +1,4 @@
-package main
+package dmplugin
 
 import (
 	"errors"
@@ -16,7 +16,7 @@ type (
 		rpcClient pb.DataMoverClient
 		stop      chan struct{}
 		status    chan *pb.ActionStatus
-		mover     AMover
+		mover     Mover
 	}
 
 	Action struct {
@@ -25,7 +25,7 @@ type (
 		fileId []byte
 	}
 
-	AMover interface {
+	Mover interface {
 		FsName() string
 		ArchiveID() uint32
 	}
@@ -120,6 +120,15 @@ func (a *Action) FileID() string {
 
 func (a *Action) SetFileID(id []byte) {
 	a.fileId = id
+}
+
+func New(cli pb.DataMoverClient, mover Mover) *DataMoverClient {
+	return &DataMoverClient{
+		rpcClient: cli,
+		mover:     mover,
+		stop:      make(chan struct{}),
+		status:    make(chan *pb.ActionStatus),
+	}
 }
 
 func (dm *DataMoverClient) Run() {
@@ -243,7 +252,7 @@ func (dm *DataMoverClient) handler(name string, actions chan *pb.ActionItem) {
 			ret = errors.New("Unknown cmmand")
 		}
 
-		rate.Mark(1)
+		//		rate.Mark(1)
 		log.Printf("completed (action: %v) %v ", action, ret)
 		if ret != nil {
 			action.Fail(ret)
@@ -252,13 +261,4 @@ func (dm *DataMoverClient) handler(name string, actions chan *pb.ActionItem) {
 		}
 	}
 	log.Printf("%s: stopping\n", name)
-}
-
-func NewDataMoverClient(cli pb.DataMoverClient, mover *Mover) *DataMoverClient {
-	return &DataMoverClient{
-		rpcClient: cli,
-		mover:     mover,
-		stop:      make(chan struct{}),
-		status:    make(chan *pb.ActionStatus),
-	}
 }

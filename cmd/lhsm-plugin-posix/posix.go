@@ -10,6 +10,7 @@ import (
 	"github.com/rcrowley/go-metrics"
 
 	"github.intel.com/hpdd/policy/pdm"
+	"github.intel.com/hpdd/policy/pdm/dmplugin"
 	pb "github.intel.com/hpdd/policy/pdm/pdm"
 	"github.intel.com/hpdd/policy/pkg/client"
 	"google.golang.org/grpc"
@@ -39,7 +40,7 @@ func init() {
 }
 
 func posix(cli pb.DataMoverClient, conf *pdm.HSMConfig) {
-	var movers []*DataMoverClient
+	var movers []*dmplugin.DataMoverClient
 	c, err := client.New(conf.Lustre)
 	if err != nil {
 		log.Fatal(err)
@@ -53,7 +54,7 @@ func posix(cli pb.DataMoverClient, conf *pdm.HSMConfig) {
 	for _, a := range conf.Archives {
 		if a.Type == "posix" {
 			mover := NewMover(a.Name, c, a.PosixDir, a.ArchiveID)
-			dm := NewDataMoverClient(cli, mover)
+			dm := dmplugin.New(cli, mover)
 			go dm.Run()
 			movers = append(movers, dm)
 		}

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 
+	"github.intel.com/hpdd/policy/pdm/dmplugin"
 	"github.intel.com/hpdd/policy/pkg/client"
 
 	"code.google.com/p/go-uuid/uuid"
@@ -42,7 +43,7 @@ func newFileId() string {
 	return uuid.New()
 }
 
-func CopyWithProgress(dst io.WriterAt, src io.ReaderAt, start int64, length int64, action *Action) (int64, error) {
+func CopyWithProgress(dst io.WriterAt, src io.ReaderAt, start int64, length int64, action *dmplugin.Action) (int64, error) {
 	//	log.Printf("Copy %d %d", start, length)
 	blockSize := 10 * 1024 * 1024 // FIXME: parameterize
 
@@ -89,7 +90,7 @@ func min(a, b int64) int64 {
 	return b
 }
 
-func (h *Mover) Archive(action *Action) error {
+func (h *Mover) Archive(action *dmplugin.Action) error {
 	log.Printf("%s: archive %s\n", h.name, action.PrimaryPath())
 
 	fileId := newFileId()
@@ -130,7 +131,7 @@ func (h *Mover) Archive(action *Action) error {
 	return nil
 }
 
-func (h *Mover) Restore(action *Action) error {
+func (h *Mover) Restore(action *dmplugin.Action) error {
 	log.Printf("%s: restore %s %s\n", h.name, action.PrimaryPath(), action.FileID())
 
 	if action.FileID() == "" {
@@ -172,7 +173,7 @@ func (h *Mover) Restore(action *Action) error {
 	return nil
 }
 
-func (h *Mover) Remove(action *Action) error {
+func (h *Mover) Remove(action *dmplugin.Action) error {
 	log.Printf("%s: remove %s %s\n", h.name, action.PrimaryPath(), action.FileID())
 	if action.FileID() == "" {
 		return errors.New("Missing file_id")
