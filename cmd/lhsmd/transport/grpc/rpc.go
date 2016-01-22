@@ -165,19 +165,30 @@ func (s *dataMoverServer) GetActions(h *pb.Handle, stream pb.DataMover_GetAction
 			ep.actions[uint64(aih.Cookie())] = aih
 			ep.mu.Unlock()
 
-			dfid, err := aih.DataFid()
-			if err != nil {
-				log.Fatal(err)
-			}
-			if err := stream.Send(&pb.ActionItem{
+			item := &pb.ActionItem{
 				Cookie:      aih.Cookie(),
 				Op:          hsm2Command(aih.Action()),
 				PrimaryPath: fs.FidRelativePath(aih.Fid()),
-				WritePath:   fs.FidRelativePath(dfid),
 				Offset:      aih.Offset(),
 				Length:      aih.Length(),
 				Data:        aih.Data(),
-			}); err != nil {
+			}
+
+			switch aih.Action() {
+			case llapi.HsmActionRestore, llapi.HsmActionRemove:
+				var err error
+				item.FileId, err = getFileID(s.agent.Root(), aih.Fid())
+				if err != nil {
+					log.Println(err) //hmm, can't restore if there is no file id
+				}
+			}
+
+			dfid, err := aih.DataFid()
+			if err == nil {
+				item.WritePath = fs.FidRelativePath(dfid)
+			}
+
+			if err := stream.Send(item); err != nil {
 				//			log.Printf("message %d failed to sen in %v\n", id, time.Since(ep.actions[id]))
 				log.Println(err)
 				aih.End(0, 0, 0, int(-1))
@@ -214,10 +225,18 @@ func (s *dataMoverServer) StatusStream(stream pb.DataMover_StatusStreamServer) e
 
 		aih, ok := ep.actions[status.Cookie]
 		if ok {
-			log.Printf("Client acked message %x complete: %v status: %d \n", status.Cookie,
+			log.Printf("Client acked message %x offset: %d length: %d complete: %v status: %d \n", status.Cookie,
+				status.Offset,
+				status.Length,
 				status.Completed, status.Error)
 			if status.Completed {
+				if status.FileId != nil {
+					updateFileID(s.agent.Root(), aih.Fid(), status.FileId)
+				}
 				aih.End(status.Offset, status.Length, 0, int(status.Error))
+				ep.mu.Lock()
+				delete(ep.actions, status.Cookie)
+				ep.mu.Unlock()
 			} else {
 				aih.Progress(status.Offset, status.Length, aih.Length(), 0)
 			}
@@ -225,9 +244,6 @@ func (s *dataMoverServer) StatusStream(stream pb.DataMover_StatusStreamServer) e
 			//log.Printf("Client acked message %d status: %s in %v\n",
 			//	ack.Id, nack.Status, duration)
 			//		s.stats.Latencies.Update(duration.Nanoseconds())
-			ep.mu.Lock()
-			delete(ep.actions, status.Cookie)
-			ep.mu.Unlock()
 		} else {
 			log.Printf("! unknown cookie: %x", status.Cookie)
 		}

@@ -35,18 +35,19 @@ message ActionItem {
     string write_path = 4; // Path for writing data (for restore)
     uint64 offset = 5; // Start IO at offset
     uint64 length = 6; // Number of bytes to copy
-    string file_id = 7; // Archive ID of file (provided with Restore command)
+    bytes file_id = 7; // Archive ID of file (provided with Restore command)
     bytes data = 8; // Arbitrary data passed to action. Data Mover specific.
 }
 
 message ActionStatus {
     uint64 cookie = 1; // Unique identifier for action
     bool  completed = 2; // True if this is last update
-    int32  error = 3; // Non-zero indicates an error 
+    int32  error = 3; // Non-zero indicates an error
     uint64 offset = 4; 
     uint64  length = 5;
     Handle handle = 6;
-    string file_id = 7; // Included with completion of Archive
+    bytes file_id = 7; // Included with completion of Archive
+    int32 flags = 8; // Additial flags (used for errors only?)
 }
 
 

@@ -23,6 +23,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
 	"github.intel.com/hpdd/policy/pdm"
 	"github.intel.com/hpdd/policy/pkg/client"
@@ -47,6 +48,10 @@ func (ct *HsmAgent) Stop() {
 	if ct.agent != nil {
 		ct.agent.Stop()
 	}
+}
+
+func (ct *HsmAgent) Root() fs.RootDir {
+	return ct.client.Root()
 }
 
 func (ct *HsmAgent) initAgent(done chan struct{}) error {
