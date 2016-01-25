@@ -25,6 +25,7 @@ import (
 	"syscall"
 
 	"github.com/golang/glog"
+	"github.intel.com/hpdd/liblog"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/policy/pdm"
 	"github.intel.com/hpdd/policy/pkg/workq"
@@ -82,7 +83,7 @@ func (mover *Mover) Process(d workq.Delivery) error {
 	}
 	var backend Backend
 	result, err := handleAction(backend, &r)
-	log.Printf("received: %v %v\n", r, err)
+	liblog.Debug("received: %v %v", r, err)
 
 	d.Status(result)
 	return nil

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.intel.com/hpdd/liblog"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
 	"github.intel.com/hpdd/lustre/llapi"
@@ -47,7 +48,7 @@ func init() {
 }
 
 func (t *rpcTransport) Init(conf *pdm.HSMConfig, a *agent.HsmAgent) {
-	log.Println("Initializing grpc transport")
+	liblog.Debug("Initializing grpc transport")
 	sock, err := net.Listen("tcp", ":4242")
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
@@ -86,7 +87,7 @@ func (s *dataMoverServer) Register(context context.Context, e *pb.Endpoint) (*pb
 			log.Fatalf("not an rpc endpoint: %#v", ep)
 		}
 		if rpcEp.state == Connected {
-			log.Printf("register rejected for  %v already connected\n", e)
+			liblog.Debug("register rejected for  %v already connected", e)
 			return nil, errors.New("Archived already connected")
 		} else {
 			// TODO: should flush and perhaps even delete the existing Endpoint
@@ -136,7 +137,7 @@ func hsm2Command(a llapi.HsmAction) (c pb.Command) {
 func (s *dataMoverServer) GetActions(h *pb.Handle, stream pb.DataMover_GetActionsServer) error {
 	temp, ok := s.agent.Endpoints.GetWithHandle((*agent.Handle)(&h.Id))
 	if !ok {
-		log.Printf("bad cookie  %v\n", h.Id)
+		liblog.Debug("bad cookie  %v", h.Id)
 		return errors.New("bad cookie")
 	}
 	ep, ok := temp.(*RpcEndpoint)
@@ -147,7 +148,7 @@ func (s *dataMoverServer) GetActions(h *pb.Handle, stream pb.DataMover_GetAction
 	/* Should use atomic CAS here */
 	ep.state = Connected
 	defer func() {
-		log.Printf("user disconnected %v\n", h)
+		liblog.Debug("user disconnected %v", h)
 		ep.state = Disconnected
 		s.agent.Endpoints.RemoveHandle((*agent.Handle)(&h.Id))
 	}()
@@ -157,7 +158,7 @@ func (s *dataMoverServer) GetActions(h *pb.Handle, stream pb.DataMover_GetAction
 		case <-stream.Context().Done():
 			return stream.Context().Err()
 		case aih := <-ep.actionCh:
-			// log.Printf("Got %q from user, sending %d to stream\n", msg, id)
+			// liblog.Debug("Got %q from user, sending %d to stream", msg, id)
 			s.stats.Count.Inc(1)
 			s.stats.Rate.Mark(1)
 
@@ -189,7 +190,7 @@ func (s *dataMoverServer) GetActions(h *pb.Handle, stream pb.DataMover_GetAction
 			}
 
 			if err := stream.Send(item); err != nil {
-				//			log.Printf("message %d failed to sen in %v\n", id, time.Since(ep.actions[id]))
+				//			liblog.Debug("message %d failed to sen in %v", id, time.Since(ep.actions[id]))
 				log.Println(err)
 				aih.End(0, 0, 0, int(-1))
 				return err
@@ -215,7 +216,7 @@ func (s *dataMoverServer) StatusStream(stream pb.DataMover_StatusStreamServer) e
 		}
 		temp, ok := s.agent.Endpoints.GetWithHandle((*agent.Handle)(&status.Handle.Id))
 		if !ok {
-			log.Printf("bad handle %v\n", status.Handle)
+			liblog.Debug("bad handle %v", status.Handle)
 			return errors.New("bad endpoint handle")
 		}
 		ep, ok := temp.(*RpcEndpoint)
@@ -225,7 +226,7 @@ func (s *dataMoverServer) StatusStream(stream pb.DataMover_StatusStreamServer) e
 
 		aih, ok := ep.actions[status.Cookie]
 		if ok {
-			log.Printf("Client acked message %x offset: %d length: %d complete: %v status: %d \n", status.Cookie,
+			liblog.Debug("Client acked message %x offset: %d length: %d complete: %v status: %d", status.Cookie,
 				status.Offset,
 				status.Length,
 				status.Completed, status.Error)
@@ -241,11 +242,11 @@ func (s *dataMoverServer) StatusStream(stream pb.DataMover_StatusStreamServer) e
 				aih.Progress(status.Offset, status.Length, aih.Length(), 0)
 			}
 			//		duration := time.Since(ep.actions[status.Cookie])
-			//log.Printf("Client acked message %d status: %s in %v\n",
+			//liblog.Debug("Client acked message %d status: %s in %v",
 			//	ack.Id, nack.Status, duration)
 			//		s.stats.Latencies.Update(duration.Nanoseconds())
 		} else {
-			log.Printf("! unknown cookie: %x", status.Cookie)
+			liblog.Debug("! unknown cookie: %x", status.Cookie)
 		}
 
 	}

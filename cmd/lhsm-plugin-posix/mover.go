@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 
+	"github.intel.com/hpdd/liblog"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
 	"github.intel.com/hpdd/policy/pkg/client"
 
@@ -44,7 +45,7 @@ func newFileId() string {
 }
 
 func CopyWithProgress(dst io.WriterAt, src io.ReaderAt, start int64, length int64, action *dmplugin.Action) (int64, error) {
-	//	log.Printf("Copy %d %d", start, length)
+	//	liblog.Debug("Copy %d %d", start, length)
 	blockSize := 10 * 1024 * 1024 // FIXME: parameterize
 
 	offset := start
@@ -91,7 +92,7 @@ func min(a, b int64) int64 {
 }
 
 func (h *Mover) Archive(action *dmplugin.Action) error {
-	log.Printf("%s: archive %s\n", h.name, action.PrimaryPath())
+	liblog.Debug("%s: archive %s", h.name, action.PrimaryPath())
 
 	fileId := newFileId()
 
@@ -122,17 +123,17 @@ func (h *Mover) Archive(action *dmplugin.Action) error {
 
 	n, err := CopyWithProgress(dst, src, action.Offset(), length, action)
 	if err != nil {
-		log.Printf("copy error %v read %d expected %d", err, n, length)
+		liblog.Debug("copy error %v read %d expected %d", err, n, length)
 		return err
 	}
 
-	log.Printf("Archived %d bytes from %s to %s", n, action.PrimaryPath(), h.destination(fileId))
+	liblog.Debug("Archived %d bytes from %s to %s", n, action.PrimaryPath(), h.destination(fileId))
 	action.SetFileID([]byte(fileId))
 	return nil
 }
 
 func (h *Mover) Restore(action *dmplugin.Action) error {
-	log.Printf("%s: restore %s %s\n", h.name, action.PrimaryPath(), action.FileID())
+	liblog.Debug("%s: restore %s %s", h.name, action.PrimaryPath(), action.FileID())
 
 	if action.FileID() == "" {
 		return errors.New("Missing file_id")
@@ -165,16 +166,16 @@ func (h *Mover) Restore(action *dmplugin.Action) error {
 
 	n, err := CopyWithProgress(dst, src, action.Offset(), length, action)
 	if err != nil {
-		log.Printf("copy error %v read %d expected %d", err, n, length)
+		liblog.Debug("copy error %v read %d expected %d", err, n, length)
 		return err
 	}
 
-	log.Printf("Restored %d bytes from %s to %s", n, action.PrimaryPath(), h.destination(action.FileID()))
+	liblog.Debug("Restored %d bytes from %s to %s", n, action.PrimaryPath(), h.destination(action.FileID()))
 	return nil
 }
 
 func (h *Mover) Remove(action *dmplugin.Action) error {
-	log.Printf("%s: remove %s %s\n", h.name, action.PrimaryPath(), action.FileID())
+	liblog.Debug("%s: remove %s %s", h.name, action.PrimaryPath(), action.FileID())
 	if action.FileID() == "" {
 		return errors.New("Missing file_id")
 	}

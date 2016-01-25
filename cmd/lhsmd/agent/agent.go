@@ -23,6 +23,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.intel.com/hpdd/liblog"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
 	"github.intel.com/hpdd/policy/pdm"
@@ -69,18 +70,18 @@ func (ct *HsmAgent) handleActions() {
 
 	ch := ct.agent.Actions()
 	for ai := range ch {
-		log.Printf("incoming: %s", ai)
+		liblog.Debug("incoming: %s", ai)
 		aih, err := ai.Begin(0, false)
 		if err != nil {
-			log.Printf("begin failed: %v", err)
+			liblog.Debug("begin failed: %v", err)
 			continue
 		}
 
 		if e, ok := ct.Endpoints.Get(uint32(aih.ArchiveID())); ok {
-			log.Printf("Request: %v", aih)
+			liblog.Debug("Request: %v", aih)
 			e.Send(aih)
 		} else {
-			log.Printf("No handler for archive %d", aih.ArchiveID())
+			liblog.Debug("No handler for archive %d", aih.ArchiveID())
 			aih.End(0, 0, 0, -1)
 		}
 

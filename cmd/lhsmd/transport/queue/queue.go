@@ -5,6 +5,7 @@ import (
 	"log"
 	"sync"
 
+	"github.intel.com/hpdd/liblog"
 	"github.intel.com/hpdd/lustre/hsm"
 	"github.intel.com/hpdd/lustre/llapi"
 	"github.intel.com/hpdd/policy/pdm"
@@ -90,16 +91,16 @@ func (ep *QueueEndpoint) Update(d workq.StatusDelivery) error {
 		log.Println(err)
 		return err
 	}
-	log.Printf("reply: %v\n", reply)
+	liblog.Debug("reply: %v", reply)
 
 	ep.mu.Lock()
 	defer ep.mu.Unlock()
 	if aih, ok := ep.requests[reply.Cookie]; ok {
 		delete(ep.requests, reply.Cookie)
-		log.Printf("end: %s", aih)
+		liblog.Debug("end: %s", aih)
 		aih.End(0, 0, 0, -1)
 	} else {
-		log.Printf("! unknown handle: %s", reply.Cookie)
+		liblog.Debug("! unknown handle: %s", reply.Cookie)
 	}
 	return nil
 }
