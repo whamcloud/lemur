@@ -27,12 +27,12 @@ func main() {
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{
 			Name:  "debug",
-			Usage: "Enable debug logging",
+			Usage: "Display debug logging to console",
 		},
 		cli.StringFlag{
-			Name:  "logfile",
-			Usage: "Logfile for debug logging",
-			Value: "stderr",
+			Name:  "logfile, l",
+			Usage: "Log tool activity to this file",
+			Value: "",
 		},
 	}
 	app.Before = configureLogging
