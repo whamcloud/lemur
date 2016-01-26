@@ -1,7 +1,6 @@
 package client
 
 import (
-	"log"
 	"syscall"
 
 	"github.intel.com/hpdd/lustre/fs"
@@ -40,15 +39,15 @@ func getFsID(mountPath string) (*FsID, error) {
 func New(path string) (*Client, error) {
 	root, err := fs.MountRoot(path)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	name, err := getFsName(root.Path())
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	id, err := getFsID(path)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	return &Client{root: root,
 		fsName: name,
