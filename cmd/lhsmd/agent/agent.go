@@ -17,7 +17,6 @@ Initially the main focus is for HSM.
 package agent
 
 import (
-	"log"
 	"os"
 	"os/signal"
 	"sync"
@@ -102,10 +101,10 @@ func RegisterTransport(t Transport) {
 	transports = append(transports, t)
 }
 
-func Daemon(conf *pdm.HSMConfig) {
+func Daemon(conf *pdm.HSMConfig) error {
 	client, err := client.New(conf.Lustre)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	done := make(chan struct{})
@@ -123,10 +122,11 @@ func Daemon(conf *pdm.HSMConfig) {
 		t.Init(conf, ct)
 	}
 
+	errChan := make(chan error)
 	go func() {
 		err := ct.initAgent(done)
 		if err != nil {
-			log.Fatal(err)
+			errChan <- err
 			return
 		}
 
@@ -135,9 +135,15 @@ func Daemon(conf *pdm.HSMConfig) {
 		}
 	}()
 
-	<-done
-	ct.wg.Wait()
-
+	for {
+		select {
+		case <-done:
+			ct.wg.Wait()
+			return nil
+		case err := <-errChan:
+			return err
+		}
+	}
 }
 
 func interruptHandler(once func()) {
@@ -147,7 +153,7 @@ func interruptHandler(once func()) {
 	go func() {
 		stopping := false
 		for sig := range c {
-			log.Println("signal received:", sig)
+			liblog.Debug("signal received: %s", sig)
 			if !stopping {
 				stopping = true
 				once()

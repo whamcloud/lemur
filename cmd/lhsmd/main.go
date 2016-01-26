@@ -22,16 +22,20 @@ func init() {
 func main() {
 	flag.Parse()
 
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	if enableDebug {
 		applog.SetLevel(applog.DEBUG)
 		liblog.Enable()
 	}
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	// Setting the prefix helps us to track down deprecated calls to log.*
+	log.SetOutput(applog.Writer().Prefix("DEPRECATED"))
 	liblog.SetWriter(applog.Writer())
 
 	conf := pdm.ConfigInitMust()
 
-	log.Printf("current configuration:\n%v", conf.String())
+	applog.Debug("current configuration:\n%v", conf.String())
 
-	agent.Daemon(conf)
+	if err := agent.Daemon(conf); err != nil {
+		applog.Fail("Error in agent.Daemon(): %s", err)
+	}
 }
