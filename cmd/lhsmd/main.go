@@ -3,6 +3,11 @@ package main
 import (
 	"flag"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"golang.org/x/net/context"
 
 	"github.intel.com/hpdd/policy/pdm"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/agent"
@@ -16,6 +21,23 @@ var enableDebug bool
 
 func init() {
 	flag.BoolVar(&enableDebug, "debug", false, "enable debug output")
+}
+
+func interruptHandler(once func()) {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGQUIT, syscall.SIGTERM)
+
+	go func() {
+		stopping := false
+		for sig := range c {
+			svclog.Debug("signal received: %s", sig)
+			if !stopping {
+				stopping = true
+				once()
+			}
+		}
+	}()
+
 }
 
 func main() {
@@ -32,7 +54,17 @@ func main() {
 
 	svclog.Debug("current configuration:\n%v", conf.String())
 
-	if err := agent.Daemon(conf); err != nil {
-		svclog.Fail("Error in agent.Daemon(): %s", err)
+	ct, err := agent.New(conf)
+	if err != nil {
+		svclog.Fail("Error creating agent: %s", err)
+	}
+
+	interruptHandler(func() {
+		ct.Stop()
+	})
+
+	ctx := context.Background()
+	if err := ct.Start(ctx); err != nil {
+		svclog.Fail("Error in HsmAgent.Start(): %s", err)
 	}
 }

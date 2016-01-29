@@ -17,10 +17,9 @@ Initially the main focus is for HSM.
 package agent
 
 import (
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
+
+	"golang.org/x/net/context"
 
 	"github.intel.com/hpdd/liblog"
 	"github.intel.com/hpdd/lustre/fs"
@@ -32,6 +31,10 @@ import (
 type (
 	// HsmAgent for a single filesytem and a collection of backends.
 	HsmAgent struct {
+		context context.Context
+		cancel  context.CancelFunc
+
+		config    *pdm.HSMConfig
 		client    *client.Client
 		agent     hsm.Agent
 		wg        sync.WaitGroup
@@ -40,23 +43,72 @@ type (
 
 	// Transport for backend plugins
 	Transport interface {
-		Init(*pdm.HSMConfig, *HsmAgent)
+		Init(*pdm.HSMConfig, *HsmAgent) error
 	}
 )
 
+// New accepts a config and returns a *HsmAgent
+func New(cfg *pdm.HSMConfig) (*HsmAgent, error) {
+	client, err := client.New(cfg.Lustre)
+	if err != nil {
+		return nil, err
+	}
+
+	ct := &HsmAgent{
+		config:    cfg,
+		client:    client,
+		Endpoints: NewEndpoints(),
+	}
+
+	return ct, nil
+}
+
+// Start backgrounds the agent and starts backend data movers
+func (ct *HsmAgent) Start(ctx context.Context) error {
+	ct.context, ct.cancel = context.WithCancel(ctx)
+
+	for _, t := range transports {
+		if err := t.Init(ct.config, ct); err != nil {
+			return err
+		}
+	}
+
+	if err := ct.initAgent(ct.context); err != nil {
+		return err
+	}
+
+	for i := 0; i < ct.config.Processes; i++ {
+		ct.addHandler()
+	}
+
+	for {
+		select {
+		case <-ct.context.Done():
+			ct.wg.Wait()
+			return nil
+		}
+	}
+}
+
+// Stop shuts down all backend data movers and kills the agent
 func (ct *HsmAgent) Stop() {
 	if ct.agent != nil {
 		ct.agent.Stop()
 	}
+
+	if ct.cancel != nil {
+		ct.cancel()
+	}
 }
 
+// Root returns a fs.RootDir representing the Lustre filesystem root
 func (ct *HsmAgent) Root() fs.RootDir {
 	return ct.client.Root()
 }
 
-func (ct *HsmAgent) initAgent(done chan struct{}) error {
+func (ct *HsmAgent) initAgent(ctx context.Context) error {
 	var err error
-	ct.agent, err = hsm.Start(ct.client.Root(), done)
+	ct.agent, err = hsm.Start(ct.client.Root(), ctx)
 
 	if err != nil {
 		return err
@@ -97,68 +149,7 @@ func (ct *HsmAgent) addHandler() {
 
 var transports []Transport
 
+// RegisterTransport registers the transport in the list of known transports
 func RegisterTransport(t Transport) {
 	transports = append(transports, t)
-}
-
-func Daemon(conf *pdm.HSMConfig) error {
-	client, err := client.New(conf.Lustre)
-	if err != nil {
-		return err
-	}
-
-	done := make(chan struct{})
-	ct := &HsmAgent{
-		client:    client,
-		Endpoints: NewEndpoints(),
-	}
-
-	interruptHandler(func() {
-		close(done)
-		ct.Stop()
-	})
-
-	for _, t := range transports {
-		t.Init(conf, ct)
-	}
-
-	errChan := make(chan error)
-	go func() {
-		err := ct.initAgent(done)
-		if err != nil {
-			errChan <- err
-			return
-		}
-
-		for i := 0; i < conf.Processes; i++ {
-			ct.addHandler()
-		}
-	}()
-
-	for {
-		select {
-		case <-done:
-			ct.wg.Wait()
-			return nil
-		case err := <-errChan:
-			return err
-		}
-	}
-}
-
-func interruptHandler(once func()) {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGQUIT, syscall.SIGTERM)
-
-	go func() {
-		stopping := false
-		for sig := range c {
-			liblog.Debug("signal received: %s", sig)
-			if !stopping {
-				stopping = true
-				once()
-			}
-		}
-	}()
-
 }

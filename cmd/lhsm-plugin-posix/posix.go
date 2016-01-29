@@ -8,21 +8,24 @@ import (
 	"syscall"
 
 	"github.com/rcrowley/go-metrics"
+	"google.golang.org/grpc"
 
 	"github.intel.com/hpdd/policy/pdm"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
 	pb "github.intel.com/hpdd/policy/pdm/pdm"
 	"github.intel.com/hpdd/policy/pkg/client"
-	"google.golang.org/grpc"
+	"github.intel.com/hpdd/svclog"
 )
 
 var (
-	rate metrics.Meter
+	rate        metrics.Meter
+	enableDebug bool
 )
 
 func init() {
 	rate = metrics.NewMeter()
 
+	flag.BoolVar(&enableDebug, "debug", false, "Enable debug logging")
 	/*
 		go func() {
 			for {
@@ -70,6 +73,10 @@ func main() {
 
 	conf := pdm.ConfigInitMust()
 	flag.Parse()
+
+	if enableDebug {
+		svclog.EnableDebug()
+	}
 
 	conn, err := grpc.Dial("localhost:4242", grpc.WithInsecure())
 	if err != nil {

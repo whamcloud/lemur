@@ -47,17 +47,18 @@ func init() {
 	agent.RegisterTransport(&rpcTransport{})
 }
 
-func (t *rpcTransport) Init(conf *pdm.HSMConfig, a *agent.HsmAgent) {
+func (t *rpcTransport) Init(conf *pdm.HSMConfig, a *agent.HsmAgent) error {
 	liblog.Debug("Initializing grpc transport")
 	sock, err := net.Listen("tcp", ":4242")
 	if err != nil {
-		log.Fatalf("Failed to listen: %v", err)
+		return fmt.Errorf("Failed to listen: %v", err)
 	}
 
 	srv := grpc.NewServer()
 	pb.RegisterDataMoverServer(srv, newServer(a))
 	go srv.Serve(sock)
 
+	return nil
 }
 
 func (ep *RpcEndpoint) Send(aih hsm.ActionHandle) {
