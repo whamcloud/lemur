@@ -69,14 +69,15 @@ func posix(cli pb.DataMoverClient, conf *pdm.HSMConfig) {
 }
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
-	conf := pdm.ConfigInitMust()
 	flag.Parse()
 
 	if enableDebug {
 		svclog.EnableDebug()
 	}
+
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	conf := pdm.ConfigInitMust()
 
 	conn, err := grpc.Dial("localhost:4242", grpc.WithInsecure())
 	if err != nil {
