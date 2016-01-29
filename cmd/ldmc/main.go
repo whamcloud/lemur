@@ -47,7 +47,7 @@ func configureLogging(c *cli.Context) error {
 		liblog.Enable()
 	}
 	applog.SetJournal(c.String("logfile"))
-	liblog.SetWriter(applog.Writer("liblog"))
+	liblog.SetWriter(applog.Writer().Prefix("liblog"))
 
 	return nil
 }
