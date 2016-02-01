@@ -1,31 +1,54 @@
 package main
 
 import (
+	"bytes"
 	"flag"
-	"log"
+	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/rcrowley/go-metrics"
 	"google.golang.org/grpc"
 
-	"github.intel.com/hpdd/policy/pdm"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
 	pb "github.intel.com/hpdd/policy/pdm/pdm"
 	"github.intel.com/hpdd/policy/pkg/client"
 	"github.intel.com/hpdd/svclog"
 )
 
+type (
+	archiveConfig struct {
+		id          uint32
+		archiveRoot string
+	}
+
+	archiveSet map[uint32]*archiveConfig
+
+	posixConfig struct {
+		enableDebug bool
+		clientRoot  string
+		archives    archiveSet
+	}
+)
+
 var (
-	rate        metrics.Meter
-	enableDebug bool
+	rate   metrics.Meter
+	config *posixConfig
 )
 
 func init() {
 	rate = metrics.NewMeter()
 
-	flag.BoolVar(&enableDebug, "debug", false, "Enable debug logging")
+	config = &posixConfig{
+		archives: make(archiveSet),
+	}
+
+	flag.BoolVar(&config.enableDebug, "debug", false, "Enable debug logging")
+	flag.StringVar(&config.clientRoot, "client", "", "Lustre client mountpoint")
+	flag.Var(config.archives, "archive", "Archive definition(s) (id,archiveRoot)")
 	/*
 		go func() {
 			for {
@@ -42,11 +65,42 @@ func init() {
 	*/
 }
 
-func posix(cli pb.DataMoverClient, conf *pdm.HSMConfig) {
-	var movers []*dmplugin.DataMoverClient
-	c, err := client.New(conf.Lustre)
+func (set archiveSet) String() string {
+	var buf bytes.Buffer
+
+	for _, a := range set {
+		fmt.Fprintf(&buf, "%d:%s\n", a.id, a.archiveRoot)
+	}
+
+	return buf.String()
+}
+
+func (set archiveSet) Set(value string) error {
+	// id,archiveRoot
+	fields := strings.Split(value, ",")
+	if len(fields) != 2 {
+		return fmt.Errorf("Unable to parse %q", value)
+	}
+
+	id, err := strconv.ParseUint(fields[0], 10, 32)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("Unable to parse %q: %s", fields[0], err)
+	}
+
+	set[uint32(id)] = &archiveConfig{
+		id:          uint32(id),
+		archiveRoot: fields[1],
+	}
+
+	return nil
+}
+
+func posix(cli pb.DataMoverClient) {
+	var movers []*dmplugin.DataMoverClient
+
+	c, err := client.New(config.clientRoot)
+	if err != nil {
+		svclog.Fail(err)
 	}
 
 	done := make(chan struct{})
@@ -54,14 +108,13 @@ func posix(cli pb.DataMoverClient, conf *pdm.HSMConfig) {
 		close(done)
 	})
 
-	for _, a := range conf.Archives {
-		if a.Type == "posix" {
-			mover := NewMover(a.Name, c, a.PosixDir, a.ArchiveID)
-			dm := dmplugin.New(cli, mover)
-			go dm.Run()
-			movers = append(movers, dm)
-		}
+	for _, a := range config.archives {
+		mover := NewMover(fmt.Sprintf("posix-%d", a.id), c, a.archiveRoot, a.id)
+		dm := dmplugin.New(cli, mover)
+		go dm.Run()
+		movers = append(movers, dm)
 	}
+
 	<-done
 	for _, dm := range movers {
 		dm.Stop()
@@ -69,23 +122,20 @@ func posix(cli pb.DataMoverClient, conf *pdm.HSMConfig) {
 }
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
-	conf := pdm.ConfigInitMust()
 	flag.Parse()
 
-	if enableDebug {
+	if config.enableDebug {
 		svclog.EnableDebug()
 	}
 
 	conn, err := grpc.Dial("localhost:4242", grpc.WithInsecure())
 	if err != nil {
-		log.Fatalf("failed to dial: %v", err)
+		svclog.Fail("failed to dial: %s", err)
 	}
 	defer conn.Close()
 	cli := pb.NewDataMoverClient(conn)
 
-	posix(cli, conf)
+	posix(cli)
 }
 
 func interruptHandler(once func()) {
@@ -95,7 +145,7 @@ func interruptHandler(once func()) {
 	go func() {
 		stopping := false
 		for sig := range c {
-			log.Println("signal received:", sig)
+			svclog.Debug("signal received: %s", sig)
 			if !stopping {
 				stopping = true
 				once()

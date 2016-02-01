@@ -9,7 +9,6 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.intel.com/hpdd/policy/pdm"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/agent"
 	"github.intel.com/hpdd/svclog"
 
@@ -45,12 +44,16 @@ func main() {
 
 	if enableDebug {
 		svclog.EnableDebug()
+
+		// Set this so that plugins can use it without needing
+		// to mess around with plugin args.
+		os.Setenv("LIBLOG_DEBUG_ENABLED", "true")
 	}
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	// Setting the prefix helps us to track down deprecated calls to log.*
 	log.SetOutput(svclog.Writer().Prefix("DEPRECATED"))
 
-	conf := pdm.ConfigInitMust()
+	conf := agent.ConfigInitMust()
 
 	svclog.Debug("current configuration:\n%v", conf.String())
 

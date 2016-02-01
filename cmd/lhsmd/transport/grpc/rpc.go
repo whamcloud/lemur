@@ -12,7 +12,6 @@ import (
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
 	"github.intel.com/hpdd/lustre/llapi"
-	"github.intel.com/hpdd/policy/pdm"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/agent"
 	pb "github.intel.com/hpdd/policy/pdm/pdm"
 	"golang.org/x/net/context"
@@ -47,7 +46,7 @@ func init() {
 	agent.RegisterTransport(&rpcTransport{})
 }
 
-func (t *rpcTransport) Init(conf *pdm.HSMConfig, a *agent.HsmAgent) error {
+func (t *rpcTransport) Init(conf *agent.Config, a *agent.HsmAgent) error {
 	liblog.Debug("Initializing grpc transport")
 	sock, err := net.Listen("tcp", ":4242")
 	if err != nil {
