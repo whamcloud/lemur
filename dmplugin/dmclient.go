@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"sync"
 	"syscall"
 
 	"github.intel.com/hpdd/liblog"
@@ -21,7 +22,7 @@ type (
 	}
 
 	Action struct {
-		dm     *DataMoverClient
+		status chan *pb.ActionStatus
 		item   *pb.ActionItem
 		fileId []byte
 	}
@@ -58,7 +59,7 @@ func getHandle(ctx context.Context) (*pb.Handle, bool) {
 }
 
 func (action *Action) Update(offset, length, max int64) error {
-	action.dm.status <- &pb.ActionStatus{
+	action.status <- &pb.ActionStatus{
 		Cookie: action.item.Cookie,
 		Offset: uint64(offset),
 		Length: uint64(length),
@@ -67,7 +68,7 @@ func (action *Action) Update(offset, length, max int64) error {
 }
 
 func (action *Action) Complete() error {
-	action.dm.status <- &pb.ActionStatus{
+	action.status <- &pb.ActionStatus{
 		Cookie:    action.item.Cookie,
 		Completed: true,
 		Offset:    action.item.Offset,
@@ -86,7 +87,7 @@ func getErrno(err error) int32 {
 
 func (action *Action) Fail(err error) error {
 	liblog.Debug("fail: %v %v", action.item.Cookie, err)
-	action.dm.status <- &pb.ActionStatus{
+	action.status <- &pb.ActionStatus{
 		Cookie:    action.item.Cookie,
 		Completed: true,
 
@@ -133,6 +134,7 @@ func NewMover(cli pb.DataMoverClient, mover Mover) *DataMoverClient {
 }
 
 func (dm *DataMoverClient) Run() {
+	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
 
 	handle, err := dm.registerEndpoint(ctx)
@@ -144,12 +146,17 @@ func (dm *DataMoverClient) Run() {
 	dm.processStatus(ctx)
 
 	for i := 0; i < 2; i++ {
-		go dm.handler(fmt.Sprintf("handler-%d", i), actions)
+		wg.Add(1)
+		go func(i int) {
+			dm.handler(fmt.Sprintf("handler-%d", i), actions)
+			wg.Done()
+		}(i)
 	}
 
 	<-dm.stop
 	liblog.Debug("Shutting down Data Mover")
 	cancel()
+	wg.Wait()
 	close(dm.status)
 }
 
@@ -228,8 +235,8 @@ func (dm *DataMoverClient) handler(name string, actions chan *pb.ActionItem) {
 	for item := range actions {
 		var ret error
 		action := &Action{
-			dm:   dm,
-			item: item,
+			status: dm.status,
+			item:   item,
 		}
 
 		ret = errors.New("Command not supported")

@@ -39,10 +39,11 @@ type (
 
 		config    *Config
 		client    *client.Client
-		agent     hsm.Agent
 		wg        sync.WaitGroup
 		Endpoints *Endpoints
 		Backends  backendMap
+		mu        sync.Mutex // Protject the agent
+		agent     hsm.Agent
 	}
 
 	// Transport for backend plugins
@@ -109,6 +110,8 @@ func (ct *HsmAgent) Start(ctx context.Context) error {
 
 // Stop shuts down all backend data movers and kills the agent
 func (ct *HsmAgent) Stop() {
+	ct.mu.Lock()
+	defer ct.mu.Unlock()
 	if ct.agent != nil {
 		ct.agent.Stop()
 	}
@@ -125,6 +128,8 @@ func (ct *HsmAgent) Root() fs.RootDir {
 
 func (ct *HsmAgent) initAgent(ctx context.Context) error {
 	var err error
+	ct.mu.Lock()
+	defer ct.mu.Unlock()
 	ct.agent, err = hsm.Start(ctx, ct.client.Root())
 
 	if err != nil {
@@ -135,7 +140,6 @@ func (ct *HsmAgent) initAgent(ctx context.Context) error {
 }
 
 func (ct *HsmAgent) handleActions() {
-
 	ch := ct.agent.Actions()
 	for ai := range ch {
 		liblog.Debug("incoming: %s", ai)
@@ -152,7 +156,6 @@ func (ct *HsmAgent) handleActions() {
 			liblog.Debug("No handler for archive %d", aih.ArchiveID())
 			aih.End(0, 0, 0, -1)
 		}
-
 	}
 }
 
