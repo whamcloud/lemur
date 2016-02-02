@@ -123,7 +123,7 @@ func (a *Action) SetFileID(id []byte) {
 	a.fileId = id
 }
 
-func New(cli pb.DataMoverClient, mover Mover) *DataMoverClient {
+func NewMover(cli pb.DataMoverClient, mover Mover) *DataMoverClient {
 	return &DataMoverClient{
 		rpcClient: cli,
 		mover:     mover,

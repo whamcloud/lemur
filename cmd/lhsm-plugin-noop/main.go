@@ -5,8 +5,6 @@ import (
 	"log"
 
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
-	pb "github.intel.com/hpdd/policy/pdm/pdm"
-	"google.golang.org/grpc"
 )
 
 var (
@@ -30,23 +28,22 @@ func (m *Mover) ArchiveID() uint32 {
 	return m.archiveID
 }
 
-func noop(client pb.DataMoverClient) {
+func noop(agentAddress string) {
 	done := make(chan struct{})
+
+	plugin, err := dmplugin.New(agentAddress)
+	if err != nil {
+		log.Fatal(err)
+	}
 	mover := Mover{fsName: "noop", archiveID: uint32(archive)}
-	dm := dmplugin.New(client, &mover)
-	dm.Run()
+	plugin.AddMover(&mover)
+
 	<-done
+	plugin.Stop()
 }
 
 func main() {
 	flag.Parse()
 
-	conn, err := grpc.Dial("localhost:4242", grpc.WithInsecure())
-	if err != nil {
-		log.Fatalf("failed to dial: %v", err)
-	}
-	defer conn.Close()
-	client := pb.NewDataMoverClient(conn)
-
-	noop(client)
+	noop("localhost:4242")
 }

@@ -23,9 +23,9 @@ type Mover struct {
 	archiveID  uint32
 }
 
-func NewMover(name string, c *client.Client, archiveDir string, archiveID uint32) *Mover {
+func PosixMover(c *client.Client, archiveDir string, archiveID uint32) *Mover {
 	return &Mover{
-		name:       name,
+		name:       fmt.Sprintf("posix-%d", archiveID),
 		client:     c,
 		archiveDir: archiveDir,
 		archiveID:  archiveID,

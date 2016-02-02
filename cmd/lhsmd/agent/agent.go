@@ -125,7 +125,7 @@ func (ct *HsmAgent) Root() fs.RootDir {
 
 func (ct *HsmAgent) initAgent(ctx context.Context) error {
 	var err error
-	ct.agent, err = hsm.Start(ct.client.Root(), ctx)
+	ct.agent, err = hsm.Start(ctx, ct.client.Root())
 
 	if err != nil {
 		return err

@@ -11,10 +11,8 @@ import (
 	"syscall"
 
 	"github.com/rcrowley/go-metrics"
-	"google.golang.org/grpc"
 
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
-	pb "github.intel.com/hpdd/policy/pdm/pdm"
 	"github.intel.com/hpdd/policy/pkg/client"
 	"github.intel.com/hpdd/svclog"
 )
@@ -28,9 +26,10 @@ type (
 	archiveSet map[uint32]*archiveConfig
 
 	posixConfig struct {
-		enableDebug bool
-		clientRoot  string
-		archives    archiveSet
+		agentAddress string
+		enableDebug  bool
+		clientRoot   string
+		archives     archiveSet
 	}
 )
 
@@ -43,7 +42,8 @@ func init() {
 	rate = metrics.NewMeter()
 
 	config = &posixConfig{
-		archives: make(archiveSet),
+		agentAddress: "localhost:4242",
+		archives:     make(archiveSet),
 	}
 
 	flag.BoolVar(&config.enableDebug, "debug", false, "Enable debug logging")
@@ -95,9 +95,7 @@ func (set archiveSet) Set(value string) error {
 	return nil
 }
 
-func posix(cli pb.DataMoverClient) {
-	var movers []*dmplugin.DataMoverClient
-
+func posix(config *posixConfig) {
 	c, err := client.New(config.clientRoot)
 	if err != nil {
 		svclog.Fail(err)
@@ -108,17 +106,18 @@ func posix(cli pb.DataMoverClient) {
 		close(done)
 	})
 
+	plugin, err := dmplugin.New(config.agentAddress)
+	if err != nil {
+		svclog.Fail("failed to dial: %s", err)
+	}
+	defer plugin.Close()
+
 	for _, a := range config.archives {
-		mover := NewMover(fmt.Sprintf("posix-%d", a.id), c, a.archiveRoot, a.id)
-		dm := dmplugin.New(cli, mover)
-		go dm.Run()
-		movers = append(movers, dm)
+		plugin.AddMover(PosixMover(c, a.archiveRoot, a.id))
 	}
 
 	<-done
-	for _, dm := range movers {
-		dm.Stop()
-	}
+	plugin.Stop()
 }
 
 func main() {
@@ -128,18 +127,7 @@ func main() {
 		svclog.EnableDebug()
 	}
 
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
-	conf := pdm.ConfigInitMust()
-
-	conn, err := grpc.Dial("localhost:4242", grpc.WithInsecure())
-	if err != nil {
-		svclog.Fail("failed to dial: %s", err)
-	}
-	defer conn.Close()
-	cli := pb.NewDataMoverClient(conn)
-
-	posix(cli)
+	posix(config)
 }
 
 func interruptHandler(once func()) {

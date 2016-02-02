@@ -26,9 +26,10 @@ type (
 
 	// Config represents HSM Agent configuration
 	Config struct {
-		Lustre    fs.RootDir
-		Processes int
-		Archives  archiveMap
+		Lustre      fs.RootDir
+		Processes   int
+		Archives    archiveMap
+		RedisServer string
 	}
 )
 

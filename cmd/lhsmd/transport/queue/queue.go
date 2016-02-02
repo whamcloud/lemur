@@ -31,7 +31,7 @@ func init() {
 	agent.RegisterTransport(&queueTransport{})
 }
 
-func (t *queueTransport) Init(conf *pdm.HSMConfig, a *agent.HsmAgent) {
+func (t *queueTransport) Init(conf *agent.Config, a *agent.HsmAgent) error {
 	if reset {
 		log.Println("Reseting pdm queue")
 		workq.MasterReset("pdm", conf.RedisServer)
@@ -43,6 +43,7 @@ func (t *queueTransport) Init(conf *pdm.HSMConfig, a *agent.HsmAgent) {
 	}
 	a.Endpoints.Add(1, qep)
 	qep.queue.AddReceiver(qep)
+	return nil
 }
 
 func hsm2pdmCommand(a llapi.HsmAction) (c pdm.CommandType) {
