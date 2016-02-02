@@ -48,7 +48,8 @@ func init() {
 
 func (t *rpcTransport) Init(conf *agent.Config, a *agent.HsmAgent) error {
 	liblog.Debug("Initializing grpc transport")
-	sock, err := net.Listen("tcp", ":4242")
+	addr := fmt.Sprintf(":%d", conf.RPCPort)
+	sock, err := net.Listen("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("Failed to listen: %v", err)
 	}

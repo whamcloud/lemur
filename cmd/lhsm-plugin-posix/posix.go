@@ -42,11 +42,11 @@ func init() {
 	rate = metrics.NewMeter()
 
 	config = &posixConfig{
-		agentAddress: "localhost:4242",
-		archives:     make(archiveSet),
+		archives: make(archiveSet),
 	}
 
 	flag.BoolVar(&config.enableDebug, "debug", false, "Enable debug logging")
+	flag.StringVar(&config.agentAddress, "agent", ":4242", "Lustre client mountpoint")
 	flag.StringVar(&config.clientRoot, "client", "", "Lustre client mountpoint")
 	flag.Var(config.archives, "archive", "Archive definition(s) (id,archiveRoot)")
 	/*

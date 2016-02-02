@@ -29,6 +29,7 @@ type (
 		Lustre      fs.RootDir
 		Processes   int
 		Archives    archiveMap
+		RPCPort     int
 		RedisServer string
 	}
 )
@@ -99,6 +100,7 @@ func (m archiveMap) UnmarshalJSON(data []byte) error {
 
 func newConfig() *Config {
 	return &Config{
+		RPCPort:   4242,
 		Processes: runtime.NumCPU(),
 		Archives:  make(archiveMap),
 	}

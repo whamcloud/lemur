@@ -8,11 +8,13 @@ import (
 )
 
 var (
-	archive uint
+	archive      uint
+	agentAddress string
 )
 
 func init() {
 	flag.UintVar(&archive, "archive", 1, "archive id")
+	flag.StringVar(&agentAddress, "agent", ":4242", "Lustre client mountpoint")
 }
 
 type Mover struct {
@@ -45,5 +47,5 @@ func noop(agentAddress string) {
 func main() {
 	flag.Parse()
 
-	noop("localhost:4242")
+	noop(agentAddress)
 }
