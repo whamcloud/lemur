@@ -45,6 +45,7 @@ var (
 	optConfigPath string
 	optRootDir    rootDirFlag
 	optArchives   archiveFlag
+	optProcesses  int
 )
 
 func init() {
@@ -53,6 +54,7 @@ func init() {
 	flag.StringVar(&optConfigPath, "config", DefaultConfigPath, "Path to agent config")
 	flag.Var(&optRootDir, "root", "Lustre client mountpoint")
 	flag.Var(&optArchives, "archive", "Archive definition(s) (number:plugin_bin:plugin_args)")
+	flag.IntVar(&optProcesses, "n", runtime.NumCPU(), "Number of handler threads")
 }
 
 func (id ArchiveID) String() string {
@@ -100,9 +102,8 @@ func (m archiveMap) UnmarshalJSON(data []byte) error {
 
 func newConfig() *Config {
 	return &Config{
-		RPCPort:   4242,
-		Processes: runtime.NumCPU(),
-		Archives:  make(archiveMap),
+		RPCPort:  4242,
+		Archives: make(archiveMap),
 	}
 }
 
@@ -164,6 +165,8 @@ func LoadConfig(configPath string, cfg *Config) error {
 // ConfigInitMust returns a valid *Config or fails trying
 func ConfigInitMust() *Config {
 	flag.Parse()
+
+	defaultConfig.Processes = optProcesses
 
 	err := LoadConfig(optConfigPath, defaultConfig)
 	if err != nil {
