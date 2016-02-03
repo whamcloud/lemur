@@ -7,7 +7,6 @@ import (
 
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
-	"golang.org/x/net/context"
 
 	"github.com/golang/glog"
 )
@@ -28,15 +27,9 @@ func (ct *CopyTool) Stop() {
 	}
 }
 
-func (ct *CopyTool) initAgent(ctx context.Context) error {
-	var err error
-	ct.agent, err = hsm.Start(ctx, ct.root)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+func (ct *CopyTool) initAgent() (err error) {
+	ct.agent, err = hsm.Start(ct.root)
+	return
 }
 
 func (ct *CopyTool) initBackends(conf *HSMConfig) error {
@@ -96,11 +89,9 @@ func copytool(conf *HSMConfig) {
 		glog.Fatal(err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
 	ct := &CopyTool{root: root}
 
 	interruptHandler(func() {
-		cancel()
 		ct.Stop()
 	})
 
@@ -108,7 +99,7 @@ func copytool(conf *HSMConfig) {
 	go func() {
 
 		ct.initBackends(conf)
-		err := ct.initAgent(ctx)
+		err := ct.initAgent()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -118,7 +109,6 @@ func copytool(conf *HSMConfig) {
 		}
 	}()
 
-	<-ctx.Done()
 	ct.wg.Wait()
 }
 

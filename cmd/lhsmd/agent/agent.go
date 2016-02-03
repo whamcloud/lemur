@@ -17,10 +17,9 @@ Initially the main focus is for HSM.
 package agent
 
 import (
+	"fmt"
 	"os/exec"
 	"sync"
-
-	"golang.org/x/net/context"
 
 	"github.intel.com/hpdd/liblog"
 	"github.intel.com/hpdd/lustre/fs"
@@ -34,9 +33,6 @@ type (
 
 	// HsmAgent for a single filesytem and a collection of backends.
 	HsmAgent struct {
-		context context.Context
-		cancel  context.CancelFunc
-
 		config    *Config
 		client    *client.Client
 		wg        sync.WaitGroup
@@ -70,21 +66,19 @@ func New(cfg *Config) (*HsmAgent, error) {
 }
 
 // Start backgrounds the agent and starts backend data movers
-func (ct *HsmAgent) Start(ctx context.Context) error {
-	ct.context, ct.cancel = context.WithCancel(ctx)
-
+func (ct *HsmAgent) Start() error {
 	for _, t := range transports {
 		if err := t.Init(ct.config, ct); err != nil {
 			return err
 		}
 	}
 
-	if err := ct.initAgent(ct.context); err != nil {
+	if err := ct.initAgent(); err != nil {
 		return err
 	}
 
 	for i := 0; i < ct.config.Processes; i++ {
-		ct.addHandler()
+		ct.addHandler(fmt.Sprintf("handler-%d", i))
 	}
 
 	for id, pluginConf := range ct.config.Archives {
@@ -99,13 +93,8 @@ func (ct *HsmAgent) Start(ctx context.Context) error {
 
 	// TODO: Monitor backends to restart any that die
 
-	for {
-		select {
-		case <-ct.context.Done():
-			ct.wg.Wait()
-			return nil
-		}
-	}
+	ct.wg.Wait()
+	return nil
 }
 
 // Stop shuts down all backend data movers and kills the agent
@@ -115,10 +104,6 @@ func (ct *HsmAgent) Stop() {
 	if ct.agent != nil {
 		ct.agent.Stop()
 	}
-
-	if ct.cancel != nil {
-		ct.cancel()
-	}
 }
 
 // Root returns a fs.RootDir representing the Lustre filesystem root
@@ -126,44 +111,37 @@ func (ct *HsmAgent) Root() fs.RootDir {
 	return ct.client.Root()
 }
 
-func (ct *HsmAgent) initAgent(ctx context.Context) error {
-	var err error
+func (ct *HsmAgent) initAgent() (err error) {
 	ct.mu.Lock()
 	defer ct.mu.Unlock()
-	ct.agent, err = hsm.Start(ctx, ct.client.Root())
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	ct.agent, err = hsm.Start(ct.client.Root())
+	return
 }
 
-func (ct *HsmAgent) handleActions() {
+func (ct *HsmAgent) handleActions(tag string) {
 	ch := ct.agent.Actions()
 	for ai := range ch {
-		liblog.Debug("incoming: %s", ai)
+		liblog.Debug("%s: incoming: %s", tag, ai)
 		aih, err := ai.Begin(0, false)
 		if err != nil {
-			liblog.Debug("begin failed: %v", err)
+			liblog.Debug("%s: begin failed: %v", tag, err)
 			continue
 		}
 
 		if e, ok := ct.Endpoints.Get(uint32(aih.ArchiveID())); ok {
-			liblog.Debug("Request: %v", aih)
 			e.Send(aih)
 		} else {
-			liblog.Debug("No handler for archive %d", aih.ArchiveID())
+			liblog.Debug("%s: no handler for archive %d", tag, aih.ArchiveID())
 			aih.End(0, 0, 0, -1)
 		}
 	}
 }
 
-func (ct *HsmAgent) addHandler() {
+func (ct *HsmAgent) addHandler(tag string) {
 	ct.wg.Add(1)
 	go func() {
-		defer ct.wg.Done()
-		ct.handleActions()
+		ct.handleActions(tag)
+		ct.wg.Done()
 	}()
 }
 
