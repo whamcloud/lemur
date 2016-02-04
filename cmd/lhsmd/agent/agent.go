@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os/exec"
 	"sync"
+	"time"
 
 	"github.intel.com/hpdd/liblog"
 	"github.intel.com/hpdd/lustre/fs"
@@ -118,6 +119,15 @@ func (ct *HsmAgent) initAgent() (err error) {
 	return
 }
 
+func (ct *HsmAgent) newAction(aih hsm.ActionHandle) *Action {
+	return &Action{
+		id:    NextActionID(),
+		aih:   aih,
+		start: time.Now(),
+		agent: ct,
+	}
+}
+
 func (ct *HsmAgent) handleActions(tag string) {
 	ch := ct.agent.Actions()
 	for ai := range ch {
@@ -129,7 +139,8 @@ func (ct *HsmAgent) handleActions(tag string) {
 		}
 
 		if e, ok := ct.Endpoints.Get(uint32(aih.ArchiveID())); ok {
-			e.Send(aih)
+			action := ct.newAction(aih)
+			e.Send(action)
 		} else {
 			liblog.Debug("%s: no handler for archive %d", tag, aih.ArchiveID())
 			aih.End(0, 0, 0, -1)

@@ -63,7 +63,8 @@ func hsm2pdmCommand(a llapi.HsmAction) (c pdm.CommandType) {
 	return
 }
 
-func (ep *QueueEndpoint) Send(aih hsm.ActionHandle) {
+func (ep *QueueEndpoint) Send(action *agent.Action) {
+	aih := action.Handle()
 	req := &pdm.Request{
 		Agent:  "me",
 		Cookie: aih.Cookie(),

@@ -4,8 +4,6 @@ import (
 	"errors"
 	"sync"
 	"sync/atomic"
-
-	"github.intel.com/hpdd/lustre/hsm"
 )
 
 type (
@@ -19,7 +17,7 @@ type (
 	}
 
 	Endpoint interface {
-		Send(hsm.ActionHandle)
+		Send(*Action)
 	}
 )
 

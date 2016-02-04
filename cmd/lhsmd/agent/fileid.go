@@ -1,4 +1,4 @@
-package rpc
+package agent
 
 import (
 	"github.intel.com/hpdd/lustre"

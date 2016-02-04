@@ -60,7 +60,7 @@ func getHandle(ctx context.Context) (*pb.Handle, bool) {
 
 func (action *Action) Update(offset, length, max int64) error {
 	action.status <- &pb.ActionStatus{
-		Cookie: action.item.Cookie,
+		Id:     action.item.Id,
 		Offset: uint64(offset),
 		Length: uint64(length),
 	}
@@ -69,7 +69,7 @@ func (action *Action) Update(offset, length, max int64) error {
 
 func (action *Action) Complete() error {
 	action.status <- &pb.ActionStatus{
-		Cookie:    action.item.Cookie,
+		Id:        action.item.Id,
 		Completed: true,
 		Offset:    action.item.Offset,
 		Length:    action.item.Length,
@@ -86,9 +86,9 @@ func getErrno(err error) int32 {
 }
 
 func (action *Action) Fail(err error) error {
-	liblog.Debug("fail: %v %v", action.item.Cookie, err)
+	liblog.Debug("fail: %v %v", action.item.Id, err)
 	action.status <- &pb.ActionStatus{
-		Cookie:    action.item.Cookie,
+		Id:        action.item.Id,
 		Completed: true,
 
 		Error: getErrno(err),
@@ -198,7 +198,7 @@ func (dm *DataMoverClient) processActions(ctx context.Context) chan *pb.ActionIt
 				close(actions)
 				log.Fatalf("Failed to receive a message: %v", err)
 			}
-			liblog.Debug("Got message %x op: %v %v", action.Cookie, action.Op, action.PrimaryPath)
+			liblog.Debug("Got message %x op: %v %v", action.Id, action.Op, action.PrimaryPath)
 
 			actions <- action
 		}
@@ -221,10 +221,10 @@ func (dm *DataMoverClient) processStatus(ctx context.Context) {
 		}
 		for reply := range dm.status {
 			reply.Handle = handle
-			liblog.Debug("Sent reply  %x error: %#v", reply.Cookie, reply.Error)
+			liblog.Debug("Sent reply  %x error: %#v", reply.Id, reply.Error)
 			err := acks.Send(reply)
 			if err != nil {
-				log.Fatalf("Failed to ack message %x: %v", reply.Cookie, err)
+				log.Fatalf("Failed to ack message %x: %v", reply.Id, err)
 			}
 		}
 	}()

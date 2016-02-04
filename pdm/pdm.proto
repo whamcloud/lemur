@@ -29,7 +29,7 @@ enum Command {
 }
 
 message ActionItem {
-    uint64 cookie = 1; // Unique indentifier for this action, must be used in status messages
+    uint64 id = 1; // Unique indentifier for this action, must be used in status messages
     Command op = 2; 
     string primary_path = 3; // Path to primary file (for metadata or reading)
     string write_path = 4; // Path for writing data (for restore)
@@ -40,7 +40,7 @@ message ActionItem {
 }
 
 message ActionStatus {
-    uint64 cookie = 1; // Unique identifier for action
+    uint64 id = 1; // Unique identifier for action
     bool  completed = 2; // True if this is last update
     int32  error = 3; // Non-zero indicates an error
     uint64 offset = 4; 

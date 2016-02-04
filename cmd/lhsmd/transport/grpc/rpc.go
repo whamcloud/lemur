@@ -9,9 +9,6 @@ import (
 	"time"
 
 	"github.intel.com/hpdd/liblog"
-	"github.intel.com/hpdd/lustre/fs"
-	"github.intel.com/hpdd/lustre/hsm"
-	"github.intel.com/hpdd/lustre/llapi"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/agent"
 	pb "github.intel.com/hpdd/policy/pdm/pdm"
 	"golang.org/x/net/context"
@@ -26,7 +23,7 @@ const (
 type (
 	rpcTransport struct{}
 
-	dataMoverServer struct {
+	dmRpcServer struct {
 		stats *messageStats
 		agent *agent.HsmAgent
 	}
@@ -36,9 +33,9 @@ type (
 	RpcEndpoint struct {
 		state    EndpointState
 		archive  int
-		actionCh chan hsm.ActionHandle
+		actionCh chan *agent.Action
 		mu       sync.Mutex
-		actions  map[uint64]hsm.ActionHandle
+		actions  map[agent.ActionID]*agent.Action
 	}
 )
 
@@ -61,10 +58,8 @@ func (t *rpcTransport) Init(conf *agent.Config, a *agent.HsmAgent) error {
 	return nil
 }
 
-func (ep *RpcEndpoint) Send(aih hsm.ActionHandle) {
-
-	ep.actionCh <- aih
-
+func (ep *RpcEndpoint) Send(action *agent.Action) {
+	ep.actionCh <- action
 }
 
 /*
@@ -78,7 +73,7 @@ func (ep *RpcEndpoint) Send(aih hsm.ActionHandle) {
  * takes over this Endpoint. Existing in progress messages should be flushed, however.
  */
 
-func (s *dataMoverServer) Register(context context.Context, e *pb.Endpoint) (*pb.Handle, error) {
+func (s *dmRpcServer) Register(context context.Context, e *pb.Endpoint) (*pb.Handle, error) {
 	ep, ok := s.agent.Endpoints.Get(e.Archive)
 	var handle *agent.Handle
 	var err error
@@ -102,8 +97,8 @@ func (s *dataMoverServer) Register(context context.Context, e *pb.Endpoint) (*pb
 	} else {
 		handle, err = s.agent.Endpoints.Add(e.Archive, &RpcEndpoint{
 			state:    Disconnected,
-			actions:  make(map[uint64]hsm.ActionHandle),
-			actionCh: make(chan hsm.ActionHandle),
+			actions:  make(map[agent.ActionID]*agent.Action),
+			actionCh: make(chan *agent.Action),
 		})
 		if err != nil {
 			return nil, err
@@ -113,29 +108,12 @@ func (s *dataMoverServer) Register(context context.Context, e *pb.Endpoint) (*pb
 
 }
 
-func hsm2Command(a llapi.HsmAction) (c pb.Command) {
-	switch a {
-	case llapi.HsmActionArchive:
-		c = pb.Command_ARCHIVE
-	case llapi.HsmActionRestore:
-		c = pb.Command_RESTORE
-	case llapi.HsmActionRemove:
-		c = pb.Command_REMOVE
-	case llapi.HsmActionCancel:
-		c = pb.Command_CANCEL
-	default:
-		log.Fatalf("unknown command: %v", a)
-	}
-
-	return
-}
-
 /*
  * GetActions establish a connection the backend for a particular archive ID. The Endpoint
 * remains in Connected status as long as the backend is receiving messages from the agent.
 */
 
-func (s *dataMoverServer) GetActions(h *pb.Handle, stream pb.DataMover_GetActionsServer) error {
+func (s *dmRpcServer) GetActions(h *pb.Handle, stream pb.DataMover_GetActionsServer) error {
 	temp, ok := s.agent.Endpoints.GetWithHandle((*agent.Handle)(&h.Id))
 	if !ok {
 		liblog.Debug("bad cookie  %v", h.Id)
@@ -158,42 +136,22 @@ func (s *dataMoverServer) GetActions(h *pb.Handle, stream pb.DataMover_GetAction
 		select {
 		case <-stream.Context().Done():
 			return stream.Context().Err()
-		case aih := <-ep.actionCh:
-			// liblog.Debug("Got %q from user, sending %d to stream", msg, id)
+		case action := <-ep.actionCh:
 			s.stats.Count.Inc(1)
 			s.stats.Rate.Mark(1)
 
 			ep.mu.Lock()
-			ep.actions[uint64(aih.Cookie())] = aih
+			ep.actions[action.ID()] = action
 			ep.mu.Unlock()
 
-			item := &pb.ActionItem{
-				Cookie:      aih.Cookie(),
-				Op:          hsm2Command(aih.Action()),
-				PrimaryPath: fs.FidRelativePath(aih.Fid()),
-				Offset:      aih.Offset(),
-				Length:      aih.Length(),
-				Data:        aih.Data(),
-			}
+			if err := stream.Send(action.AsMessage()); err != nil {
+				liblog.Debug(err)
+				action.Fail(-1)
 
-			switch aih.Action() {
-			case llapi.HsmActionRestore, llapi.HsmActionRemove:
-				var err error
-				item.FileId, err = getFileID(s.agent.Root(), aih.Fid())
-				if err != nil {
-					log.Println(err) //hmm, can't restore if there is no file id
-				}
-			}
+				ep.mu.Lock()
+				delete(ep.actions, action.ID())
+				ep.mu.Unlock()
 
-			dfid, err := aih.DataFid()
-			if err == nil {
-				item.WritePath = fs.FidRelativePath(dfid)
-			}
-
-			if err := stream.Send(item); err != nil {
-				//			liblog.Debug("message %d failed to sen in %v", id, time.Since(ep.actions[id]))
-				log.Println(err)
-				aih.End(0, 0, 0, int(-1))
 				return err
 			}
 		}
@@ -208,7 +166,7 @@ func (s *dataMoverServer) GetActions(h *pb.Handle, stream pb.DataMover_GetAction
 * from various kinds of races here.
  */
 
-func (s *dataMoverServer) StatusStream(stream pb.DataMover_StatusStreamServer) error {
+func (s *dmRpcServer) StatusStream(stream pb.DataMover_StatusStreamServer) error {
 	for {
 		status, err := stream.Recv()
 		if err != nil {
@@ -225,35 +183,36 @@ func (s *dataMoverServer) StatusStream(stream pb.DataMover_StatusStreamServer) e
 			log.Fatalf("not an rpc endpoint: %#v", ep)
 		}
 
-		aih, ok := ep.actions[status.Cookie]
+		ep.mu.Lock()
+		action, ok := ep.actions[agent.ActionID(status.Id)]
+		ep.mu.Unlock()
 		if ok {
-			liblog.Debug("Client acked message %x offset: %d length: %d complete: %v status: %d", status.Cookie,
+			liblog.Debug("Client acked message %x offset: %d length: %d complete: %v status: %d",
+				status.Id,
 				status.Offset,
 				status.Length,
 				status.Completed, status.Error)
-			if status.Completed {
-				if status.FileId != nil {
-					updateFileID(s.agent.Root(), aih.Fid(), status.FileId)
-				}
-				aih.End(status.Offset, status.Length, 0, int(status.Error))
+
+			completed, err := action.Update(status)
+			if completed && err == nil {
 				ep.mu.Lock()
-				delete(ep.actions, status.Cookie)
+				delete(ep.actions, agent.ActionID(status.Id))
 				ep.mu.Unlock()
-			} else {
-				aih.Progress(status.Offset, status.Length, aih.Length(), 0)
+			} else if err != nil {
+				ep.mu.Lock()
+				delete(ep.actions, agent.ActionID(status.Id))
+				ep.mu.Unlock()
+
+				// send cancel to mover
 			}
-			//		duration := time.Since(ep.actions[status.Cookie])
-			//liblog.Debug("Client acked message %d status: %s in %v",
-			//	ack.Id, nack.Status, duration)
-			//		s.stats.Latencies.Update(duration.Nanoseconds())
 		} else {
-			liblog.Debug("! unknown cookie: %x", status.Cookie)
+			liblog.Debug("! unknown id: %x", status.Id)
 		}
 
 	}
 }
 
-func (s *dataMoverServer) startStats() {
+func (s *dmRpcServer) startStats() {
 	go func() {
 		for {
 			fmt.Println(s.stats)
@@ -262,8 +221,8 @@ func (s *dataMoverServer) startStats() {
 	}()
 }
 
-func newServer(a *agent.HsmAgent) *dataMoverServer {
-	srv := &dataMoverServer{
+func newServer(a *agent.HsmAgent) *dmRpcServer {
+	srv := &dmRpcServer{
 		stats: newMessageStats(),
 		agent: a,
 	}
