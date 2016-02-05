@@ -187,12 +187,6 @@ func (s *dmRpcServer) StatusStream(stream pb.DataMover_StatusStreamServer) error
 		action, ok := ep.actions[agent.ActionID(status.Id)]
 		ep.mu.Unlock()
 		if ok {
-			liblog.Debug("Client acked message %x offset: %d length: %d complete: %v status: %d",
-				status.Id,
-				status.Offset,
-				status.Length,
-				status.Completed, status.Error)
-
 			completed, err := action.Update(status)
 			if completed && err == nil {
 				ep.mu.Lock()

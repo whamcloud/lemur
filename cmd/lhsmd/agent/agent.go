@@ -137,13 +137,16 @@ func (ct *HsmAgent) handleActions(tag string) {
 			liblog.Debug("%s: begin failed: %v", tag, err)
 			continue
 		}
-
+		action := ct.newAction(aih)
 		if e, ok := ct.Endpoints.Get(uint32(aih.ArchiveID())); ok {
-			action := ct.newAction(aih)
+			liblog.Debug("%s: id:%d new %s %x %v", tag, action.id,
+				action.aih.Action(),
+				action.aih.Cookie(),
+				action.aih.Fid())
 			e.Send(action)
 		} else {
-			liblog.Debug("%s: no handler for archive %d", tag, aih.ArchiveID())
-			aih.End(0, 0, 0, -1)
+			liblog.Debug("%s: no handler for archive %d", aih.ArchiveID())
+			action.Fail(-1)
 		}
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"path"
+	"time"
 
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
 	"github.intel.com/hpdd/policy/pkg/client"
@@ -92,7 +93,8 @@ func min(a, b int64) int64 {
 }
 
 func (h *Mover) Archive(action *dmplugin.Action) error {
-	svclog.Debug("%s: archive %s", h.name, action.PrimaryPath())
+	svclog.Debug("%s id:%d archive %s", h.name, action.ID(), action.PrimaryPath())
+	start := time.Now()
 
 	fileId := newFileId()
 
@@ -127,13 +129,18 @@ func (h *Mover) Archive(action *dmplugin.Action) error {
 		return err
 	}
 
-	svclog.Debug("Archived %d bytes from %s to %s", n, action.PrimaryPath(), h.destination(fileId))
+	svclog.Debug("%s id:%d Archived %d bytes in %v from %s to %s", h.name, action.ID(), n,
+		time.Since(start),
+		action.PrimaryPath(),
+		h.destination(fileId))
 	action.SetFileID([]byte(fileId))
+	action.SetActualLength(uint64(n))
 	return nil
 }
 
 func (h *Mover) Restore(action *dmplugin.Action) error {
-	svclog.Debug("%s: restore %s %s", h.name, action.PrimaryPath(), action.FileID())
+	svclog.Debug("%s id:%d restore %s %s", h.name, action.ID(), action.PrimaryPath(), action.FileID())
+	start := time.Now()
 
 	if action.FileID() == "" {
 		return errors.New("Missing file_id")
@@ -170,7 +177,10 @@ func (h *Mover) Restore(action *dmplugin.Action) error {
 		return err
 	}
 
-	svclog.Debug("Restored %d bytes from %s to %s", n, action.PrimaryPath(), h.destination(action.FileID()))
+	svclog.Debug("%s id:%d Restored %d bytes in %v to %s", h.name, action.ID(), n,
+		time.Since(start),
+		action.PrimaryPath())
+	action.SetActualLength(uint64(n))
 	return nil
 }
 

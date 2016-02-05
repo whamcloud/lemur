@@ -22,9 +22,10 @@ type (
 	}
 
 	Action struct {
-		status chan *pb.ActionStatus
-		item   *pb.ActionItem
-		fileId []byte
+		status       chan *pb.ActionStatus
+		item         *pb.ActionItem
+		fileId       []byte
+		actualLength *uint64
 	}
 
 	Mover interface {
@@ -68,13 +69,17 @@ func (action *Action) Update(offset, length, max int64) error {
 }
 
 func (action *Action) Complete() error {
-	action.status <- &pb.ActionStatus{
+	status := &pb.ActionStatus{
 		Id:        action.item.Id,
 		Completed: true,
 		Offset:    action.item.Offset,
 		Length:    action.item.Length,
 		FileId:    action.fileId,
 	}
+	if action.actualLength != nil {
+		status.Length = *action.actualLength
+	}
+	action.status <- status
 	return nil
 }
 
@@ -86,7 +91,7 @@ func getErrno(err error) int32 {
 }
 
 func (action *Action) Fail(err error) error {
-	liblog.Debug("fail: %v %v", action.item.Id, err)
+	liblog.Debug("fail: id:%d %v", action.item.Id, err)
 	action.status <- &pb.ActionStatus{
 		Id:        action.item.Id,
 		Completed: true,
@@ -94,6 +99,10 @@ func (action *Action) Fail(err error) error {
 		Error: getErrno(err),
 	}
 	return nil
+}
+
+func (a *Action) ID() uint64 {
+	return a.item.Id
 }
 
 func (a *Action) Offset() int64 {
@@ -124,12 +133,16 @@ func (a *Action) SetFileID(id []byte) {
 	a.fileId = id
 }
 
+func (a *Action) SetActualLength(length uint64) {
+	a.actualLength = &length
+}
+
 func NewMover(cli pb.DataMoverClient, mover Mover) *DataMoverClient {
 	return &DataMoverClient{
 		rpcClient: cli,
 		mover:     mover,
 		stop:      make(chan struct{}),
-		status:    make(chan *pb.ActionStatus),
+		status:    make(chan *pb.ActionStatus, 2),
 	}
 }
 
@@ -151,6 +164,7 @@ func (dm *DataMoverClient) Run() {
 			dm.handler(fmt.Sprintf("handler-%d", i), actions)
 			wg.Done()
 		}(i)
+		dm.processStatus(ctx)
 	}
 
 	<-dm.stop
@@ -198,7 +212,7 @@ func (dm *DataMoverClient) processActions(ctx context.Context) chan *pb.ActionIt
 				close(actions)
 				log.Fatalf("Failed to receive a message: %v", err)
 			}
-			liblog.Debug("Got message %x op: %v %v", action.Id, action.Op, action.PrimaryPath)
+			// liblog.Debug("Got message id:%d op: %v %v", action.Id, action.Op, action.PrimaryPath)
 
 			actions <- action
 		}
@@ -221,7 +235,7 @@ func (dm *DataMoverClient) processStatus(ctx context.Context) {
 		}
 		for reply := range dm.status {
 			reply.Handle = handle
-			liblog.Debug("Sent reply  %x error: %#v", reply.Id, reply.Error)
+			// liblog.Debug("Sent reply  %x error: %#v", reply.Id, reply.Error)
 			err := acks.Send(reply)
 			if err != nil {
 				log.Fatalf("Failed to ack message %x: %v", reply.Id, err)
@@ -261,7 +275,7 @@ func (dm *DataMoverClient) handler(name string, actions chan *pb.ActionItem) {
 		}
 
 		//		rate.Mark(1)
-		liblog.Debug("completed (action: %v) %v ", action, ret)
+		// liblog.Debug("completed (action: %v) %v ", action, ret)
 		if ret != nil {
 			action.Fail(ret)
 		} else {
