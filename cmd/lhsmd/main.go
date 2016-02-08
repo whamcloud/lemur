@@ -7,6 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"golang.org/x/net/context"
+
 	"github.intel.com/hpdd/policy/pdm/lhsmd/agent"
 	"github.intel.com/hpdd/svclog"
 
@@ -60,11 +62,13 @@ func main() {
 		svclog.Fail("Error creating agent: %s", err)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
 	interruptHandler(func() {
 		ct.Stop()
+		cancel()
 	})
 
-	if err := ct.Start(); err != nil {
+	if err := ct.Start(ctx); err != nil {
 		svclog.Fail("Error in HsmAgent.Start(): %s", err)
 	}
 }

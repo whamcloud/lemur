@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"os"
 	"runtime"
-	"strconv"
 	"strings"
 
 	"github.intel.com/hpdd/lustre/fs"
@@ -17,18 +16,15 @@ import (
 
 type (
 	rootDirFlag string
-	archiveFlag string
+	pluginFlag  string
 
-	archiveMap map[ArchiveID]*PluginConfig
-
-	// ArchiveID is a Lustre HSM archive number
-	ArchiveID uint32
+	pluginMap map[string]*PluginConfig
 
 	// Config represents HSM Agent configuration
 	Config struct {
 		Lustre      fs.RootDir
 		Processes   int
-		Archives    archiveMap
+		Plugins     pluginMap
 		RPCPort     int
 		RedisServer string
 	}
@@ -44,7 +40,7 @@ var (
 
 	optConfigPath string
 	optRootDir    rootDirFlag
-	optArchives   archiveFlag
+	optPlugins    pluginFlag
 	optProcesses  int
 )
 
@@ -53,12 +49,8 @@ func init() {
 
 	flag.StringVar(&optConfigPath, "config", DefaultConfigPath, "Path to agent config")
 	flag.Var(&optRootDir, "root", "Lustre client mountpoint")
-	flag.Var(&optArchives, "archive", "Archive definition(s) (number:plugin_bin:plugin_args)")
+	flag.Var(&optPlugins, "plugin", "Plugin definition(s) (name:plugin_bin:plugin_args)")
 	flag.IntVar(&optProcesses, "n", runtime.NumCPU(), "Number of handler threads")
-}
-
-func (id ArchiveID) String() string {
-	return strconv.FormatUint(uint64(id), 10)
 }
 
 func (c *Config) String() string {
@@ -72,38 +64,10 @@ func (c *Config) String() string {
 	return out.String()
 }
 
-func (m archiveMap) MarshalJSON() ([]byte, error) {
-	strMap := make(map[string]*PluginConfig)
-
-	for key, val := range m {
-		strMap[strconv.Itoa(int(key))] = val
-	}
-
-	return json.Marshal(strMap)
-}
-
-func (m archiveMap) UnmarshalJSON(data []byte) error {
-	strMap := make(map[string]*PluginConfig)
-
-	if err := json.Unmarshal(data, strMap); err != nil {
-		return err
-	}
-
-	for key, val := range strMap {
-		num, err := strconv.ParseUint(key, 10, 32)
-		if err != nil {
-			return err
-		}
-		m[ArchiveID(num)] = val
-	}
-
-	return nil
-}
-
 func newConfig() *Config {
 	return &Config{
-		RPCPort:  4242,
-		Archives: make(archiveMap),
+		RPCPort: 4242,
+		Plugins: make(pluginMap),
 	}
 }
 
@@ -121,28 +85,22 @@ func (f *rootDirFlag) Set(value string) error {
 	return nil
 }
 
-func (f *archiveFlag) String() string {
+func (f *pluginFlag) String() string {
 	return string(*f)
 }
 
-func (f *archiveFlag) Set(value string) error {
-	// number:plugin_bin:plugin_args
+func (f *pluginFlag) Set(value string) error {
+	// name:plugin_bin:plugin_args
 	fields := strings.Split(value, ":")
 	if len(fields) != 3 {
 		return fmt.Errorf("Unable to parse archive %q", value)
 	}
 
-	num, err := strconv.ParseUint(fields[0], 10, 32)
-	if err != nil {
-		return fmt.Errorf("Unable to parse archive %q: %s", value, err)
-	}
-	id := ArchiveID(num)
-
-	defaultConfig.Archives[id] = &PluginConfig{
-		BinPath: fields[1],
-		Args:    strings.Fields(fields[2]),
-	}
-	svclog.Debug("Added %s as %d", defaultConfig.Archives[id], id)
+	name := fields[0]
+	defaultConfig.Plugins[name] = NewPlugin(
+		name, fields[1], strings.Fields(fields[2])...,
+	)
+	svclog.Debug("Added %s as %s", defaultConfig.Plugins[name], name)
 
 	return nil
 }
@@ -179,8 +137,8 @@ func ConfigInitMust() *Config {
 		svclog.Fail("Invalid Lustre mountpoint %q", defaultConfig.Lustre)
 	}
 
-	if len(defaultConfig.Archives) == 0 {
-		svclog.Fail("No archives configured")
+	if len(defaultConfig.Plugins) == 0 {
+		svclog.Fail("No data mover plugins configured")
 	}
 
 	return defaultConfig

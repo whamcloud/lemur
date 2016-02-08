@@ -18,29 +18,27 @@ package agent
 
 import (
 	"fmt"
-	"os/exec"
 	"sync"
 	"time"
+
+	"golang.org/x/net/context"
 
 	"github.intel.com/hpdd/liblog"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
 	"github.intel.com/hpdd/policy/pkg/client"
-	"github.intel.com/hpdd/svclog"
 )
 
 type (
-	backendMap map[ArchiveID]*exec.Cmd
-
 	// HsmAgent for a single filesytem and a collection of backends.
 	HsmAgent struct {
 		config    *Config
 		client    *client.Client
 		wg        sync.WaitGroup
 		Endpoints *Endpoints
-		Backends  backendMap
 		mu        sync.Mutex // Protject the agent
 		agent     hsm.Agent
+		monitor   *PluginMonitor
 	}
 
 	// Transport for backend plugins
@@ -59,15 +57,15 @@ func New(cfg *Config) (*HsmAgent, error) {
 	ct := &HsmAgent{
 		config:    cfg,
 		client:    client,
+		monitor:   NewMonitor(),
 		Endpoints: NewEndpoints(),
-		Backends:  make(backendMap),
 	}
 
 	return ct, nil
 }
 
 // Start backgrounds the agent and starts backend data movers
-func (ct *HsmAgent) Start() error {
+func (ct *HsmAgent) Start(ctx context.Context) error {
 	for _, t := range transports {
 		if err := t.Init(ct.config, ct); err != nil {
 			return err
@@ -82,17 +80,13 @@ func (ct *HsmAgent) Start() error {
 		ct.addHandler(fmt.Sprintf("handler-%d", i))
 	}
 
-	for id, pluginConf := range ct.config.Archives {
-		cmd, err := startPlugin(id, pluginConf)
+	ct.monitor.Start(ctx)
+	for _, pluginConf := range ct.config.Plugins {
+		err := ct.monitor.StartPlugin(pluginConf)
 		if err != nil {
 			return err
 		}
-		ct.Backends[id] = cmd
-
-		svclog.Debug("Started %s (PID: %d) for archive #%d", cmd.Path, cmd.Process.Pid, id)
 	}
-
-	// TODO: Monitor backends to restart any that die
 
 	ct.wg.Wait()
 	return nil
