@@ -110,7 +110,6 @@ func (m *PluginMonitor) run(ctx context.Context) {
 			}
 		case <-ctx.Done():
 			return
-		default:
 		}
 	}
 }
