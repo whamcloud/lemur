@@ -5,9 +5,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.intel.com/hpdd/logging/debug"
 	pb "github.intel.com/hpdd/policy/pdm/pdm"
 
-	"github.intel.com/hpdd/liblog"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
 	"github.intel.com/hpdd/lustre/llapi"
@@ -95,13 +95,13 @@ func (action *Action) AsMessage() *pb.ActionItem {
 // be completed immediately and no further updates are required.
 //
 func (action *Action) Update(status *pb.ActionStatus) (bool, error) {
-	liblog.Debug("id:%d update offset: %d length: %d complete: %v status: %d", status.Id,
+	debug.Printf("id:%d update offset: %d length: %d complete: %v status: %d", status.Id,
 		status.Offset,
 		status.Length,
 		status.Completed, status.Error)
 	if status.Completed {
 		duration := time.Since(action.start)
-		liblog.Debug("id:%d completed status: %v in %v", status.Id, status.Error, duration)
+		debug.Printf("id:%d completed status: %v in %v", status.Id, status.Error, duration)
 		// s.stats.Latencies.Update(duration.Nanoseconds())
 
 		if status.FileId != nil {

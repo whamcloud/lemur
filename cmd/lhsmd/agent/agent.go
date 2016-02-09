@@ -23,7 +23,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.intel.com/hpdd/liblog"
+	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
 	"github.intel.com/hpdd/policy/pkg/client"
@@ -125,21 +125,21 @@ func (ct *HsmAgent) newAction(aih hsm.ActionHandle) *Action {
 func (ct *HsmAgent) handleActions(tag string) {
 	ch := ct.agent.Actions()
 	for ai := range ch {
-		liblog.Debug("%s: incoming: %s", tag, ai)
+		debug.Printf("%s: incoming: %s", tag, ai)
 		aih, err := ai.Begin(0, false)
 		if err != nil {
-			liblog.Debug("%s: begin failed: %v", tag, err)
+			debug.Printf("%s: begin failed: %v", tag, err)
 			continue
 		}
 		action := ct.newAction(aih)
 		if e, ok := ct.Endpoints.Get(uint32(aih.ArchiveID())); ok {
-			liblog.Debug("%s: id:%d new %s %x %v", tag, action.id,
+			debug.Printf("%s: id:%d new %s %x %v", tag, action.id,
 				action.aih.Action(),
 				action.aih.Cookie(),
 				action.aih.Fid())
 			e.Send(action)
 		} else {
-			liblog.Debug("%s: no handler for archive %d", aih.ArchiveID())
+			debug.Printf("no handler for archive %d", aih.ArchiveID())
 			action.Fail(-1)
 		}
 	}

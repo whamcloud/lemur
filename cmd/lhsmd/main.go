@@ -9,6 +9,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/agent"
 	"github.intel.com/hpdd/svclog"
 
@@ -16,10 +17,8 @@ import (
 	// _ "github.intel.com/hpdd/policy/pdm/lhsmd/transport/queue"
 )
 
-var enableDebug bool
-
 func init() {
-	flag.BoolVar(&enableDebug, "debug", false, "enable debug output")
+	flag.Var(debug.FlagVar())
 }
 
 func interruptHandler(once func()) {
@@ -29,7 +28,7 @@ func interruptHandler(once func()) {
 	go func() {
 		stopping := false
 		for sig := range c {
-			svclog.Debug("signal received: %s", sig)
+			debug.Printf("signal received: %s", sig)
 			if !stopping {
 				stopping = true
 				once()
@@ -42,12 +41,10 @@ func interruptHandler(once func()) {
 func main() {
 	flag.Parse()
 
-	if enableDebug {
-		svclog.EnableDebug()
-
+	if debug.Enabled() {
 		// Set this so that plugins can use it without needing
 		// to mess around with plugin args.
-		os.Setenv("LIBLOG_DEBUG_ENABLED", "true")
+		os.Setenv(debug.EnableEnvVar, "true")
 	}
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	// Setting the prefix helps us to track down deprecated calls to log.*
@@ -55,7 +52,7 @@ func main() {
 
 	conf := agent.ConfigInitMust()
 
-	svclog.Debug("current configuration:\n%v", conf.String())
+	debug.Printf("current configuration:\n%v", conf.String())
 
 	ct, err := agent.New(conf)
 	if err != nil {

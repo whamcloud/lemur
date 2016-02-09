@@ -8,6 +8,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/svclog"
 )
 
@@ -73,13 +74,13 @@ func (m *PluginMonitor) run(ctx context.Context) {
 	processMap := make(map[int]*PluginConfig)
 
 	var waitForCmd = func(cmd *exec.Cmd) {
-		svclog.Debug("Waiting for %s (%d) to exit", cmd.Path, cmd.Process.Pid)
+		debug.Printf("Waiting for %s (%d) to exit", cmd.Path, cmd.Process.Pid)
 		ps, err := cmd.Process.Wait()
 		if err != nil {
 			svclog.Log("Err after Wait() for %d: %s", cmd.Process.Pid, err)
 		}
 
-		svclog.Debug("PID %d finished: %s", cmd.Process.Pid, ps)
+		debug.Printf("PID %d finished: %s", cmd.Process.Pid, ps)
 		m.processStateChan <- &pluginStatus{ps, err}
 	}
 
@@ -91,7 +92,7 @@ func (m *PluginMonitor) run(ctx context.Context) {
 		case s := <-m.processStateChan:
 			cfg, found := processMap[s.ps.Pid()]
 			if !found {
-				svclog.Debug("Received disp of unknown pid: %d", s.ps.Pid())
+				debug.Printf("Received disp of unknown pid: %d", s.ps.Pid())
 				break
 			}
 
@@ -121,7 +122,7 @@ func (m *PluginMonitor) Start(ctx context.Context) {
 
 // StartPlugin starts the plugin and monitors it
 func (m *PluginMonitor) StartPlugin(cfg *PluginConfig) error {
-	svclog.Debug("Starting %s for %s", cfg.BinPath, cfg.Name)
+	debug.Printf("Starting %s for %s", cfg.BinPath, cfg.Name)
 
 	cmd := exec.Command(cfg.BinPath, cfg.Args...)
 

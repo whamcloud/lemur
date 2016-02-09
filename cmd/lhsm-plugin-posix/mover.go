@@ -10,9 +10,9 @@ import (
 	"path"
 	"time"
 
+	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
 	"github.intel.com/hpdd/policy/pkg/client"
-	"github.intel.com/hpdd/svclog"
 
 	"code.google.com/p/go-uuid/uuid"
 )
@@ -46,7 +46,7 @@ func newFileId() string {
 }
 
 func CopyWithProgress(dst io.WriterAt, src io.ReaderAt, start int64, length int64, action *dmplugin.Action) (int64, error) {
-	//	svclog.Debug("Copy %d %d", start, length)
+	//	debug.Printf("Copy %d %d", start, length)
 	blockSize := 10 * 1024 * 1024 // FIXME: parameterize
 
 	offset := start
@@ -93,7 +93,7 @@ func min(a, b int64) int64 {
 }
 
 func (h *Mover) Archive(action *dmplugin.Action) error {
-	svclog.Debug("%s id:%d archive %s", h.name, action.ID(), action.PrimaryPath())
+	debug.Printf("%s id:%d archive %s", h.name, action.ID(), action.PrimaryPath())
 	start := time.Now()
 
 	fileId := newFileId()
@@ -125,11 +125,11 @@ func (h *Mover) Archive(action *dmplugin.Action) error {
 
 	n, err := CopyWithProgress(dst, src, action.Offset(), length, action)
 	if err != nil {
-		svclog.Debug("copy error %v read %d expected %d", err, n, length)
+		debug.Printf("copy error %v read %d expected %d", err, n, length)
 		return err
 	}
 
-	svclog.Debug("%s id:%d Archived %d bytes in %v from %s to %s", h.name, action.ID(), n,
+	debug.Printf("%s id:%d Archived %d bytes in %v from %s to %s", h.name, action.ID(), n,
 		time.Since(start),
 		action.PrimaryPath(),
 		h.destination(fileId))
@@ -139,7 +139,7 @@ func (h *Mover) Archive(action *dmplugin.Action) error {
 }
 
 func (h *Mover) Restore(action *dmplugin.Action) error {
-	svclog.Debug("%s id:%d restore %s %s", h.name, action.ID(), action.PrimaryPath(), action.FileID())
+	debug.Printf("%s id:%d restore %s %s", h.name, action.ID(), action.PrimaryPath(), action.FileID())
 	start := time.Now()
 
 	if action.FileID() == "" {
@@ -173,11 +173,11 @@ func (h *Mover) Restore(action *dmplugin.Action) error {
 
 	n, err := CopyWithProgress(dst, src, action.Offset(), length, action)
 	if err != nil {
-		svclog.Debug("copy error %v read %d expected %d", err, n, length)
+		debug.Printf("copy error %v read %d expected %d", err, n, length)
 		return err
 	}
 
-	svclog.Debug("%s id:%d Restored %d bytes in %v to %s", h.name, action.ID(), n,
+	debug.Printf("%s id:%d Restored %d bytes in %v to %s", h.name, action.ID(), n,
 		time.Since(start),
 		action.PrimaryPath())
 	action.SetActualLength(uint64(n))
@@ -185,7 +185,7 @@ func (h *Mover) Restore(action *dmplugin.Action) error {
 }
 
 func (h *Mover) Remove(action *dmplugin.Action) error {
-	svclog.Debug("%s: remove %s %s", h.name, action.PrimaryPath(), action.FileID())
+	debug.Printf("%s: remove %s %s", h.name, action.PrimaryPath(), action.FileID())
 	if action.FileID() == "" {
 		return errors.New("Missing file_id")
 	}

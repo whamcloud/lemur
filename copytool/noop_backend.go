@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.intel.com/hpdd/liblog"
+	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
 )
@@ -29,7 +29,7 @@ func (back NoopBackend) Archive(aih hsm.ActionHandle) ActionResult {
 	if err != nil {
 		// ?
 	}
-	liblog.Debug("%v %v", aih, names)
+	debug.Printf("%v %v", aih, names)
 	time.Sleep((time.Duration(rand.Intn(3)) + 1) * time.Second)
 	return ErrorResult(fmt.Errorf("unsupported"), -1)
 }
@@ -39,7 +39,7 @@ func (back NoopBackend) Remove(aih hsm.ActionHandle) ActionResult {
 	if err != nil {
 		// ?
 	}
-	liblog.Debug("%v %v", aih, names)
+	debug.Printf("%v %v", aih, names)
 	time.Sleep((time.Duration(rand.Intn(3)) + 1) * time.Second)
 	return ErrorResult(fmt.Errorf("unsupported"), -1)
 }

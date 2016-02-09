@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.intel.com/hpdd/liblog"
+	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/policy/pdm"
 )
@@ -25,13 +25,13 @@ func (back NoopBackend) String() string {
 }
 
 func (back NoopBackend) Archive(aih *pdm.Request) *pdm.Result {
-	liblog.Debug("%v", aih)
+	debug.Printf("%v", aih)
 	time.Sleep((time.Duration(rand.Intn(3)) + 1) * time.Second)
 	return ErrorResult(fmt.Errorf("unsupported"), -1)
 }
 
 func (back NoopBackend) Remove(aih *pdm.Request) *pdm.Result {
-	liblog.Debug("%v", aih)
+	debug.Printf("%v", aih)
 	time.Sleep((time.Duration(rand.Intn(3)) + 1) * time.Second)
 	return ErrorResult(fmt.Errorf("unsupported"), -1)
 }

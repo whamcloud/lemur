@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/svclog"
 )
@@ -100,7 +101,7 @@ func (f *pluginFlag) Set(value string) error {
 	defaultConfig.Plugins[name] = NewPlugin(
 		name, fields[1], strings.Fields(fields[2])...,
 	)
-	svclog.Debug("Added %s as %s", defaultConfig.Plugins[name], name)
+	debug.Printf("Added %s as %s", defaultConfig.Plugins[name], name)
 
 	return nil
 }

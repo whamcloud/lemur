@@ -8,7 +8,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.intel.com/hpdd/liblog"
+	"github.intel.com/hpdd/logging/debug"
 	pb "github.intel.com/hpdd/policy/pdm/pdm"
 	"golang.org/x/net/context"
 )
@@ -91,7 +91,7 @@ func getErrno(err error) int32 {
 }
 
 func (action *Action) Fail(err error) error {
-	liblog.Debug("fail: id:%d %v", action.item.Id, err)
+	debug.Printf("fail: id:%d %v", action.item.Id, err)
 	action.status <- &pb.ActionStatus{
 		Id:        action.item.Id,
 		Completed: true,
@@ -168,7 +168,7 @@ func (dm *DataMoverClient) Run() {
 	}
 
 	<-dm.stop
-	liblog.Debug("Shutting down Data Mover")
+	debug.Printf("Shutting down Data Mover")
 	cancel()
 	wg.Wait()
 	close(dm.status)
@@ -187,7 +187,7 @@ func (dm *DataMoverClient) registerEndpoint(ctx context.Context) (*pb.Handle, er
 	if err != nil {
 		return nil, err
 	}
-	liblog.Debug("Registered archive %d,  cookie %x", dm.mover.ArchiveID(), handle.Id)
+	debug.Printf("Registered archive %d,  cookie %x", dm.mover.ArchiveID(), handle.Id)
 	return handle, nil
 }
 
@@ -212,7 +212,7 @@ func (dm *DataMoverClient) processActions(ctx context.Context) chan *pb.ActionIt
 				close(actions)
 				log.Fatalf("Failed to receive a message: %v", err)
 			}
-			// liblog.Debug("Got message id:%d op: %v %v", action.Id, action.Op, action.PrimaryPath)
+			// debug.Printf("Got message id:%d op: %v %v", action.Id, action.Op, action.PrimaryPath)
 
 			actions <- action
 		}
@@ -235,7 +235,7 @@ func (dm *DataMoverClient) processStatus(ctx context.Context) {
 		}
 		for reply := range dm.status {
 			reply.Handle = handle
-			// liblog.Debug("Sent reply  %x error: %#v", reply.Id, reply.Error)
+			// debug.Printf("Sent reply  %x error: %#v", reply.Id, reply.Error)
 			err := acks.Send(reply)
 			if err != nil {
 				log.Fatalf("Failed to ack message %x: %v", reply.Id, err)
@@ -275,12 +275,12 @@ func (dm *DataMoverClient) handler(name string, actions chan *pb.ActionItem) {
 		}
 
 		//		rate.Mark(1)
-		// liblog.Debug("completed (action: %v) %v ", action, ret)
+		// debug.Printf("completed (action: %v) %v ", action, ret)
 		if ret != nil {
 			action.Fail(ret)
 		} else {
 			action.Complete()
 		}
 	}
-	liblog.Debug("%s: stopping", name)
+	debug.Printf("%s: stopping", name)
 }

@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.intel.com/hpdd/liblog"
+	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/agent"
 	pb "github.intel.com/hpdd/policy/pdm/pdm"
 	"golang.org/x/net/context"
@@ -44,7 +44,7 @@ func init() {
 }
 
 func (t *rpcTransport) Init(conf *agent.Config, a *agent.HsmAgent) error {
-	liblog.Debug("Initializing grpc transport")
+	debug.Printf("Initializing grpc transport")
 	addr := fmt.Sprintf(":%d", conf.RPCPort)
 	sock, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -83,7 +83,7 @@ func (s *dmRpcServer) Register(context context.Context, e *pb.Endpoint) (*pb.Han
 			log.Fatalf("not an rpc endpoint: %#v", ep)
 		}
 		if rpcEp.state == Connected {
-			liblog.Debug("register rejected for  %v already connected", e)
+			debug.Printf("register rejected for  %v already connected", e)
 			return nil, errors.New("Archived already connected")
 		} else {
 			// TODO: should flush and perhaps even delete the existing Endpoint
@@ -116,7 +116,7 @@ func (s *dmRpcServer) Register(context context.Context, e *pb.Endpoint) (*pb.Han
 func (s *dmRpcServer) GetActions(h *pb.Handle, stream pb.DataMover_GetActionsServer) error {
 	temp, ok := s.agent.Endpoints.GetWithHandle((*agent.Handle)(&h.Id))
 	if !ok {
-		liblog.Debug("bad cookie  %v", h.Id)
+		debug.Printf("bad cookie  %v", h.Id)
 		return errors.New("bad cookie")
 	}
 	ep, ok := temp.(*RpcEndpoint)
@@ -127,7 +127,7 @@ func (s *dmRpcServer) GetActions(h *pb.Handle, stream pb.DataMover_GetActionsSer
 	/* Should use atomic CAS here */
 	ep.state = Connected
 	defer func() {
-		liblog.Debug("user disconnected %v", h)
+		debug.Printf("user disconnected %v", h)
 		ep.state = Disconnected
 		s.agent.Endpoints.RemoveHandle((*agent.Handle)(&h.Id))
 	}()
@@ -145,7 +145,7 @@ func (s *dmRpcServer) GetActions(h *pb.Handle, stream pb.DataMover_GetActionsSer
 			ep.mu.Unlock()
 
 			if err := stream.Send(action.AsMessage()); err != nil {
-				liblog.Debug(err)
+				debug.Print(err)
 				action.Fail(-1)
 
 				ep.mu.Lock()
@@ -156,7 +156,6 @@ func (s *dmRpcServer) GetActions(h *pb.Handle, stream pb.DataMover_GetActionsSer
 			}
 		}
 	}
-	return nil
 }
 
 /*
@@ -175,7 +174,7 @@ func (s *dmRpcServer) StatusStream(stream pb.DataMover_StatusStreamServer) error
 		}
 		temp, ok := s.agent.Endpoints.GetWithHandle((*agent.Handle)(&status.Handle.Id))
 		if !ok {
-			liblog.Debug("bad handle %v", status.Handle)
+			debug.Printf("bad handle %v", status.Handle)
 			return errors.New("bad endpoint handle")
 		}
 		ep, ok := temp.(*RpcEndpoint)
@@ -200,7 +199,7 @@ func (s *dmRpcServer) StatusStream(stream pb.DataMover_StatusStreamServer) error
 				// send cancel to mover
 			}
 		} else {
-			liblog.Debug("! unknown id: %x", status.Id)
+			debug.Printf("! unknown id: %x", status.Id)
 		}
 
 	}

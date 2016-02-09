@@ -12,6 +12,7 @@ import (
 
 	"github.com/rcrowley/go-metrics"
 
+	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
 	"github.intel.com/hpdd/policy/pkg/client"
 	"github.intel.com/hpdd/svclog"
@@ -124,7 +125,7 @@ func main() {
 	flag.Parse()
 
 	if config.enableDebug {
-		svclog.EnableDebug()
+		debug.Enable()
 	}
 
 	posix(config)
@@ -137,7 +138,7 @@ func interruptHandler(once func()) {
 	go func() {
 		stopping := false
 		for sig := range c {
-			svclog.Debug("signal received: %s", sig)
+			debug.Printf("signal received: %s", sig)
 			if !stopping {
 				stopping = true
 				once()

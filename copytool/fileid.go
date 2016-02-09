@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 
-	"github.intel.com/hpdd/liblog"
+	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/system"
@@ -27,7 +27,7 @@ func newFileId(mnt fs.RootDir, fid *lustre.Fid) (string, error) {
 	uuid := uuid.New()
 	err := system.Lsetxattr(p, "user.hsm_guid", []byte(uuid), 0)
 	if err != nil {
-		liblog.Debug("xattr failed: %v", err)
+		debug.Printf("xattr failed: %v", err)
 		return "", err
 	}
 	return uuid, nil
