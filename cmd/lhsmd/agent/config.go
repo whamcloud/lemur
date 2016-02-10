@@ -10,9 +10,9 @@ import (
 	"runtime"
 	"strings"
 
+	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre/fs"
-	"github.intel.com/hpdd/svclog"
 )
 
 type (
@@ -57,7 +57,7 @@ func init() {
 func (c *Config) String() string {
 	data, err := json.Marshal(c)
 	if err != nil {
-		svclog.Fail(err)
+		alert.Fatal(err)
 	}
 
 	var out bytes.Buffer
@@ -130,16 +130,16 @@ func ConfigInitMust() *Config {
 	err := LoadConfig(optConfigPath, defaultConfig)
 	if err != nil {
 		if !(optConfigPath == DefaultConfigPath && os.IsNotExist(err)) {
-			svclog.Fail("Failed to load config: %s", err)
+			alert.Fatalf("Failed to load config: %s", err)
 		}
 	}
 
 	if !defaultConfig.Lustre.IsValid() {
-		svclog.Fail("Invalid Lustre mountpoint %q", defaultConfig.Lustre)
+		alert.Fatalf("Invalid Lustre mountpoint %q", defaultConfig.Lustre)
 	}
 
 	if len(defaultConfig.Plugins) == 0 {
-		svclog.Fail("No data mover plugins configured")
+		alert.Fatal("No data mover plugins configured")
 	}
 
 	return defaultConfig

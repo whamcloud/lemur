@@ -9,9 +9,10 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.intel.com/hpdd/logging/alert"
+	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/agent"
-	"github.intel.com/hpdd/svclog"
 
 	_ "github.intel.com/hpdd/policy/pdm/lhsmd/transport/grpc"
 	// _ "github.intel.com/hpdd/policy/pdm/lhsmd/transport/queue"
@@ -46,9 +47,9 @@ func main() {
 		// to mess around with plugin args.
 		os.Setenv(debug.EnableEnvVar, "true")
 	}
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	// Setting the prefix helps us to track down deprecated calls to log.*
-	log.SetOutput(svclog.Writer().Prefix("DEPRECATED"))
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	log.SetOutput(audit.Writer().Prefix("DEPRECATED "))
 
 	conf := agent.ConfigInitMust()
 
@@ -56,7 +57,7 @@ func main() {
 
 	ct, err := agent.New(conf)
 	if err != nil {
-		svclog.Fail("Error creating agent: %s", err)
+		alert.Fatalf("Error creating agent: %s", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -66,6 +67,6 @@ func main() {
 	})
 
 	if err := ct.Start(ctx); err != nil {
-		svclog.Fail("Error in HsmAgent.Start(): %s", err)
+		alert.Fatalf("Error in HsmAgent.Start(): %s", err)
 	}
 }

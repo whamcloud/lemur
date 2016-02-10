@@ -5,13 +5,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
 	pb "github.intel.com/hpdd/policy/pdm/pdm"
 
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
 	"github.intel.com/hpdd/lustre/llapi"
-	"github.intel.com/hpdd/svclog"
 )
 
 type ActionID uint64
@@ -109,17 +109,17 @@ func (action *Action) Update(status *pb.ActionStatus) (bool, error) {
 		}
 		err := action.aih.End(status.Offset, status.Length, 0, int(status.Error))
 		if err != nil {
-			svclog.Log("id:%d completion failed: %v", status.Id, err)
+			audit.Logf("id:%d completion failed: %v", status.Id, err)
 			return true, err // Completed, but Failed. Internal HSM state is not updated
 		}
 		return true, nil // Completed
 	}
 	err := action.aih.Progress(status.Offset, status.Length, action.aih.Length(), 0)
 	if err != nil {
-		svclog.Log("id:%d progress update failed: %v", status.Id, err)
+		audit.Logf("id:%d progress update failed: %v", status.Id, err)
 
 		if err2 := action.aih.End(0, 0, 0, -1); err2 != nil {
-			svclog.Log("id:%d completion after error failed: %v", status.Id, err2)
+			audit.Logf("id:%d completion after error failed: %v", status.Id, err2)
 		}
 		return false, err // Incomplete Failed Action
 	}
@@ -128,10 +128,10 @@ func (action *Action) Update(status *pb.ActionStatus) (bool, error) {
 }
 
 func (action *Action) Fail(rc int) error {
-	svclog.Log("id:%d fail %x %v: %v", action.id, action.aih.Cookie, action.aih.Fid(), rc)
+	audit.Logf("id:%d fail %x %v: %v", action.id, action.aih.Cookie, action.aih.Fid(), rc)
 	err := action.aih.End(0, 0, 0, -1)
 	if err != nil {
-		svclog.Log("id:%d fail after fail %x: %v", action.id, action.aih.Cookie, err)
+		audit.Logf("id:%d fail after fail %x: %v", action.id, action.aih.Cookie, err)
 	}
 	return err
 

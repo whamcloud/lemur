@@ -12,10 +12,10 @@ import (
 
 	"github.com/rcrowley/go-metrics"
 
+	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
 	"github.intel.com/hpdd/policy/pkg/client"
-	"github.intel.com/hpdd/svclog"
 )
 
 type (
@@ -99,7 +99,7 @@ func (set archiveSet) Set(value string) error {
 func posix(config *posixConfig) {
 	c, err := client.New(config.clientRoot)
 	if err != nil {
-		svclog.Fail(err)
+		alert.Fatal(err)
 	}
 
 	done := make(chan struct{})
@@ -109,7 +109,7 @@ func posix(config *posixConfig) {
 
 	plugin, err := dmplugin.New(config.agentAddress)
 	if err != nil {
-		svclog.Fail("failed to dial: %s", err)
+		alert.Fatalf("failed to dial: %s", err)
 	}
 	defer plugin.Close()
 

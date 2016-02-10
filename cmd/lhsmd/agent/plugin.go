@@ -8,8 +8,8 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
-	"github.intel.com/hpdd/svclog"
 )
 
 type (
@@ -77,7 +77,7 @@ func (m *PluginMonitor) run(ctx context.Context) {
 		debug.Printf("Waiting for %s (%d) to exit", cmd.Path, cmd.Process.Pid)
 		ps, err := cmd.Process.Wait()
 		if err != nil {
-			svclog.Log("Err after Wait() for %d: %s", cmd.Process.Pid, err)
+			audit.Logf("Err after Wait() for %d: %s", cmd.Process.Pid, err)
 		}
 
 		debug.Printf("PID %d finished: %s", cmd.Process.Pid, ps)
@@ -97,15 +97,15 @@ func (m *PluginMonitor) run(ctx context.Context) {
 			}
 
 			delete(processMap, s.ps.Pid())
-			svclog.Log("Process %d for %s died: %s", s.ps.Pid(), cfg.Name, s.ps)
+			audit.Logf("Process %d for %s died: %s", s.ps.Pid(), cfg.Name, s.ps)
 			if cfg.RestartOnFailure {
-				svclog.Log("Restarting plugin: %s", cfg.Name)
+				audit.Logf("Restarting plugin: %s", cfg.Name)
 				// Restart in a different goroutine to
 				// avoid deadlocking this one.
 				go func(cfg *PluginConfig) {
 					err := m.StartPlugin(cfg)
 					if err != nil {
-						svclog.Log("Failed to restart plugin %s: %s", cfg.Name, err)
+						audit.Logf("Failed to restart plugin %s: %s", cfg.Name, err)
 					}
 				}(cfg)
 			}
@@ -127,14 +127,14 @@ func (m *PluginMonitor) StartPlugin(cfg *PluginConfig) error {
 	cmd := exec.Command(cfg.BinPath, cfg.Args...)
 
 	prefix := path.Base(cfg.BinPath)
-	cmd.Stdout = svclog.Writer().Prefix(prefix)
-	cmd.Stderr = svclog.Writer().Prefix(prefix + "-stderr")
+	cmd.Stdout = audit.Writer().Prefix(prefix + " ")
+	cmd.Stderr = audit.Writer().Prefix(prefix + "-stderr ")
 
 	if err := cmd.Start(); err != nil {
 		return err
 	}
 
-	svclog.Log("Started %s (PID: %d)", cmd.Path, cmd.Process.Pid)
+	audit.Logf("Started %s (PID: %d)", cmd.Path, cmd.Process.Pid)
 	m.processChan <- &pluginProcess{cfg, cmd}
 
 	return nil
