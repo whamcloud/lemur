@@ -126,7 +126,7 @@ func (action *Action) Update(status *pb.ActionStatus) (bool, error) {
 
 		if err2 := action.aih.End(0, 0, 0, -1); err2 != nil {
 			debug.Printf("id:%d completion after error failed: %v", status.Id, err2)
-			return false, fmt.Errorf("%s/%s", err, err2)
+			return false, fmt.Errorf("err: %s/err2: %s", err, err2)
 		}
 		return false, err // Incomplete Failed Action
 	}

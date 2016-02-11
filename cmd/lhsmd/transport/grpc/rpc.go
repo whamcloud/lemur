@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/agent"
 	pb "github.intel.com/hpdd/policy/pdm/pdm"
@@ -85,7 +84,8 @@ func (s *dmRPCServer) Register(context context.Context, e *pb.Endpoint) (*pb.Han
 	if ok {
 		rpcEp, ok := ep.(*AgentEndpoint)
 		if !ok {
-			alert.Fatalf("not an rpc endpoint: %#v", ep)
+			debug.Printf("not an rpc endpoint: %#v", ep)
+			return nil, fmt.Errorf("not an rpc endpoint: %#v", ep)
 		}
 		if rpcEp.state == Connected {
 			debug.Printf("register rejected for  %v already connected", e)
@@ -124,7 +124,8 @@ func (s *dmRPCServer) GetActions(h *pb.Handle, stream pb.DataMover_GetActionsSer
 	}
 	ep, ok := temp.(*AgentEndpoint)
 	if !ok {
-		alert.Fatalf("not an rpc endpoint: %#v", ep)
+		debug.Printf("not an rpc endpoint: %#v", ep)
+		return fmt.Errorf("not an rpc endpoint: %#v", ep)
 	}
 
 	/* Should use atomic CAS here */
@@ -181,7 +182,8 @@ func (s *dmRPCServer) StatusStream(stream pb.DataMover_StatusStreamServer) error
 		}
 		ep, ok := temp.(*AgentEndpoint)
 		if !ok {
-			alert.Fatalf("not an rpc endpoint: %#v", ep)
+			debug.Printf("not an rpc endpoint: %#v", ep)
+			return fmt.Errorf("not an rpc endpoint: %#v", ep)
 		}
 
 		ep.mu.Lock()
@@ -194,6 +196,7 @@ func (s *dmRPCServer) StatusStream(stream pb.DataMover_StatusStreamServer) error
 				delete(ep.actions, agent.ActionID(status.Id))
 				ep.mu.Unlock()
 			} else if err != nil {
+				debug.Printf("Status update for 0x%x did not complete: %s", status.Id, err)
 				ep.mu.Lock()
 				delete(ep.actions, agent.ActionID(status.Id))
 				ep.mu.Unlock()
