@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"log"
 	"sync/atomic"
 	"time"
@@ -121,10 +122,11 @@ func (action *Action) Update(status *pb.ActionStatus) (bool, error) {
 	}
 	err := action.aih.Progress(status.Offset, status.Length, action.aih.Length(), 0)
 	if err != nil {
-		audit.Logf("id:%d progress update failed: %v", status.Id, err)
+		debug.Printf("id:%d progress update failed: %v", status.Id, err)
 
 		if err2 := action.aih.End(0, 0, 0, -1); err2 != nil {
-			audit.Logf("id:%d completion after error failed: %v", status.Id, err2)
+			debug.Printf("id:%d completion after error failed: %v", status.Id, err2)
+			return false, fmt.Errorf("%s/%s", err, err2)
 		}
 		return false, err // Incomplete Failed Action
 	}
