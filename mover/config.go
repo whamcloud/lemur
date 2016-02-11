@@ -1,4 +1,4 @@
-package pdm
+package main
 
 import (
 	"bytes"

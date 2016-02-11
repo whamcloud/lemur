@@ -41,7 +41,7 @@ type (
 	}
 )
 
-func (mover *Mover) initBackends(conf *pdm.HSMConfig) error {
+func (mover *Mover) initBackends(conf *HSMConfig) error {
 	mover.backends = make(map[uint32]Backend, 0)
 	root, err := fs.MountRoot(conf.Lustre)
 	if err != nil {
@@ -88,7 +88,7 @@ func (mover *Mover) Process(d workq.Delivery) error {
 	return nil
 }
 
-func mover(conf *pdm.HSMConfig) {
+func mover(conf *HSMConfig) {
 	root, err := fs.MountRoot(conf.Lustre)
 	if err != nil {
 		alert.Fatal(err)
@@ -134,7 +134,7 @@ func init() {
 func main() {
 	flag.Parse()
 
-	conf := pdm.ConfigInitMust()
+	conf := ConfigInitMust()
 
 	/*
 		if reset {
