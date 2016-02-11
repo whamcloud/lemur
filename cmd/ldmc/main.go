@@ -6,8 +6,7 @@ import (
 
 	"github.com/codegangsta/cli"
 
-	"github.intel.com/hpdd/applog"
-	"github.intel.com/hpdd/liblog"
+	"github.intel.com/hpdd/logging/applog"
 )
 
 var commands []cli.Command
@@ -44,10 +43,8 @@ func main() {
 func configureLogging(c *cli.Context) error {
 	if c.Bool("debug") {
 		applog.SetLevel(applog.DEBUG)
-		liblog.Enable()
 	}
 	applog.SetJournal(c.String("logfile"))
-	liblog.SetWriter(applog.Writer().Prefix("liblog"))
 
 	return nil
 }
@@ -60,5 +57,5 @@ func logContext(c *cli.Context) {
 		c = c.Parent()
 	}
 
-	applog.Debug("Context: %s", strings.Join(c.Args(), " "))
+	applog.Trace("Context: %s", strings.Join(c.Args(), " "))
 }

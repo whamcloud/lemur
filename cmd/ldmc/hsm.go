@@ -12,7 +12,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/dustin/go-humanize"
 
-	"github.intel.com/hpdd/applog"
+	"github.intel.com/hpdd/logging/applog"
 	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
