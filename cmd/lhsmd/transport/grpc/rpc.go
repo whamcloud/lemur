@@ -172,7 +172,6 @@ func (s *dmRPCServer) StatusStream(stream pb.DataMover_StatusStreamServer) error
 	for {
 		status, err := stream.Recv()
 		if err != nil {
-			alert.Warn(err)
 			return nil
 		}
 		temp, ok := s.agent.Endpoints.GetWithHandle((*agent.Handle)(&status.Handle.Id))
