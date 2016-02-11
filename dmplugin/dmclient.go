@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"sync"
 	"syscall"
 
+	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 	pb "github.intel.com/hpdd/policy/pdm/pdm"
 	"golang.org/x/net/context"
@@ -152,7 +152,7 @@ func (dm *DataMoverClient) Run() {
 
 	handle, err := dm.registerEndpoint(ctx)
 	if err != nil {
-		log.Fatal(err)
+		alert.Fatal(err)
 	}
 	ctx = withHandle(ctx, handle)
 	actions := dm.processActions(ctx)
@@ -197,11 +197,11 @@ func (dm *DataMoverClient) processActions(ctx context.Context) chan *pb.ActionIt
 	go func() {
 		handle, ok := getHandle(ctx)
 		if !ok {
-			log.Fatal("No context")
+			alert.Fatal("No context")
 		}
 		stream, err := dm.rpcClient.GetActions(ctx, handle)
 		if err != nil {
-			log.Fatalf("GetActions() failed: %v", err)
+			alert.Fatalf("GetActions() failed: %v", err)
 		}
 		for {
 			action, err := stream.Recv()
@@ -210,7 +210,7 @@ func (dm *DataMoverClient) processActions(ctx context.Context) chan *pb.ActionIt
 			}
 			if err != nil {
 				close(actions)
-				log.Fatalf("Failed to receive a message: %v", err)
+				alert.Fatalf("Failed to receive a message: %v", err)
 			}
 			// debug.Printf("Got message id:%d op: %v %v", action.Id, action.Op, action.PrimaryPath)
 
@@ -226,19 +226,19 @@ func (dm *DataMoverClient) processStatus(ctx context.Context) {
 	go func() {
 		handle, ok := getHandle(ctx)
 		if !ok {
-			log.Fatal("No context")
+			alert.Fatal("No context")
 		}
 
 		acks, err := dm.rpcClient.StatusStream(ctx)
 		if err != nil {
-			log.Fatalf("StatusStream() failed: %v", err)
+			alert.Fatalf("StatusStream() failed: %v", err)
 		}
 		for reply := range dm.status {
 			reply.Handle = handle
 			// debug.Printf("Sent reply  %x error: %#v", reply.Id, reply.Error)
 			err := acks.Send(reply)
 			if err != nil {
-				log.Fatalf("Failed to ack message %x: %v", reply.Id, err)
+				alert.Fatalf("Failed to ack message %x: %v", reply.Id, err)
 			}
 		}
 	}()

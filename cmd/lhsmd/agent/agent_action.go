@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
 	pb "github.intel.com/hpdd/policy/pdm/pdm"
@@ -40,7 +41,7 @@ func hsm2Command(a llapi.HsmAction) (c pb.Command) {
 	case llapi.HsmActionCancel:
 		c = pb.Command_CANCEL
 	default:
-		log.Fatalf("unknown command: %v", a)
+		alert.Fatalf("unknown command: %v", a)
 	}
 
 	return

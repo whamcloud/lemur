@@ -6,10 +6,11 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.intel.com/hpdd/logging/alert"
 )
 
 type (
@@ -127,7 +128,7 @@ func errExit(msg string) {
 func (conf HSMConfig) String() string {
 	b, err := json.Marshal(conf)
 	if err != nil {
-		log.Fatal(err)
+		alert.Fatal(err)
 	}
 	var out bytes.Buffer
 	json.Indent(&out, b, "", "\t")

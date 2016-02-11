@@ -2,13 +2,12 @@
 package main
 
 import (
-	"log"
 	"sync"
 
+	"github.intel.com/hpdd/logging/alert"
+	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
-
-	"github.com/golang/glog"
 )
 
 type (
@@ -36,10 +35,10 @@ func (ct *CopyTool) initBackends(conf *HSMConfig) error {
 	ct.backends = make(map[uint]Backend, 0)
 	root, err := fs.MountRoot(conf.Lustre)
 	if err != nil {
-		glog.Fatal(err)
+		alert.Fatal(err)
 	}
 	for _, a := range conf.Archives {
-		glog.V(3).Info(a)
+		audit.Log(a)
 		switch a.Type {
 		case "mirror":
 			{
@@ -58,7 +57,7 @@ func (ct *CopyTool) initBackends(conf *HSMConfig) error {
 				ct.backends[a.ArchiveID] = NewNoopBackend(root)
 			}
 		}
-		glog.Infof("created: %d %s", a.ArchiveID, ct.backends[a.ArchiveID])
+		audit.Logf("created: %d %s", a.ArchiveID, ct.backends[a.ArchiveID])
 
 	}
 	return nil
@@ -86,7 +85,7 @@ func (ct *CopyTool) Actions() <-chan hsm.ActionRequest {
 func copytool(conf *HSMConfig) {
 	root, err := fs.MountRoot(conf.Lustre)
 	if err != nil {
-		glog.Fatal(err)
+		alert.Fatal(err)
 	}
 
 	ct := &CopyTool{root: root}
@@ -101,7 +100,7 @@ func copytool(conf *HSMConfig) {
 		ct.initBackends(conf)
 		err := ct.initAgent()
 		if err != nil {
-			log.Fatal(err)
+			alert.Fatal(err)
 		}
 
 		for i := 0; i < conf.Processes; i++ {
@@ -113,10 +112,8 @@ func copytool(conf *HSMConfig) {
 }
 
 func main() {
-	defer glog.Flush()
-
 	conf := configInitMust()
-	glog.V(2).Infof("current configuration:\n%v", conf.String())
+	audit.Logf("current configuration:\n%v", conf.String())
 
 	copytool(conf)
 }

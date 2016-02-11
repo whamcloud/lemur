@@ -4,12 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"os"
 	"path"
 	"time"
 
+	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
 	"github.intel.com/hpdd/policy/pkg/client"
@@ -80,7 +80,7 @@ func (h *Mover) destination(id string) string {
 
 	err := os.MkdirAll(dir, 0600)
 	if err != nil {
-		log.Fatal(err)
+		alert.Fatal(err)
 	}
 	return path.Join(dir, id)
 }

@@ -2,9 +2,10 @@ package queue
 
 import (
 	"flag"
-	"log"
 	"sync"
 
+	"github.intel.com/hpdd/logging/alert"
+	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre/hsm"
 	"github.intel.com/hpdd/lustre/llapi"
@@ -33,10 +34,10 @@ func init() {
 
 func (t *queueTransport) Init(conf *agent.Config, a *agent.HsmAgent) error {
 	if reset {
-		log.Println("Reseting pdm queue")
+		audit.Log("Reseting pdm queue")
 		workq.MasterReset("pdm", conf.RedisServer)
 	}
-	log.Println("Initializing queue transport")
+	audit.Log("Initializing queue transport")
 	qep := &QueueEndpoint{
 		queue:    workq.NewMaster("pdm", conf.RedisServer),
 		requests: make(map[uint64]hsm.ActionHandle),
@@ -57,7 +58,7 @@ func hsm2pdmCommand(a llapi.HsmAction) (c pdm.CommandType) {
 	case llapi.HsmActionCancel:
 		c = pdm.CancelCommand
 	default:
-		log.Fatalf("unknown command: %v", a)
+		alert.Fatalf("unknown command: %v", a)
 	}
 
 	return
@@ -82,7 +83,7 @@ func (ep *QueueEndpoint) Send(action *agent.Action) {
 	ep.mu.Unlock()
 	err := ep.queue.Send(req)
 	if err != nil {
-		log.Fatal(err)
+		alert.Fatal(err)
 	}
 
 }
@@ -90,7 +91,7 @@ func (ep *QueueEndpoint) Send(action *agent.Action) {
 func (ep *QueueEndpoint) Update(d workq.StatusDelivery) error {
 	reply := &pdm.Result{}
 	if err := d.Payload(reply); err != nil {
-		log.Println(err)
+		audit.Log(err)
 		return err
 	}
 	debug.Printf("reply: %v", reply)

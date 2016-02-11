@@ -18,13 +18,13 @@ package main
 
 import (
 	"flag"
-	"log"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 
-	"github.com/golang/glog"
+	"github.intel.com/hpdd/logging/alert"
+	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/policy/pdm"
@@ -45,10 +45,10 @@ func (mover *Mover) initBackends(conf *pdm.HSMConfig) error {
 	mover.backends = make(map[uint32]Backend, 0)
 	root, err := fs.MountRoot(conf.Lustre)
 	if err != nil {
-		glog.Fatal(err)
+		alert.Fatal(err)
 	}
 	for _, a := range conf.Archives {
-		glog.V(3).Info(a)
+		audit.Log(a)
 		switch a.Type {
 		case "posix":
 			//			{
@@ -67,7 +67,7 @@ func (mover *Mover) initBackends(conf *pdm.HSMConfig) error {
 				mover.backends[a.ArchiveID] = NewNoopBackend(root)
 			}
 		}
-		glog.Infof("created: %d %s", a.ArchiveID, mover.backends[a.ArchiveID])
+		audit.Logf("created: %d %s", a.ArchiveID, mover.backends[a.ArchiveID])
 
 	}
 	return nil
@@ -78,7 +78,6 @@ func (mover *Mover) Process(d workq.Delivery) error {
 	defer mover.wg.Done()
 	var r pdm.Request
 	if err := d.Payload(&r); err != nil {
-		log.Println(err)
 		return err
 	}
 	var backend Backend
@@ -92,7 +91,7 @@ func (mover *Mover) Process(d workq.Delivery) error {
 func mover(conf *pdm.HSMConfig) {
 	root, err := fs.MountRoot(conf.Lustre)
 	if err != nil {
-		glog.Fatal(err)
+		alert.Fatal(err)
 	}
 
 	done := make(chan struct{})
@@ -109,7 +108,7 @@ func mover(conf *pdm.HSMConfig) {
 
 	go func() {
 		if err != nil {
-			log.Fatal(err)
+			alert.Fatal(err)
 			return
 		}
 
@@ -135,9 +134,6 @@ func init() {
 func main() {
 	flag.Parse()
 
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
-	defer glog.Flush()
 	conf := pdm.ConfigInitMust()
 
 	/*
@@ -156,7 +152,7 @@ func interruptHandler(once func()) {
 	go func() {
 		stopping := false
 		for sig := range c {
-			glog.Infoln("signal received:", sig)
+			audit.Logf("signal received: %v", sig)
 			if !stopping {
 				stopping = true
 				once()

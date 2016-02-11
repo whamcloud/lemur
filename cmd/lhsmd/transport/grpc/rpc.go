@@ -3,11 +3,11 @@ package rpc
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"sync"
 	"time"
 
+	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/agent"
 	pb "github.intel.com/hpdd/policy/pdm/pdm"
@@ -80,7 +80,7 @@ func (s *dmRpcServer) Register(context context.Context, e *pb.Endpoint) (*pb.Han
 	if ok {
 		rpcEp, ok := ep.(*RpcEndpoint)
 		if !ok {
-			log.Fatalf("not an rpc endpoint: %#v", ep)
+			alert.Fatalf("not an rpc endpoint: %#v", ep)
 		}
 		if rpcEp.state == Connected {
 			debug.Printf("register rejected for  %v already connected", e)
@@ -121,7 +121,7 @@ func (s *dmRpcServer) GetActions(h *pb.Handle, stream pb.DataMover_GetActionsSer
 	}
 	ep, ok := temp.(*RpcEndpoint)
 	if !ok {
-		log.Fatalf("not an rpc endpoint: %#v", ep)
+		alert.Fatalf("not an rpc endpoint: %#v", ep)
 	}
 
 	/* Should use atomic CAS here */
@@ -169,7 +169,7 @@ func (s *dmRpcServer) StatusStream(stream pb.DataMover_StatusStreamServer) error
 	for {
 		status, err := stream.Recv()
 		if err != nil {
-			log.Println(err)
+			alert.Warn(err)
 			return nil
 		}
 		temp, ok := s.agent.Endpoints.GetWithHandle((*agent.Handle)(&status.Handle.Id))
@@ -179,7 +179,7 @@ func (s *dmRpcServer) StatusStream(stream pb.DataMover_StatusStreamServer) error
 		}
 		ep, ok := temp.(*RpcEndpoint)
 		if !ok {
-			log.Fatalf("not an rpc endpoint: %#v", ep)
+			alert.Fatalf("not an rpc endpoint: %#v", ep)
 		}
 
 		ep.mu.Lock()

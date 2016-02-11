@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
-	"log"
 
+	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
 )
 
@@ -35,7 +35,7 @@ func noop(agentAddress string) {
 
 	plugin, err := dmplugin.New(agentAddress)
 	if err != nil {
-		log.Fatal(err)
+		alert.Fatal(err)
 	}
 	mover := Mover{fsName: "noop", archiveID: uint32(archive)}
 	plugin.AddMover(&mover)
