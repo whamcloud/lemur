@@ -6,10 +6,10 @@ import (
 	"github.intel.com/hpdd/lustre/system"
 )
 
-func updateFileID(mnt fs.RootDir, fid *lustre.Fid, fileId []byte) error {
+func updateFileID(mnt fs.RootDir, fid *lustre.Fid, fileID []byte) error {
 	p := fs.FidPath(mnt, fid)
 
-	err := system.Lsetxattr(p, "trusted.hsm_file_id", fileId, 0)
+	err := system.Lsetxattr(p, "trusted.hsm_file_id", fileID, 0)
 	if err != nil {
 		return err
 	}

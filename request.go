@@ -1,6 +1,7 @@
 package pdm
 
 type (
+	// Request represents a PDM request
 	Request struct {
 		Agent      string // Sender of this request
 		Cookie     uint64 // Agent-specified id for request
@@ -13,8 +14,10 @@ type (
 		Params     string
 	}
 
+	// CommandType represents the PDM command being requested
 	CommandType int
 
+	// Result represents the result of a PDM request
 	Result struct {
 		Agent     string
 		Cookie    uint64

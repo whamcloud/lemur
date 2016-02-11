@@ -16,21 +16,25 @@ import (
 )
 
 const (
+	// Connected indicates a connected endpoint
 	Connected = EndpointState(iota)
+	// Disconnected indicates a disconnected endpoint
 	Disconnected
 )
 
 type (
 	rpcTransport struct{}
 
-	dmRpcServer struct {
+	dmRPCServer struct {
 		stats *messageStats
 		agent *agent.HsmAgent
 	}
 
+	// EndpointState represents the connectedness state of an Endpoint
 	EndpointState int
 
-	RpcEndpoint struct {
+	// AgentEndpoint represents the agent side of a data mover connection
+	AgentEndpoint struct {
 		state    EndpointState
 		archive  int
 		actionCh chan *agent.Action
@@ -58,7 +62,8 @@ func (t *rpcTransport) Init(conf *agent.Config, a *agent.HsmAgent) error {
 	return nil
 }
 
-func (ep *RpcEndpoint) Send(action *agent.Action) {
+// Send delivers an agent action to the backend
+func (ep *AgentEndpoint) Send(action *agent.Action) {
 	ep.actionCh <- action
 }
 
@@ -73,29 +78,27 @@ func (ep *RpcEndpoint) Send(action *agent.Action) {
  * takes over this Endpoint. Existing in progress messages should be flushed, however.
  */
 
-func (s *dmRpcServer) Register(context context.Context, e *pb.Endpoint) (*pb.Handle, error) {
+func (s *dmRPCServer) Register(context context.Context, e *pb.Endpoint) (*pb.Handle, error) {
 	ep, ok := s.agent.Endpoints.Get(e.Archive)
 	var handle *agent.Handle
 	var err error
 	if ok {
-		rpcEp, ok := ep.(*RpcEndpoint)
+		rpcEp, ok := ep.(*AgentEndpoint)
 		if !ok {
 			alert.Fatalf("not an rpc endpoint: %#v", ep)
 		}
 		if rpcEp.state == Connected {
 			debug.Printf("register rejected for  %v already connected", e)
 			return nil, errors.New("Archived already connected")
-		} else {
-			// TODO: should flush and perhaps even delete the existing Endpoint
-			// instead of just reusing it.
-			handle, err = s.agent.Endpoints.NewHandle(e.Archive)
-			if err != nil {
-				return nil, err
-			}
-
+		}
+		// TODO: should flush and perhaps even delete the existing Endpoint
+		// instead of just reusing it.
+		handle, err = s.agent.Endpoints.NewHandle(e.Archive)
+		if err != nil {
+			return nil, err
 		}
 	} else {
-		handle, err = s.agent.Endpoints.Add(e.Archive, &RpcEndpoint{
+		handle, err = s.agent.Endpoints.Add(e.Archive, &AgentEndpoint{
 			state:    Disconnected,
 			actions:  make(map[agent.ActionID]*agent.Action),
 			actionCh: make(chan *agent.Action),
@@ -113,13 +116,13 @@ func (s *dmRpcServer) Register(context context.Context, e *pb.Endpoint) (*pb.Han
 * remains in Connected status as long as the backend is receiving messages from the agent.
 */
 
-func (s *dmRpcServer) GetActions(h *pb.Handle, stream pb.DataMover_GetActionsServer) error {
+func (s *dmRPCServer) GetActions(h *pb.Handle, stream pb.DataMover_GetActionsServer) error {
 	temp, ok := s.agent.Endpoints.GetWithHandle((*agent.Handle)(&h.Id))
 	if !ok {
 		debug.Printf("bad cookie  %v", h.Id)
 		return errors.New("bad cookie")
 	}
-	ep, ok := temp.(*RpcEndpoint)
+	ep, ok := temp.(*AgentEndpoint)
 	if !ok {
 		alert.Fatalf("not an rpc endpoint: %#v", ep)
 	}
@@ -165,7 +168,7 @@ func (s *dmRpcServer) GetActions(h *pb.Handle, stream pb.DataMover_GetActionsSer
 * from various kinds of races here.
  */
 
-func (s *dmRpcServer) StatusStream(stream pb.DataMover_StatusStreamServer) error {
+func (s *dmRPCServer) StatusStream(stream pb.DataMover_StatusStreamServer) error {
 	for {
 		status, err := stream.Recv()
 		if err != nil {
@@ -177,7 +180,7 @@ func (s *dmRpcServer) StatusStream(stream pb.DataMover_StatusStreamServer) error
 			debug.Printf("bad handle %v", status.Handle)
 			return errors.New("bad endpoint handle")
 		}
-		ep, ok := temp.(*RpcEndpoint)
+		ep, ok := temp.(*AgentEndpoint)
 		if !ok {
 			alert.Fatalf("not an rpc endpoint: %#v", ep)
 		}
@@ -205,7 +208,7 @@ func (s *dmRpcServer) StatusStream(stream pb.DataMover_StatusStreamServer) error
 	}
 }
 
-func (s *dmRpcServer) startStats() {
+func (s *dmRPCServer) startStats() {
 	go func() {
 		for {
 			fmt.Println(s.stats)
@@ -214,8 +217,8 @@ func (s *dmRpcServer) startStats() {
 	}()
 }
 
-func newServer(a *agent.HsmAgent) *dmRpcServer {
-	srv := &dmRpcServer{
+func newServer(a *agent.HsmAgent) *dmRPCServer {
+	srv := &dmRPCServer{
 		stats: newMessageStats(),
 		agent: a,
 	}

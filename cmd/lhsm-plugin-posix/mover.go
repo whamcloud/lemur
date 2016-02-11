@@ -17,6 +17,7 @@ import (
 	"code.google.com/p/go-uuid/uuid"
 )
 
+// Mover is a POSIX data mover
 type Mover struct {
 	name       string
 	client     *client.Client
@@ -24,6 +25,7 @@ type Mover struct {
 	archiveID  uint32
 }
 
+// PosixMover returns a new *Mover
 func PosixMover(c *client.Client, archiveDir string, archiveID uint32) *Mover {
 	return &Mover{
 		name:       fmt.Sprintf("posix-%d", archiveID),
@@ -33,20 +35,23 @@ func PosixMover(c *client.Client, archiveDir string, archiveID uint32) *Mover {
 	}
 }
 
+// FsName returns the name of the associated Lustre filesystem
 func (m *Mover) FsName() string {
 	return m.client.FsName()
 }
 
+// ArchiveID returns the HSM archive number associated with this data mover
 func (m *Mover) ArchiveID() uint32 {
 	return m.archiveID
 }
 
-func newFileId() string {
+func newFileID() string {
 	return uuid.New()
 }
 
+// CopyWithProgress initiates a movement of data with progress updates
 func CopyWithProgress(dst io.WriterAt, src io.ReaderAt, start int64, length int64, action *dmplugin.Action) (int64, error) {
-	//	debug.Printf("Copy %d %d", start, length)
+	debug.Printf("Copy %d %d", start, length)
 	blockSize := 10 * 1024 * 1024 // FIXME: parameterize
 
 	offset := start
@@ -69,11 +74,13 @@ func CopyWithProgress(dst io.WriterAt, src io.ReaderAt, start int64, length int6
 	return offset, nil
 }
 
+// Base returns the base path in which the mover is operating
 func (m *Mover) Base() string {
 	return m.client.Path()
 }
-func (h *Mover) destination(id string) string {
-	dir := path.Join(h.archiveDir,
+
+func (m *Mover) destination(id string) string {
+	dir := path.Join(m.archiveDir,
 		"objects",
 		fmt.Sprintf("%s", id[0:2]),
 		fmt.Sprintf("%s", id[2:4]))
@@ -92,19 +99,20 @@ func min(a, b int64) int64 {
 	return b
 }
 
-func (h *Mover) Archive(action *dmplugin.Action) error {
-	debug.Printf("%s id:%d archive %s", h.name, action.ID(), action.PrimaryPath())
+// Archive fulfills an HSM Archive request
+func (m *Mover) Archive(action *dmplugin.Action) error {
+	debug.Printf("%s id:%d archive %s", m.name, action.ID(), action.PrimaryPath())
 	start := time.Now()
 
-	fileId := newFileId()
+	fileID := newFileID()
 
-	src, err := os.Open(path.Join(h.Base(), action.PrimaryPath()))
+	src, err := os.Open(path.Join(m.Base(), action.PrimaryPath()))
 	if err != nil {
 		return err
 	}
 	defer src.Close()
 
-	dst, err := os.Create(h.destination(fileId))
+	dst, err := os.Create(m.destination(fileID))
 	if err != nil {
 		return err
 	}
@@ -129,30 +137,31 @@ func (h *Mover) Archive(action *dmplugin.Action) error {
 		return err
 	}
 
-	debug.Printf("%s id:%d Archived %d bytes in %v from %s to %s", h.name, action.ID(), n,
+	debug.Printf("%s id:%d Archived %d bytes in %v from %s to %s", m.name, action.ID(), n,
 		time.Since(start),
 		action.PrimaryPath(),
-		h.destination(fileId))
-	action.SetFileID([]byte(fileId))
+		m.destination(fileID))
+	action.SetFileID([]byte(fileID))
 	action.SetActualLength(uint64(n))
 	return nil
 }
 
-func (h *Mover) Restore(action *dmplugin.Action) error {
-	debug.Printf("%s id:%d restore %s %s", h.name, action.ID(), action.PrimaryPath(), action.FileID())
+// Restore fulfills an HSM Restore request
+func (m *Mover) Restore(action *dmplugin.Action) error {
+	debug.Printf("%s id:%d restore %s %s", m.name, action.ID(), action.PrimaryPath(), action.FileID())
 	start := time.Now()
 
 	if action.FileID() == "" {
 		return errors.New("Missing file_id")
 	}
 
-	src, err := os.Open(h.destination(action.FileID()))
+	src, err := os.Open(m.destination(action.FileID()))
 	if err != nil {
 		return err
 	}
 	defer src.Close()
 
-	dst, err := os.OpenFile(path.Join(h.Base(), action.WritePath()), os.O_WRONLY, 0644)
+	dst, err := os.OpenFile(path.Join(m.Base(), action.WritePath()), os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
@@ -177,18 +186,19 @@ func (h *Mover) Restore(action *dmplugin.Action) error {
 		return err
 	}
 
-	debug.Printf("%s id:%d Restored %d bytes in %v to %s", h.name, action.ID(), n,
+	debug.Printf("%s id:%d Restored %d bytes in %v to %s", m.name, action.ID(), n,
 		time.Since(start),
 		action.PrimaryPath())
 	action.SetActualLength(uint64(n))
 	return nil
 }
 
-func (h *Mover) Remove(action *dmplugin.Action) error {
-	debug.Printf("%s: remove %s %s", h.name, action.PrimaryPath(), action.FileID())
+// Remove fulfills an HSM Remove request
+func (m *Mover) Remove(action *dmplugin.Action) error {
+	debug.Printf("%s: remove %s %s", m.name, action.PrimaryPath(), action.FileID())
 	if action.FileID() == "" {
 		return errors.New("Missing file_id")
 	}
 
-	return os.Remove(h.destination(action.FileID()))
+	return os.Remove(m.destination(action.FileID()))
 }

@@ -14,6 +14,7 @@ import (
 )
 
 type (
+	// DataMoverClient is the data mover client to the HSM agent
 	DataMoverClient struct {
 		rpcClient pb.DataMoverClient
 		stop      chan struct{}
@@ -21,34 +22,42 @@ type (
 		mover     Mover
 	}
 
+	// Action is a data movement action
 	Action struct {
 		status       chan *pb.ActionStatus
 		item         *pb.ActionItem
-		fileId       []byte
+		fileID       []byte
 		actualLength *uint64
 	}
 
+	// Mover defines an interface for data mover implementations
 	Mover interface {
 		FsName() string
 		ArchiveID() uint32
 	}
 
+	// Archiver defines an interface for data movers capable of
+	// fulfilling Archive requests
 	Archiver interface {
-		Archive(action *Action) error
+		Archive(*Action) error
 	}
 
+	// Restorer defines an interface for data movers capable of
+	// fulfilling Restore requests
 	Restorer interface {
-		Restore(action *Action) error
+		Restore(*Action) error
 	}
 
+	// Remover defines an interface for data movers capable of
+	// fulfilling Remove requests
 	Remover interface {
-		Remove(action *Action) error
+		Remove(*Action) error
 	}
 )
 
 type key int
 
-var handleKey key = 0
+var handleKey key
 
 func withHandle(ctx context.Context, handle *pb.Handle) context.Context {
 	return context.WithValue(ctx, handleKey, handle)
@@ -59,27 +68,29 @@ func getHandle(ctx context.Context) (*pb.Handle, bool) {
 	return handle, ok
 }
 
-func (action *Action) Update(offset, length, max int64) error {
-	action.status <- &pb.ActionStatus{
-		Id:     action.item.Id,
+// Update sends an action status update
+func (a *Action) Update(offset, length, max int64) error {
+	a.status <- &pb.ActionStatus{
+		Id:     a.item.Id,
 		Offset: uint64(offset),
 		Length: uint64(length),
 	}
 	return nil
 }
 
-func (action *Action) Complete() error {
+// Complete signals that the action has completed
+func (a *Action) Complete() error {
 	status := &pb.ActionStatus{
-		Id:        action.item.Id,
+		Id:        a.item.Id,
 		Completed: true,
-		Offset:    action.item.Offset,
-		Length:    action.item.Length,
-		FileId:    action.fileId,
+		Offset:    a.item.Offset,
+		Length:    a.item.Length,
+		FileId:    a.fileID,
 	}
-	if action.actualLength != nil {
-		status.Length = *action.actualLength
+	if a.actualLength != nil {
+		status.Length = *a.actualLength
 	}
-	action.status <- status
+	a.status <- status
 	return nil
 }
 
@@ -90,10 +101,11 @@ func getErrno(err error) int32 {
 	return -1
 }
 
-func (action *Action) Fail(err error) error {
-	debug.Printf("fail: id:%d %v", action.item.Id, err)
-	action.status <- &pb.ActionStatus{
-		Id:        action.item.Id,
+// Fail signals that the action has failed
+func (a *Action) Fail(err error) error {
+	debug.Printf("fail: id:%d %v", a.item.Id, err)
+	a.status <- &pb.ActionStatus{
+		Id:        a.item.Id,
 		Completed: true,
 
 		Error: getErrno(err),
@@ -101,42 +113,52 @@ func (action *Action) Fail(err error) error {
 	return nil
 }
 
+// ID returns the action item's ID
 func (a *Action) ID() uint64 {
 	return a.item.Id
 }
 
+// Offset returns the current offset of the action item
 func (a *Action) Offset() int64 {
 	return int64(a.item.Offset)
 }
 
+// Length returns the expected length of the action item's file
 func (a *Action) Length() int64 {
 	return int64(a.item.Length)
 }
 
+// Data returns a byte slice of the action item's data
 func (a *Action) Data() []byte {
 	return a.item.Data
 }
 
+// PrimaryPath returns the action item's primary file path
 func (a *Action) PrimaryPath() string {
 	return a.item.PrimaryPath
 }
 
+// WritePath returns the action item's write path (e.g. for restores)
 func (a *Action) WritePath() string {
 	return a.item.WritePath
 }
 
+// FileID returns the action item's file id
 func (a *Action) FileID() string {
 	return string(a.item.FileId)
 }
 
+// SetFileID sets the action's file id
 func (a *Action) SetFileID(id []byte) {
-	a.fileId = id
+	a.fileID = id
 }
 
+// SetActualLength sets the action's actual file length
 func (a *Action) SetActualLength(length uint64) {
 	a.actualLength = &length
 }
 
+// NewMover returns a new *DataMoverClient
 func NewMover(cli pb.DataMoverClient, mover Mover) *DataMoverClient {
 	return &DataMoverClient{
 		rpcClient: cli,
@@ -146,6 +168,7 @@ func NewMover(cli pb.DataMoverClient, mover Mover) *DataMoverClient {
 	}
 }
 
+// Run begins listening for and processing incoming action items
 func (dm *DataMoverClient) Run() {
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
@@ -174,6 +197,7 @@ func (dm *DataMoverClient) Run() {
 	close(dm.status)
 }
 
+// Stop signals to the client that it should stop processing and shut down
 func (dm *DataMoverClient) Stop() {
 	close(dm.stop)
 }

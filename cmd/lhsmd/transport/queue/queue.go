@@ -15,7 +15,8 @@ import (
 )
 
 type (
-	QueueEndpoint struct {
+	// AgentEndpoint represents the agent side of a data mover connection
+	AgentEndpoint struct {
 		queue    *workq.Master
 		mu       sync.Mutex
 		requests map[uint64]hsm.ActionHandle
@@ -38,7 +39,7 @@ func (t *queueTransport) Init(conf *agent.Config, a *agent.HsmAgent) error {
 		workq.MasterReset("pdm", conf.RedisServer)
 	}
 	audit.Log("Initializing queue transport")
-	qep := &QueueEndpoint{
+	qep := &AgentEndpoint{
 		queue:    workq.NewMaster("pdm", conf.RedisServer),
 		requests: make(map[uint64]hsm.ActionHandle),
 	}
@@ -64,7 +65,8 @@ func hsm2pdmCommand(a llapi.HsmAction) (c pdm.CommandType) {
 	return
 }
 
-func (ep *QueueEndpoint) Send(action *agent.Action) {
+// Send delivers an agent action to the backend
+func (ep *AgentEndpoint) Send(action *agent.Action) {
 	aih := action.Handle()
 	req := &pdm.Request{
 		Agent:  "me",
@@ -88,7 +90,8 @@ func (ep *QueueEndpoint) Send(action *agent.Action) {
 
 }
 
-func (ep *QueueEndpoint) Update(d workq.StatusDelivery) error {
+// Update relays a data mover status update back to the HSM coordinator
+func (ep *AgentEndpoint) Update(d workq.StatusDelivery) error {
 	reply := &pdm.Result{}
 	if err := d.Payload(reply); err != nil {
 		audit.Log(err)

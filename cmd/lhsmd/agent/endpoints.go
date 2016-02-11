@@ -7,8 +7,10 @@ import (
 )
 
 type (
+	// Handle is an endpoint handle (unique id)
 	Handle uint64
 
+	// Endpoints represents a collection of Endpoints and their handles
 	Endpoints struct {
 		sync.Mutex
 		nextHandle int64
@@ -16,11 +18,13 @@ type (
 		handles    map[Handle]uint32
 	}
 
+	// Endpoint defines an interface for HSM backends
 	Endpoint interface {
 		Send(*Action)
 	}
 )
 
+// NewEndpoints returns a new *Endpoints instance
 func NewEndpoints() *Endpoints {
 	return &Endpoints{
 		endpoints: make(map[uint32]Endpoint),
@@ -28,12 +32,14 @@ func NewEndpoints() *Endpoints {
 	}
 }
 
+// Get returns an Endpoint or nil, given a lookup id
 func (all *Endpoints) Get(a uint32) (Endpoint, bool) {
 	all.Lock()
 	defer all.Unlock()
 	return all.get(a)
 }
 
+// GetWithHandle returns an Endpoint or nil, given a Handle
 func (all *Endpoints) GetWithHandle(h *Handle) (Endpoint, bool) {
 	all.Lock()
 	defer all.Unlock()
@@ -64,6 +70,7 @@ func (all *Endpoints) newHandle() *Handle {
 	return &h
 }
 
+// Add registers a new Endpoint
 func (all *Endpoints) Add(a uint32, e Endpoint) (*Handle, error) {
 	h := all.newHandle()
 	all.Lock()
@@ -78,6 +85,7 @@ func (all *Endpoints) Add(a uint32, e Endpoint) (*Handle, error) {
 	return h, nil
 }
 
+// NewHandle returns a new *Handle
 func (all *Endpoints) NewHandle(a uint32) (*Handle, error) {
 	all.Lock()
 	defer all.Unlock()
@@ -92,6 +100,7 @@ func (all *Endpoints) NewHandle(a uint32) (*Handle, error) {
 
 }
 
+// RemoveHandle removes the given handle from the collection of handles
 func (all *Endpoints) RemoveHandle(h *Handle) {
 	all.Lock()
 	defer all.Unlock()
@@ -99,6 +108,7 @@ func (all *Endpoints) RemoveHandle(h *Handle) {
 	delete(all.handles, *h)
 }
 
+// Remove removes the given handle and its associated Endpoint
 func (all *Endpoints) Remove(h *Handle) Endpoint {
 	all.Lock()
 	defer all.Unlock()

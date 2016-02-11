@@ -15,14 +15,17 @@ import (
 	"github.intel.com/hpdd/lustre/llapi"
 )
 
+// ActionID is a unique (per agent instance) ID for HSM actions
 type ActionID uint64
 
 var actionIDCounter ActionID
 
+// NextActionID returns monotonically-increasing ActionIDs
 func NextActionID() ActionID {
 	return ActionID(atomic.AddUint64((*uint64)(&actionIDCounter), 1))
 }
 
+// Action represents an HSM action
 type Action struct {
 	id    ActionID
 	aih   hsm.ActionHandle
@@ -47,7 +50,8 @@ func hsm2Command(a llapi.HsmAction) (c pb.Command) {
 	return
 }
 
-// Temporary function until queue transport is updated
+// Handle returns the raw hsm.ActionHandle (temporary function until queue
+// transport is updated)
 func (action *Action) Handle() hsm.ActionHandle {
 	return action.aih
 }
@@ -128,6 +132,7 @@ func (action *Action) Update(status *pb.ActionStatus) (bool, error) {
 	return false, nil
 }
 
+// Fail signals that the action has failed
 func (action *Action) Fail(rc int) error {
 	audit.Logf("id:%d fail %x %v: %v", action.id, action.aih.Cookie, action.aih.Fid(), rc)
 	err := action.aih.End(0, 0, 0, -1)

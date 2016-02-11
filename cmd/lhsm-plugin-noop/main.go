@@ -17,15 +17,18 @@ func init() {
 	flag.StringVar(&agentAddress, "agent", ":4242", "Lustre client mountpoint")
 }
 
+// Mover is a NOOP data mover
 type Mover struct {
 	fsName    string
 	archiveID uint32
 }
 
+// FsName returns the name of the associated Lustre filesystem
 func (m *Mover) FsName() string {
 	return m.fsName
 }
 
+// ArchiveID returns HSM archive number associated with this data mover
 func (m *Mover) ArchiveID() uint32 {
 	return m.archiveID
 }
