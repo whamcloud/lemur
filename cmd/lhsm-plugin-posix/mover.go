@@ -51,22 +51,21 @@ func newFileID() string {
 
 // CopyWithProgress initiates a movement of data with progress updates
 func CopyWithProgress(dst io.WriterAt, src io.ReaderAt, start int64, length int64, action *dmplugin.Action) (int64, error) {
-	debug.Printf("Copy %d %d", start, length)
-	blockSize := 10 * 1024 * 1024 // FIXME: parameterize
+	var blockSize int64 = 10 * 1024 * 1024 // FIXME: parameterize
 
 	offset := start
 	for offset < start+length {
 		n, err := CopyAt(dst, src, offset, blockSize)
-		offset += int64(n)
+		offset += n
 		if n < blockSize && err == io.EOF {
 			break
 		}
 
 		if err != nil {
-			return offset + int64(n), err
+			return offset, err
 		}
 
-		err = action.Update(offset-int64(n), int64(n), length)
+		err = action.Update(offset-n, n, length)
 		if err != nil {
 			return offset, err
 		}
