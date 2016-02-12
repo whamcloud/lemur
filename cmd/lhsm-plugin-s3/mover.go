@@ -55,6 +55,7 @@ func (m *Mover) Restore(action *dmplugin.Action) error {
 	return fmt.Errorf("id:%d  restore not implmented", action.ID())
 }
 
+// Remove fulfills an HSM Remove request
 func (m *Mover) Remove(action *dmplugin.Action) error {
 	debug.Printf("%s id:%d remove %s %s", m.name, action.ID(), action.PrimaryPath(), action.FileID())
 	return fmt.Errorf("id:%d  remove not implmented", action.ID())
