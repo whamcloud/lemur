@@ -47,6 +47,7 @@ func main() {
 		// to mess around with plugin args.
 		os.Setenv(debug.EnableEnvVar, "true")
 	}
+
 	// Setting the prefix helps us to track down deprecated calls to log.*
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	log.SetOutput(audit.Writer().Prefix("DEPRECATED "))

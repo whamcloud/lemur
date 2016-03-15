@@ -15,7 +15,8 @@ var errNoFileId = errors.New("No file id")
 
 func fileUrl(mnt fs.RootDir, fid *lustre.Fid) (string, error) {
 	p := fs.FidPath(mnt, fid)
-	urlBytes, err := xattr.Lgetxattr(p, "user.hsm_url")
+	urlBytes := make([]byte, 256)
+	_, err := xattr.Lgetxattr(p, "user.hsm_url", urlBytes)
 	if err != nil {
 		return "", err
 	}
@@ -46,7 +47,8 @@ func getFileId(mnt fs.RootDir, fid *lustre.Fid) (string, error) {
 
 func fileID(mnt fs.RootDir, fid *lustre.Fid) (string, error) {
 	p := fs.FidPath(mnt, fid)
-	uuid, err := xattr.Lgetxattr(p, "user.hsm_guid")
+	uuid := make([]byte, 32)
+	_, err := xattr.Lgetxattr(p, "user.hsm_guid", uuid)
 	if err != nil {
 
 		return "", err

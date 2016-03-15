@@ -12,7 +12,8 @@ import (
 var errNoFileId = errors.New("No file id")
 
 func fileUrl(mnt fs.RootDir, p string) (string, error) {
-	urlBytes, err := xattr.Lgetxattr(p, "user.hsm_url")
+	urlBytes := make([]byte, 256)
+	_, err := xattr.Lgetxattr(p, "user.hsm_url", urlBytes)
 	if err != nil {
 		return "", err
 	}
@@ -40,7 +41,8 @@ func getFileId(mnt fs.RootDir, path string) (string, error) {
 }
 
 func fileID(mnt fs.RootDir, path string) (string, error) {
-	uuid, err := xattr.Lgetxattr(path, "user.hsm_guid")
+	uuid := make([]byte, 32)
+	_, err := xattr.Lgetxattr(path, "user.hsm_guid", uuid)
 	if err != nil {
 
 		return "", err
