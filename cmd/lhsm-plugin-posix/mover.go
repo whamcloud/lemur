@@ -101,6 +101,7 @@ func min(a, b int64) int64 {
 // Archive fulfills an HSM Archive request
 func (m *Mover) Archive(action *dmplugin.Action) error {
 	debug.Printf("%s id:%d archive %s", m.name, action.ID(), action.PrimaryPath())
+	rate.Mark(1)
 	start := time.Now()
 
 	fileID := newFileID()
@@ -148,6 +149,7 @@ func (m *Mover) Archive(action *dmplugin.Action) error {
 // Restore fulfills an HSM Restore request
 func (m *Mover) Restore(action *dmplugin.Action) error {
 	debug.Printf("%s id:%d restore %s %s", m.name, action.ID(), action.PrimaryPath(), action.FileID())
+	rate.Mark(1)
 	start := time.Now()
 
 	if action.FileID() == "" {
@@ -195,6 +197,7 @@ func (m *Mover) Restore(action *dmplugin.Action) error {
 // Remove fulfills an HSM Remove request
 func (m *Mover) Remove(action *dmplugin.Action) error {
 	debug.Printf("%s: remove %s %s", m.name, action.PrimaryPath(), action.FileID())
+	rate.Mark(1)
 	if action.FileID() == "" {
 		return errors.New("Missing file_id")
 	}

@@ -9,9 +9,12 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/rcrowley/go-metrics"
 
+	"github.intel.com/hpdd/levlog"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
@@ -50,20 +53,18 @@ func init() {
 	flag.StringVar(&config.agentAddress, "agent", ":4242", "Lustre client mountpoint")
 	flag.StringVar(&config.clientRoot, "client", "", "Lustre client mountpoint")
 	flag.Var(config.archives, "archive", "Archive definition(s) (id,archiveRoot)")
-	/*
-		go func() {
-			for {
-				fmt.Fprintf(os.Stderr, "total %s msg/sec (1 min/5 min/15 min/inst): %s/%s/%s/%s\r",
-					humanize.Comma(rate.Count()),
-					humanize.Comma(int64(rate.Rate1())),
-					humanize.Comma(int64(rate.Rate5())),
-					humanize.Comma(int64(rate.Rate15())),
-					humanize.Comma(int64(rate.RateMean())),
-				)
-				time.Sleep(1 * time.Second)
-			}
-		}()
-	*/
+	go func() {
+		for {
+			levlog.Userf("total %s (1 min/5 min/15 min/inst): %s/%s/%s/%s msg/sec\n",
+				humanize.Comma(rate.Count()),
+				humanize.Comma(int64(rate.Rate1())),
+				humanize.Comma(int64(rate.Rate5())),
+				humanize.Comma(int64(rate.Rate15())),
+				humanize.Comma(int64(rate.RateMean())),
+			)
+			time.Sleep(10 * time.Second)
+		}
+	}()
 }
 
 func (set archiveSet) String() string {

@@ -23,6 +23,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
@@ -128,7 +129,7 @@ func (ct *HsmAgent) handleActions(tag string) {
 		debug.Printf("%s: incoming: %s", tag, ai)
 		aih, err := ai.Begin(0, false)
 		if err != nil {
-			debug.Printf("%s: begin failed: %v", tag, err)
+			alert.Warnf("%s: begin failed: %v: %s", tag, err, ai)
 			continue
 		}
 		action := ct.newAction(aih)
@@ -139,7 +140,7 @@ func (ct *HsmAgent) handleActions(tag string) {
 				action.aih.Fid())
 			e.Send(action)
 		} else {
-			debug.Printf("no handler for archive %d", aih.ArchiveID())
+			alert.Warnf("no handler for archive %d", aih.ArchiveID())
 			action.Fail(-1)
 		}
 	}

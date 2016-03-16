@@ -24,7 +24,7 @@ func init() {
 
 func interruptHandler(once func()) {
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGQUIT, syscall.SIGTERM)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
 		stopping := false

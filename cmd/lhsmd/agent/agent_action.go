@@ -2,7 +2,6 @@ package agent
 
 import (
 	"fmt"
-	"log"
 	"sync/atomic"
 	"time"
 
@@ -32,6 +31,10 @@ type Action struct {
 	aih   hsm.ActionHandle
 	agent *HsmAgent
 	start time.Time
+}
+
+func (a *Action) String() string {
+	return fmt.Sprintf("id:%d %s %v ", a.id, a.aih.Action(), a.aih.Fid())
 }
 
 func hsm2Command(a llapi.HsmAction) (c pb.Command) {
@@ -78,7 +81,7 @@ func (action *Action) AsMessage() *pb.ActionItem {
 		var err error
 		msg.FileId, err = getFileID(action.agent.Root(), action.aih.Fid())
 		if err != nil {
-			log.Println(err) //hmm, can't restore if there is no file id
+			alert.Warnf("Error reading fileid: %v (%v)", err, action) // hmm, can't restore if there is no file id
 		}
 	}
 

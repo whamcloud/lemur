@@ -103,7 +103,7 @@ func getErrno(err error) int32 {
 
 // Fail signals that the action has failed
 func (a *Action) Fail(err error) error {
-	debug.Printf("fail: id:%d %v", a.item.Id, err)
+	alert.Warn("fail: id:%d %v", a.item.Id, err)
 	a.status <- &pb.ActionStatus{
 		Id:        a.item.Id,
 		Completed: true,
