@@ -9,6 +9,7 @@ import (
 	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
 	pb "github.intel.com/hpdd/policy/pdm/pdm"
+	"golang.org/x/sys/unix"
 
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
@@ -80,6 +81,13 @@ func (action *Action) AsMessage() *pb.ActionItem {
 	case llapi.HsmActionRestore, llapi.HsmActionRemove:
 		var err error
 		msg.FileId, err = getFileID(action.agent.Root(), action.aih.Fid())
+		if err == unix.ENOTSUP {
+			debug.Printf("Error reading fileid: %v (%v) will retry", err, action)
+			// WTF, let's try again
+			time.Sleep(1 * time.Second)
+			msg.FileId, err = getFileID(action.agent.Root(), action.aih.Fid())
+
+		}
 		if err != nil {
 			alert.Warnf("Error reading fileid: %v (%v)", err, action) // hmm, can't restore if there is no file id
 		}
