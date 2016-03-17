@@ -1,61 +1,73 @@
 package main
 
 import (
-	"bytes"
-	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/signal"
-	"strconv"
+	"path"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/dustin/go-humanize"
+	"github.com/hashicorp/hcl"
 	"github.com/rcrowley/go-metrics"
 
-	"github.intel.com/hpdd/levlog"
 	"github.intel.com/hpdd/logging/alert"
+	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
+	"github.intel.com/hpdd/policy/pdm/lhsmd/agent"
 	"github.intel.com/hpdd/policy/pkg/client"
 )
 
 type (
 	archiveConfig struct {
-		id          uint32
-		archiveRoot string
+		Name string `hcl:",key"`
+		ID   int    `hcl:"id"`
+		Root string `hcl:"root"`
 	}
 
-	archiveSet map[uint32]*archiveConfig
+	archiveSet []*archiveConfig
 
 	posixConfig struct {
-		agentAddress string
-		enableDebug  bool
-		clientRoot   string
-		archives     archiveSet
+		AgentAddress string
+		ClientRoot   string
+		Archives     archiveSet `hcl:"archive"`
 	}
 )
 
-var (
-	rate   metrics.Meter
-	config *posixConfig
-)
+var rate metrics.Meter
+
+func (a *archiveConfig) String() string {
+	return fmt.Sprintf("%d:%s", a.ID, a.Root)
+}
+
+func (a *archiveConfig) checkValid() error {
+	var errors []string
+
+	if a.Root == "" {
+		errors = append(errors, fmt.Sprintf("Archive %s: archive root not set", a.Name))
+	}
+
+	if a.ID < 1 {
+		errors = append(errors, fmt.Sprintf("Archive %s: archive id not set", a.Name))
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("Errors: %s", strings.Join(errors, ", "))
+	}
+
+	return nil
+}
 
 func init() {
 	rate = metrics.NewMeter()
 
-	config = &posixConfig{
-		archives: make(archiveSet),
-	}
-
-	flag.BoolVar(&config.enableDebug, "debug", false, "Enable debug logging")
-	flag.StringVar(&config.agentAddress, "agent", ":4242", "Lustre client mountpoint")
-	flag.StringVar(&config.clientRoot, "client", "", "Lustre client mountpoint")
-	flag.Var(config.archives, "archive", "Archive definition(s) (id,archiveRoot)")
 	go func() {
 		for {
-			levlog.Userf("total %s (1 min/5 min/15 min/inst): %s/%s/%s/%s msg/sec\n",
+			audit.Logf("total %s (1 min/5 min/15 min/inst): %s/%s/%s/%s msg/sec\n",
 				humanize.Comma(rate.Count()),
 				humanize.Comma(int64(rate.Rate1())),
 				humanize.Comma(int64(rate.Rate5())),
@@ -67,38 +79,15 @@ func init() {
 	}()
 }
 
-func (set archiveSet) String() string {
-	var buf bytes.Buffer
-
-	for _, a := range set {
-		fmt.Fprintf(&buf, "%d:%s\n", a.id, a.archiveRoot)
+func getAgentEnvSetting(name string) (value string) {
+	if value = os.Getenv(name); value == "" {
+		alert.Fatal("This plugin is intended to be launched by the agent.")
 	}
-
-	return buf.String()
-}
-
-func (set archiveSet) Set(value string) error {
-	// id,archiveRoot
-	fields := strings.Split(value, ",")
-	if len(fields) != 2 {
-		return fmt.Errorf("Unable to parse %q", value)
-	}
-
-	id, err := strconv.ParseUint(fields[0], 10, 32)
-	if err != nil {
-		return fmt.Errorf("Unable to parse %q: %s", fields[0], err)
-	}
-
-	set[uint32(id)] = &archiveConfig{
-		id:          uint32(id),
-		archiveRoot: fields[1],
-	}
-
-	return nil
+	return
 }
 
 func posix(config *posixConfig) {
-	c, err := client.New(config.clientRoot)
+	c, err := client.New(config.ClientRoot)
 	if err != nil {
 		alert.Fatal(err)
 	}
@@ -108,28 +97,53 @@ func posix(config *posixConfig) {
 		close(done)
 	})
 
-	plugin, err := dmplugin.New(config.agentAddress)
+	plugin, err := dmplugin.New(config.AgentAddress)
 	if err != nil {
 		alert.Fatalf("failed to dial: %s", err)
 	}
 	defer plugin.Close()
 
-	for _, a := range config.archives {
-		plugin.AddMover(PosixMover(c, a.archiveRoot, a.id))
+	for _, a := range config.Archives {
+		plugin.AddMover(PosixMover(c, a.Root, uint32(a.ID)))
 	}
 
 	<-done
 	plugin.Stop()
 }
 
-func main() {
-	flag.Parse()
+func loadConfig(cfg *posixConfig) error {
+	cfgFile := path.Join(getAgentEnvSetting(agent.ConfigDirEnvVar), path.Base(os.Args[0]))
 
-	if config.enableDebug {
-		debug.Enable()
+	data, err := ioutil.ReadFile(cfgFile)
+	if err != nil {
+		return err
 	}
 
-	posix(config)
+	return hcl.Decode(cfg, string(data))
+}
+
+func main() {
+	cfg := &posixConfig{
+		AgentAddress: getAgentEnvSetting(agent.AgentConnEnvVar),
+		ClientRoot:   getAgentEnvSetting(agent.PluginMountpointEnvVar),
+	}
+
+	if err := loadConfig(cfg); err != nil {
+		alert.Fatalf("Failed to load config: %s", err)
+	}
+
+	if len(cfg.Archives) == 0 {
+		alert.Fatalf("Invalid configuration: No archives defined")
+	}
+
+	for _, archive := range cfg.Archives {
+		debug.Print(archive)
+		if err := archive.checkValid(); err != nil {
+			alert.Fatalf("Invalid configuration: %s", err)
+		}
+	}
+
+	posix(cfg)
 }
 
 func interruptHandler(once func()) {

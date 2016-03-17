@@ -50,7 +50,7 @@ type (
 
 // New accepts a config and returns a *HsmAgent
 func New(cfg *Config) (*HsmAgent, error) {
-	client, err := client.New(cfg.Lustre.String())
+	client, err := client.New(cfg.AgentMountpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +82,7 @@ func (ct *HsmAgent) Start(ctx context.Context) error {
 	}
 
 	ct.monitor.Start(ctx)
-	for _, pluginConf := range ct.config.Plugins {
+	for _, pluginConf := range ct.config.Plugins() {
 		err := ct.monitor.StartPlugin(pluginConf)
 		if err != nil {
 			return err

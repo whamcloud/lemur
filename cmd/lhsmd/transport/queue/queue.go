@@ -14,6 +14,9 @@ import (
 	"github.intel.com/hpdd/policy/pkg/workq"
 )
 
+// TransportType is the name of this transport
+const TransportType = "queue"
+
 type (
 	// AgentEndpoint represents the agent side of a data mover connection
 	AgentEndpoint struct {
@@ -34,13 +37,18 @@ func init() {
 }
 
 func (t *queueTransport) Init(conf *agent.Config, a *agent.HsmAgent) error {
+	if _, ok := conf.Transports[TransportType]; !ok {
+		return nil
+	}
+
+	connStr := conf.Transports[TransportType].ConnectionString()
 	if reset {
 		audit.Log("Reseting pdm queue")
-		workq.MasterReset("pdm", conf.RedisServer)
+		workq.MasterReset("pdm", connStr)
 	}
 	audit.Log("Initializing queue transport")
 	qep := &AgentEndpoint{
-		queue:    workq.NewMaster("pdm", conf.RedisServer),
+		queue:    workq.NewMaster("pdm", connStr),
 		requests: make(map[uint64]hsm.ActionHandle),
 	}
 	a.Endpoints.Add(1, qep)

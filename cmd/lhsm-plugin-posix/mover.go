@@ -27,6 +27,10 @@ type Mover struct {
 
 // PosixMover returns a new *Mover
 func PosixMover(c *client.Client, archiveDir string, archiveID uint32) *Mover {
+	if archiveDir == "" {
+		panic("archiveDir is unset?!?")
+	}
+
 	return &Mover{
 		name:       fmt.Sprintf("posix-%d", archiveID),
 		client:     c,

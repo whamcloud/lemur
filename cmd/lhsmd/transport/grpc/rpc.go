@@ -15,6 +15,8 @@ import (
 )
 
 const (
+	// TransportType is the name of this transport
+	TransportType = "grpc"
 	// Connected indicates a connected endpoint
 	Connected = EndpointState(iota)
 	// Disconnected indicates a disconnected endpoint
@@ -47,9 +49,12 @@ func init() {
 }
 
 func (t *rpcTransport) Init(conf *agent.Config, a *agent.HsmAgent) error {
+	if _, ok := conf.Transports[TransportType]; !ok {
+		return nil
+	}
+
 	debug.Printf("Initializing grpc transport")
-	addr := fmt.Sprintf(":%d", conf.RPCPort)
-	sock, err := net.Listen("tcp", addr)
+	sock, err := net.Listen("tcp", conf.Transports[TransportType].ConnectionString())
 	if err != nil {
 		return fmt.Errorf("Failed to listen: %v", err)
 	}

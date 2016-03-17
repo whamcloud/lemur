@@ -1,93 +1,91 @@
 package main
 
 import (
-	"bytes"
-	"flag"
 	"fmt"
-	"net/url"
+	"io/ioutil"
 	"os"
 	"os/signal"
-	"strconv"
+	"path"
 	"strings"
 	"syscall"
+	"time"
+
+	"github.com/dustin/go-humanize"
+	"github.com/hashicorp/hcl"
+	"github.com/rcrowley/go-metrics"
 
 	"github.intel.com/hpdd/logging/alert"
+	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
+	"github.intel.com/hpdd/policy/pdm/lhsmd/agent"
 	"github.intel.com/hpdd/policy/pkg/client"
 )
 
 type (
 	archiveConfig struct {
-		id     uint32
-		bucket string
-		prefix string
+		Name   string `hcl:",key"`
+		ID     int
+		Bucket string
+		Prefix string
 	}
 
-	archiveSet map[uint32]*archiveConfig
+	archiveSet []*archiveConfig
 
 	s3Config struct {
-		agentAddress string
-		enableDebug  bool
-		clientRoot   string
-		archives     archiveSet
+		AgentAddress string
+		ClientRoot   string
+		Archives     archiveSet `hcl:"archive"`
 	}
 )
 
-var config *s3Config
+var rate metrics.Meter
 
-func (set archiveSet) String() string {
-	var buf bytes.Buffer
+func (a *archiveConfig) checkValid() error {
+	var errors []string
 
-	for _, a := range set {
-		fmt.Fprintf(&buf, "%d:%s/%s\n", a.id, a.bucket, a.prefix)
+	if a.Bucket == "" {
+		errors = append(errors, fmt.Sprintf("Archive %s: bucket not set", a.Name))
 	}
 
-	return buf.String()
-}
+	if a.ID < 1 {
+		errors = append(errors, fmt.Sprintf("Archive %s: archive id not set", a.Name))
 
-func (set archiveSet) Set(value string) error {
-	// id,archiveRoot
-	fields := strings.Split(value, ",")
-	if len(fields) != 2 {
-		return fmt.Errorf("Unable to parse %q", value)
 	}
 
-	id, err := strconv.ParseUint(fields[0], 10, 32)
-	if err != nil {
-		return fmt.Errorf("Unable to parse %q: %s", fields[0], err)
+	if len(errors) > 0 {
+		return fmt.Errorf("Errors: %s", strings.Join(errors, ", "))
 	}
 
-	u, err := url.Parse(fields[1])
-	if err != nil {
-		return fmt.Errorf("Unable to parse %q: %s", fields[0], err)
-	}
-	if u.Scheme != "s3" {
-		return fmt.Errorf("Scheme %q not supported", u.Scheme)
-	}
-
-	set[uint32(id)] = &archiveConfig{
-		id:     uint32(id),
-		bucket: u.Host,
-		prefix: u.Path,
-	}
 	return nil
 }
 
 func init() {
-	config = &s3Config{
-		archives: make(archiveSet),
+	rate = metrics.NewMeter()
+
+	go func() {
+		for {
+			audit.Logf("total %s (1 min/5 min/15 min/inst): %s/%s/%s/%s msg/sec\n",
+				humanize.Comma(rate.Count()),
+				humanize.Comma(int64(rate.Rate1())),
+				humanize.Comma(int64(rate.Rate5())),
+				humanize.Comma(int64(rate.Rate15())),
+				humanize.Comma(int64(rate.RateMean())),
+			)
+			time.Sleep(10 * time.Second)
+		}
+	}()
+}
+
+func getAgentEnvSetting(name string) (value string) {
+	if value = os.Getenv(name); value == "" {
+		alert.Fatal("This plugin is intended to be launched by the agent.")
 	}
-
-	flag.BoolVar(&config.enableDebug, "debug", false, "Enable debug logging")
-	flag.StringVar(&config.agentAddress, "agent", ":4242", "Lustre client mountpoint")
-	flag.StringVar(&config.clientRoot, "client", "", "Lustre client mountpoint")
-	flag.Var(config.archives, "archive", "Archive definition(s) (id,archiveRoot)")
-
+	return
 }
 
 func s3(config *s3Config) {
-	c, err := client.New(config.clientRoot)
+	c, err := client.New(config.ClientRoot)
 	if err != nil {
 		alert.Fatal(err)
 	}
@@ -97,28 +95,53 @@ func s3(config *s3Config) {
 		close(done)
 	})
 
-	plugin, err := dmplugin.New(config.agentAddress)
+	plugin, err := dmplugin.New(config.AgentAddress)
 	if err != nil {
 		alert.Fatalf("failed to dial: %s", err)
 	}
 	defer plugin.Close()
 
-	for _, a := range config.archives {
-		plugin.AddMover(S3Mover(c, a.id, a.bucket, a.prefix))
+	for _, a := range config.Archives {
+		plugin.AddMover(S3Mover(c, uint32(a.ID), a.Bucket, a.Prefix))
 	}
 
 	<-done
 	plugin.Stop()
 }
 
-func main() {
-	flag.Parse()
+func loadConfig(cfg *s3Config) error {
+	cfgFile := path.Join(getAgentEnvSetting(agent.ConfigDirEnvVar), path.Base(os.Args[0]))
 
-	if config.enableDebug {
-		debug.Enable()
+	data, err := ioutil.ReadFile(cfgFile)
+	if err != nil {
+		return err
 	}
 
-	s3(config)
+	return hcl.Decode(cfg, string(data))
+}
+
+func main() {
+	cfg := &s3Config{
+		AgentAddress: getAgentEnvSetting(agent.AgentConnEnvVar),
+		ClientRoot:   getAgentEnvSetting(agent.PluginMountpointEnvVar),
+	}
+
+	if err := loadConfig(cfg); err != nil {
+		alert.Fatalf("Failed to load config: %s", err)
+	}
+
+	if len(cfg.Archives) == 0 {
+		alert.Fatalf("Invalid configuration: No archives defined")
+	}
+
+	for _, archive := range cfg.Archives {
+		debug.Print(archive)
+		if err := archive.checkValid(); err != nil {
+			alert.Fatalf("Invalid configuration: %s", err)
+		}
+	}
+
+	s3(cfg)
 }
 
 func interruptHandler(once func()) {

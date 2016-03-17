@@ -12,11 +12,23 @@ import (
 	"github.intel.com/hpdd/logging/debug"
 )
 
+const (
+	// AgentConnEnvVar is the environment variable containing a connect
+	// string for plugins to use when registering with the agent
+	AgentConnEnvVar = "LHSMD_AGENT_CONNECTION"
+
+	// PluginMountpointEnvVar is the environment variable containing
+	// a Lustre client mountpoint to be used by the plugin
+	PluginMountpointEnvVar = "LHSMD_CLIENT_MOUNTPOINT"
+)
+
 type (
 	// PluginConfig represents configuration for a single plugin
 	PluginConfig struct {
 		Name             string
 		BinPath          string
+		AgentConnection  string
+		ClientMount      string
 		Args             []string
 		RestartOnFailure bool
 	}
@@ -53,10 +65,12 @@ func (p *PluginConfig) NoRestart() *PluginConfig {
 }
 
 // NewPlugin returns a plugin configuration
-func NewPlugin(name, binPath string, args ...string) *PluginConfig {
+func NewPlugin(name, binPath, conn, mountRoot string, args ...string) *PluginConfig {
 	return &PluginConfig{
 		Name:             name,
 		BinPath:          binPath,
+		AgentConnection:  conn,
+		ClientMount:      path.Join(mountRoot, name),
 		Args:             args,
 		RestartOnFailure: true,
 	}
@@ -99,6 +113,9 @@ func (m *PluginMonitor) run(ctx context.Context) {
 			delete(processMap, s.ps.Pid())
 			audit.Logf("Process %d for %s died: %s", s.ps.Pid(), cfg.Name, s.ps)
 			if cfg.RestartOnFailure {
+				// FIXME: This needs some kind of mechanism
+				// to prevent endless restarts of a
+				// badly-configured plugin!!!
 				audit.Logf("Restarting plugin: %s", cfg.Name)
 				// Restart in a different goroutine to
 				// avoid deadlocking this one.
@@ -129,6 +146,9 @@ func (m *PluginMonitor) StartPlugin(cfg *PluginConfig) error {
 	prefix := path.Base(cfg.BinPath)
 	cmd.Stdout = audit.Writer().Prefix(prefix + " ")
 	cmd.Stderr = audit.Writer().Prefix(prefix + "-stderr ")
+
+	cmd.Env = append(os.Environ(), AgentConnEnvVar+"="+cfg.AgentConnection)
+	cmd.Env = append(cmd.Env, PluginMountpointEnvVar+"="+cfg.ClientMount)
 
 	if err := cmd.Start(); err != nil {
 		return err

@@ -14,8 +14,9 @@ import (
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/agent"
 
+	// Register the supported transports
 	_ "github.intel.com/hpdd/policy/pdm/lhsmd/transport/grpc"
-	// _ "github.intel.com/hpdd/policy/pdm/lhsmd/transport/queue"
+	//_ "github.intel.com/hpdd/policy/pdm/lhsmd/transport/queue"
 )
 
 func init() {
@@ -55,6 +56,9 @@ func main() {
 	conf := agent.ConfigInitMust()
 
 	debug.Printf("current configuration:\n%v", conf.String())
+	if err := configureMounts(conf); err != nil {
+		alert.Fatalf("Error while creating Lustre mountpoints: %s", err)
+	}
 
 	ct, err := agent.New(conf)
 	if err != nil {
