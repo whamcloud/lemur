@@ -63,18 +63,20 @@ func (a *archiveConfig) checkValid() error {
 func init() {
 	rate = metrics.NewMeter()
 
-	go func() {
-		for {
-			audit.Logf("total %s (1 min/5 min/15 min/inst): %s/%s/%s/%s msg/sec\n",
-				humanize.Comma(rate.Count()),
-				humanize.Comma(int64(rate.Rate1())),
-				humanize.Comma(int64(rate.Rate5())),
-				humanize.Comma(int64(rate.Rate15())),
-				humanize.Comma(int64(rate.RateMean())),
-			)
-			time.Sleep(10 * time.Second)
-		}
-	}()
+	if debug.Enabled() {
+		go func() {
+			for {
+				audit.Logf("total %s (1 min/5 min/15 min/inst): %s/%s/%s/%s msg/sec\n",
+					humanize.Comma(rate.Count()),
+					humanize.Comma(int64(rate.Rate1())),
+					humanize.Comma(int64(rate.Rate5())),
+					humanize.Comma(int64(rate.Rate15())),
+					humanize.Comma(int64(rate.RateMean())),
+				)
+				time.Sleep(10 * time.Second)
+			}
+		}()
+	}
 }
 
 func getAgentEnvSetting(name string) (value string) {
