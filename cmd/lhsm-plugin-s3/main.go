@@ -10,6 +10,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/hcl"
 	"github.com/rcrowley/go-metrics"
@@ -26,6 +29,7 @@ type (
 	archiveConfig struct {
 		Name   string `hcl:",key"`
 		ID     int
+		Region string
 		Bucket string
 		Prefix string
 	}
@@ -35,9 +39,13 @@ type (
 	s3Config struct {
 		AgentAddress string
 		ClientRoot   string
+		Region       string     `hcl:"region"`
 		Archives     archiveSet `hcl:"archive"`
 	}
 )
+
+// Should this be configurable?
+const updateInterval = 10 * time.Second
 
 var rate metrics.Meter
 
@@ -86,29 +94,9 @@ func getAgentEnvSetting(name string) (value string) {
 	return
 }
 
-func s3(config *s3Config) {
-	c, err := client.New(config.ClientRoot)
-	if err != nil {
-		alert.Fatal(err)
-	}
-
-	done := make(chan struct{})
-	interruptHandler(func() {
-		close(done)
-	})
-
-	plugin, err := dmplugin.New(config.AgentAddress)
-	if err != nil {
-		alert.Fatalf("failed to dial: %s", err)
-	}
-	defer plugin.Close()
-
-	for _, a := range config.Archives {
-		plugin.AddMover(S3Mover(c, uint32(a.ID), a.Bucket, a.Prefix))
-	}
-
-	<-done
-	plugin.Stop()
+func s3Svc(region string) *s3.S3 {
+	// TODO: Allow more per-archive configuration options?
+	return s3.New(session.New(aws.NewConfig().WithRegion(region)))
 }
 
 func loadConfig(cfg *s3Config) error {
@@ -124,6 +112,7 @@ func loadConfig(cfg *s3Config) error {
 
 func main() {
 	cfg := &s3Config{
+		Region:       "us-east-1",
 		AgentAddress: getAgentEnvSetting(agent.AgentConnEnvVar),
 		ClientRoot:   getAgentEnvSetting(agent.PluginMountpointEnvVar),
 	}
@@ -143,7 +132,35 @@ func main() {
 		}
 	}
 
-	s3(cfg)
+	c, err := client.New(cfg.ClientRoot)
+	if err != nil {
+		alert.Fatal(err)
+	}
+
+	done := make(chan struct{})
+	interruptHandler(func() {
+		close(done)
+	})
+
+	plugin, err := dmplugin.New(cfg.AgentAddress)
+	if err != nil {
+		alert.Fatalf("failed to dial: %s", err)
+	}
+	defer plugin.Close()
+
+	for _, a := range cfg.Archives {
+		// Allow each archive to set its own region, but default
+		// to the region set for the plugin.
+		region := cfg.Region
+		if a.Region != "" {
+			region = a.Region
+		}
+		s3Svc := s3Svc(region)
+		plugin.AddMover(S3Mover(c, s3Svc, uint32(a.ID), a.Bucket, a.Prefix))
+	}
+
+	<-done
+	plugin.Stop()
 }
 
 func interruptHandler(once func()) {
