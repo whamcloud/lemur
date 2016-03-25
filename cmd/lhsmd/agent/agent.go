@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"golang.org/x/net/context"
+	"golang.org/x/sys/unix"
 
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
@@ -127,6 +128,12 @@ func (ct *HsmAgent) handleActions(tag string) {
 	ch := ct.agent.Actions()
 	for ai := range ch {
 		debug.Printf("%s: incoming: %s", tag, ai)
+		// AFAICT, this is how the copytool is expected to handle cancels.
+		if ai.Action == llapi.HSM_CANCEL {
+			ai.FailImmediately(unix.ENOSYS)
+			// TODO: send out of band cancel message to the mover
+			continue
+		}
 		aih, err := ai.Begin(0, false)
 		if err != nil {
 			alert.Warnf("%s: begin failed: %v: %s", tag, err, ai)
