@@ -28,6 +28,7 @@ import (
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
+	"github.intel.com/hpdd/lustre/llapi"
 	"github.intel.com/hpdd/policy/pkg/client"
 )
 
@@ -129,8 +130,8 @@ func (ct *HsmAgent) handleActions(tag string) {
 	for ai := range ch {
 		debug.Printf("%s: incoming: %s", tag, ai)
 		// AFAICT, this is how the copytool is expected to handle cancels.
-		if ai.Action == llapi.HSM_CANCEL {
-			ai.FailImmediately(unix.ENOSYS)
+		if ai.Action() == llapi.HsmActionCancel {
+			ai.FailImmediately(int(unix.ENOSYS))
 			// TODO: send out of band cancel message to the mover
 			continue
 		}
