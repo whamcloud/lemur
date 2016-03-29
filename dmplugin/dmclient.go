@@ -181,7 +181,7 @@ func (dm *DataMoverClient) Run() {
 	actions := dm.processActions(ctx)
 	dm.processStatus(ctx)
 
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 4; i++ {
 		wg.Add(1)
 		go func(i int) {
 			dm.handler(fmt.Sprintf("handler-%d", i), actions)
