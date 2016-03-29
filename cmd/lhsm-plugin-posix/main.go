@@ -18,7 +18,7 @@ import (
 	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
-	"github.intel.com/hpdd/policy/pdm/lhsmd/agent"
+	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
 	"github.intel.com/hpdd/policy/pkg/client"
 )
 
@@ -65,9 +65,11 @@ func (a *archiveConfig) checkValid() error {
 func init() {
 	rate = metrics.NewMeter()
 
-	if debug.Enabled() {
-		go func() {
-			for {
+	// if debug.Enabled() {
+	go func() {
+		var lastCount int64
+		for {
+			if lastCount != rate.Count() {
 				audit.Logf("total %s (1 min/5 min/15 min/inst): %s/%s/%s/%s msg/sec\n",
 					humanize.Comma(rate.Count()),
 					humanize.Comma(int64(rate.Rate1())),
@@ -75,10 +77,12 @@ func init() {
 					humanize.Comma(int64(rate.Rate15())),
 					humanize.Comma(int64(rate.RateMean())),
 				)
-				time.Sleep(10 * time.Second)
+				lastCount = rate.Count()
 			}
-		}()
-	}
+			time.Sleep(10 * time.Second)
+		}
+	}()
+	// }
 }
 
 func getAgentEnvSetting(name string) (value string) {
@@ -88,8 +92,8 @@ func getAgentEnvSetting(name string) (value string) {
 	return
 }
 
-func posix(config *posixConfig) {
-	c, err := client.New(config.ClientRoot)
+func posix(cfg *posixConfig) {
+	c, err := client.New(cfg.ClientRoot)
 	if err != nil {
 		alert.Fatal(err)
 	}
@@ -99,13 +103,13 @@ func posix(config *posixConfig) {
 		close(done)
 	})
 
-	plugin, err := dmplugin.New(config.AgentAddress)
+	plugin, err := dmplugin.New(cfg.AgentAddress)
 	if err != nil {
 		alert.Fatalf("failed to dial: %s", err)
 	}
 	defer plugin.Close()
 
-	for _, a := range config.Archives {
+	for _, a := range cfg.Archives {
 		plugin.AddMover(PosixMover(c, a.Root, uint32(a.ID)))
 	}
 
@@ -114,7 +118,7 @@ func posix(config *posixConfig) {
 }
 
 func loadConfig(cfg *posixConfig) error {
-	cfgFile := path.Join(getAgentEnvSetting(agent.ConfigDirEnvVar), path.Base(os.Args[0]))
+	cfgFile := path.Join(getAgentEnvSetting(config.ConfigDirEnvVar), path.Base(os.Args[0]))
 
 	data, err := ioutil.ReadFile(cfgFile)
 	if err != nil {
@@ -126,8 +130,8 @@ func loadConfig(cfg *posixConfig) error {
 
 func main() {
 	cfg := &posixConfig{
-		AgentAddress: getAgentEnvSetting(agent.AgentConnEnvVar),
-		ClientRoot:   getAgentEnvSetting(agent.PluginMountpointEnvVar),
+		AgentAddress: getAgentEnvSetting(config.AgentConnEnvVar),
+		ClientRoot:   getAgentEnvSetting(config.PluginMountpointEnvVar),
 	}
 
 	if err := loadConfig(cfg); err != nil {

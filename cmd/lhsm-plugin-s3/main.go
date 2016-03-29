@@ -21,7 +21,7 @@ import (
 	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
-	"github.intel.com/hpdd/policy/pdm/lhsmd/agent"
+	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
 	"github.intel.com/hpdd/policy/pkg/client"
 )
 
@@ -71,9 +71,11 @@ func (a *archiveConfig) checkValid() error {
 func init() {
 	rate = metrics.NewMeter()
 
-	if debug.Enabled() {
-		go func() {
-			for {
+	// if debug.Enabled() {
+	go func() {
+		var lastCount int64
+		for {
+			if lastCount != rate.Count() {
 				audit.Logf("total %s (1 min/5 min/15 min/inst): %s/%s/%s/%s msg/sec\n",
 					humanize.Comma(rate.Count()),
 					humanize.Comma(int64(rate.Rate1())),
@@ -81,10 +83,12 @@ func init() {
 					humanize.Comma(int64(rate.Rate15())),
 					humanize.Comma(int64(rate.RateMean())),
 				)
-				time.Sleep(10 * time.Second)
+				lastCount = rate.Count()
 			}
-		}()
-	}
+			time.Sleep(10 * time.Second)
+		}
+	}()
+	// }
 }
 
 func getAgentEnvSetting(name string) (value string) {
@@ -100,7 +104,7 @@ func s3Svc(region string) *s3.S3 {
 }
 
 func loadConfig(cfg *s3Config) error {
-	cfgFile := path.Join(getAgentEnvSetting(agent.ConfigDirEnvVar), path.Base(os.Args[0]))
+	cfgFile := path.Join(getAgentEnvSetting(config.ConfigDirEnvVar), path.Base(os.Args[0]))
 
 	data, err := ioutil.ReadFile(cfgFile)
 	if err != nil {
@@ -113,8 +117,8 @@ func loadConfig(cfg *s3Config) error {
 func main() {
 	cfg := &s3Config{
 		Region:       "us-east-1",
-		AgentAddress: getAgentEnvSetting(agent.AgentConnEnvVar),
-		ClientRoot:   getAgentEnvSetting(agent.PluginMountpointEnvVar),
+		AgentAddress: getAgentEnvSetting(config.AgentConnEnvVar),
+		ClientRoot:   getAgentEnvSetting(config.PluginMountpointEnvVar),
 	}
 
 	if err := loadConfig(cfg); err != nil {

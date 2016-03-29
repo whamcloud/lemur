@@ -16,20 +16,7 @@ import (
 	"github.intel.com/hpdd/ce-tools/resources/lustre/clientmount"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
-)
-
-const (
-	// DefaultConfigDir is the default agent config directory
-	DefaultConfigDir = "/etc/lhsmd"
-	// AgentConfigFile is the agent config file in config dir
-	AgentConfigFile = "agent"
-	// DefaultConfigPath is the default path to the agent config file
-	DefaultConfigPath = DefaultConfigDir + "/" + AgentConfigFile
-
-	// ConfigDirEnvVar is the name of an environment variable which
-	// can be set to change the location of config files
-	// (e.g. for development)
-	ConfigDirEnvVar = "LHSMD_CONFIG_DIR"
+	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
 )
 
 var (
@@ -67,18 +54,18 @@ func (c *transportConfig) ConnectionString() string {
 }
 
 func init() {
-	flag.StringVar(&optConfigPath, "config", DefaultConfigPath, "Path to agent config")
+	flag.StringVar(&optConfigPath, "config", config.DefaultConfigPath, "Path to agent config")
 
 	// The CLI argument takes precedence, if both are set.
-	if optConfigPath == DefaultConfigPath {
-		if cfgDir := os.Getenv(ConfigDirEnvVar); cfgDir != "" {
-			optConfigPath = path.Join(cfgDir, AgentConfigFile)
+	if optConfigPath == config.DefaultConfigPath {
+		if cfgDir := os.Getenv(config.ConfigDirEnvVar); cfgDir != "" {
+			optConfigPath = path.Join(cfgDir, config.AgentConfigFile)
 		}
 	}
 
 	// Ensure that it's set in our env so that plugins can use it to
 	// find their own configs
-	os.Setenv(ConfigDirEnvVar, path.Dir(optConfigPath))
+	os.Setenv(config.ConfigDirEnvVar, path.Dir(optConfigPath))
 }
 
 func (c *Config) String() string {
@@ -179,7 +166,7 @@ func ConfigInitMust() *Config {
 	debug.Printf("loading config from %s", optConfigPath)
 	err := LoadConfig(optConfigPath, cfg)
 	if err != nil {
-		if !(optConfigPath == DefaultConfigPath && os.IsNotExist(err)) {
+		if !(optConfigPath == config.DefaultConfigPath && os.IsNotExist(err)) {
 			alert.Fatalf("Failed to load config: %s", err)
 		}
 	}
