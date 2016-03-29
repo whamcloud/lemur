@@ -9,7 +9,6 @@ import (
 	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
 	pb "github.intel.com/hpdd/policy/pdm/pdm"
-	"golang.org/x/sys/unix"
 
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
@@ -81,7 +80,7 @@ func (action *Action) AsMessage() *pb.ActionItem {
 	case llapi.HsmActionRestore, llapi.HsmActionRemove:
 		var err error
 		msg.FileId, err = getFileID(action.agent.Root(), action.aih.Fid())
-		if err == unix.ENOTSUP {
+		if err != nil {
 			debug.Printf("Error reading fileid: %v (%v) will retry", err, action)
 			// WTF, let's try again
 			time.Sleep(1 * time.Second)
@@ -119,11 +118,11 @@ func (action *Action) Update(status *pb.ActionStatus) (bool, error) {
 	if status.Completed {
 		duration := time.Since(action.start)
 		debug.Printf("id:%d completed status: %v in %v", status.Id, status.Error, duration)
-		// s.stats.Latencies.Update(duration.Nanoseconds())
 
 		if status.FileId != nil {
 			updateFileID(action.agent.Root(), action.aih.Fid(), status.FileId)
 		}
+		CompleteAction(action, int(status.Error))
 		err := action.aih.End(status.Offset, status.Length, 0, int(status.Error))
 		if err != nil {
 			audit.Logf("id:%d completion failed: %v", status.Id, err)
@@ -134,7 +133,7 @@ func (action *Action) Update(status *pb.ActionStatus) (bool, error) {
 	err := action.aih.Progress(status.Offset, status.Length, action.aih.Length(), 0)
 	if err != nil {
 		debug.Printf("id:%d progress update failed: %v", status.Id, err)
-
+		CompleteAction(action, -1)
 		if err2 := action.aih.End(0, 0, 0, -1); err2 != nil {
 			debug.Printf("id:%d completion after error failed: %v", status.Id, err2)
 			return false, fmt.Errorf("err: %s/err2: %s", err, err2)
@@ -148,7 +147,8 @@ func (action *Action) Update(status *pb.ActionStatus) (bool, error) {
 // Fail signals that the action has failed
 func (action *Action) Fail(rc int) error {
 	audit.Logf("id:%d fail %x %v: %v", action.id, action.aih.Cookie, action.aih.Fid(), rc)
-	err := action.aih.End(0, 0, 0, -1)
+	CompleteAction(action, rc)
+	err := action.aih.End(0, 0, 0, rc)
 	if err != nil {
 		audit.Logf("id:%d fail after fail %x: %v", action.id, action.aih.Cookie, err)
 	}

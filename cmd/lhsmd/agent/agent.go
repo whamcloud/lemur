@@ -141,6 +141,7 @@ func (ct *HsmAgent) handleActions(tag string) {
 			continue
 		}
 		action := ct.newAction(aih)
+		StartAction(action)
 		if e, ok := ct.Endpoints.Get(uint32(aih.ArchiveID())); ok {
 			debug.Printf("%s: id:%d new %s %x %v", tag, action.id,
 				action.aih.Action(),
@@ -150,6 +151,7 @@ func (ct *HsmAgent) handleActions(tag string) {
 		} else {
 			alert.Warnf("no handler for archive %d", aih.ArchiveID())
 			action.Fail(-1)
+			CompleteAction(action, -1)
 		}
 	}
 }
