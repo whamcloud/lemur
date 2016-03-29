@@ -3,12 +3,11 @@ package main
 import (
 	"errors"
 
+	"github.com/pborman/uuid"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/pkg/xattr"
-
-	"code.google.com/p/go-uuid/uuid"
 )
 
 var errNoFileId = errors.New("No file id")

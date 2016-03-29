@@ -9,12 +9,11 @@ import (
 	"path"
 	"time"
 
+	"github.com/pborman/uuid"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
 	"github.intel.com/hpdd/policy/pkg/client"
-
-	"code.google.com/p/go-uuid/uuid"
 )
 
 // Mover is a POSIX data mover

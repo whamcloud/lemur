@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 
-	"code.google.com/p/go-uuid/uuid"
+	"github.com/pborman/uuid"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
