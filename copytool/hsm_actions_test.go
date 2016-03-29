@@ -2,7 +2,7 @@ package main_test
 
 import (
 	"github.intel.com/hpdd/lustre/hsm"
-	"github.intel.com/hpdd/lustre/system"
+	"github.intel.com/hpdd/lustre/pkg/xattr"
 	"github.intel.com/hpdd/test/harness"
 	"github.intel.com/hpdd/test/log"
 	"github.intel.com/hpdd/test/utils"
@@ -153,14 +153,15 @@ var _ = Describe("When HSM is enabled,", func() {
 			It("by copying the file into the archive.", func() {
 				Ω(markFileForHsmAction(testFiles[0], "archive")).Should(Succeed())
 				Eventually(func() bool {
-					uuid, err := system.Lgetxattr(testFiles[0], "user.hsm_guid")
+					dest := make([]byte, 100)
+					sz, err := xattr.Lgetxattr(testFiles[0], "user.hsm_guid", dest)
 					if err != nil {
 						// This is an expected error.
 						Ω(err.Error()).Should(MatchRegexp(".*no data available$"))
 						return false
 					}
 
-					uuidStr := string(uuid)
+					uuidStr := string(dest[0:sz])
 					archiveFile := path.Join(hsmArchive,
 						"objects",
 						fmt.Sprintf("%s", uuidStr[0:2]),
