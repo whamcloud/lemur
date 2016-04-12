@@ -39,6 +39,11 @@ type (
 
 		Processes int `hcl:"handler_count"`
 
+		InfluxURL      string `hcl:"influx_url"`
+		InfluxDB       string `hcl:"influx_db"`
+		InfluxUser     string `hcl:"influx_user"`
+		InfluxPassword string `hcl:"influx_password"`
+
 		EnabledPlugins []string `hcl:"enabled_plugins"`
 		PluginDir      string   `hcl:"plugin_dir"`
 

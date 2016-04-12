@@ -53,6 +53,8 @@ func (agent *AgentStats) GetIndex(i int) *ArchiveStats {
 			queueLength: metrics.NewCounter(),
 			completed:   metrics.NewTimer(),
 		}
+		metrics.Register(fmt.Sprintf("archive%dCompleted", i), s.completed)
+		metrics.Register(fmt.Sprintf("archive%dQueueLength", i), s.queueLength)
 		agent.stats[i] = s
 	}
 	return s

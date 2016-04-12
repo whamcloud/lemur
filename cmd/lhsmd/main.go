@@ -6,9 +6,12 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"golang.org/x/net/context"
 
+	"github.com/rcrowley/go-metrics"
+	"github.com/vrischmann/go-metrics-influxdb"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
@@ -63,6 +66,17 @@ func main() {
 	ct, err := agent.New(conf)
 	if err != nil {
 		alert.Fatalf("Error creating agent: %s", err)
+	}
+
+	if conf.InfluxURL != "" {
+		go influxdb.InfluxDB(
+			metrics.DefaultRegistry, // metrics registry
+			time.Second*10,          // interval
+			conf.InfluxURL,
+			conf.InfluxDB,       // your InfluxDB database
+			conf.InfluxUser,     // your InfluxDB user
+			conf.InfluxPassword, // your InfluxDB password
+		)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
