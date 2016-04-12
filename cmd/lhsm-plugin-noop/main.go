@@ -19,18 +19,6 @@ func init() {
 
 // Mover is a NOOP data mover
 type Mover struct {
-	fsName    string
-	archiveID uint32
-}
-
-// FsName returns the name of the associated Lustre filesystem
-func (m *Mover) FsName() string {
-	return m.fsName
-}
-
-// ArchiveID returns HSM archive number associated with this data mover
-func (m *Mover) ArchiveID() uint32 {
-	return m.archiveID
 }
 
 func noop(agentAddress string) {
@@ -40,8 +28,13 @@ func noop(agentAddress string) {
 	if err != nil {
 		alert.Fatal(err)
 	}
-	mover := Mover{fsName: "noop", archiveID: uint32(archive)}
-	plugin.AddMover(&mover)
+
+	mover := Mover{}
+	plugin.AddMover(&dmplugin.Config{
+		Mover:     &mover,
+		FsName:    "noop",
+		ArchiveID: uint32(archive),
+	})
 
 	<-done
 	plugin.Stop()

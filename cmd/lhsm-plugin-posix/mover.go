@@ -21,7 +21,6 @@ type Mover struct {
 	name       string
 	client     *client.Client
 	archiveDir string
-	archiveID  uint32
 }
 
 // PosixMover returns a new *Mover
@@ -34,18 +33,7 @@ func PosixMover(c *client.Client, archiveDir string, archiveID uint32) *Mover {
 		name:       fmt.Sprintf("posix-%d", archiveID),
 		client:     c,
 		archiveDir: archiveDir,
-		archiveID:  archiveID,
 	}
-}
-
-// FsName returns the name of the associated Lustre filesystem
-func (m *Mover) FsName() string {
-	return m.client.FsName()
-}
-
-// ArchiveID returns the HSM archive number associated with this data mover
-func (m *Mover) ArchiveID() uint32 {
-	return m.archiveID
 }
 
 func newFileID() string {

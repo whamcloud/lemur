@@ -34,6 +34,7 @@ type (
 	posixConfig struct {
 		AgentAddress string
 		ClientRoot   string
+		NumThreads   int        `hcl:"num_threads"`
 		Archives     archiveSet `hcl:"archive"`
 	}
 )
@@ -110,7 +111,12 @@ func posix(cfg *posixConfig) {
 	defer plugin.Close()
 
 	for _, a := range cfg.Archives {
-		plugin.AddMover(PosixMover(c, a.Root, uint32(a.ID)))
+		plugin.AddMover(&dmplugin.Config{
+			Mover:      PosixMover(c, a.Root, uint32(a.ID)),
+			NumThreads: 4,
+			ArchiveID:  uint32(a.ID),
+			FsName:     c.FsName(),
+		})
 	}
 
 	<-done

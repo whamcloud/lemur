@@ -39,6 +39,7 @@ type (
 	s3Config struct {
 		AgentAddress string
 		ClientRoot   string
+		NumThreads   int        `hcl:"num_threads"`
 		Region       string     `hcl:"region"`
 		Archives     archiveSet `hcl:"archive"`
 	}
@@ -160,7 +161,12 @@ func main() {
 			region = a.Region
 		}
 		s3Svc := s3Svc(region)
-		plugin.AddMover(S3Mover(c, s3Svc, uint32(a.ID), a.Bucket, a.Prefix))
+		plugin.AddMover(&dmplugin.Config{
+			Mover:      S3Mover(c, s3Svc, uint32(a.ID), a.Bucket, a.Prefix),
+			NumThreads: 4,
+			FsName:     c.FsName(),
+			ArchiveID:  uint32(a.ID),
+		})
 	}
 
 	<-done

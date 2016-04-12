@@ -26,8 +26,8 @@ func New(target string) (*Plugin, error) {
 }
 
 // AddMover registers a new data mover with the plugin
-func (a *Plugin) AddMover(mover Mover) {
-	dm := NewMover(a.cli, mover)
+func (a *Plugin) AddMover(config *Config) {
+	dm := NewMover(a.cli, config)
 	go dm.Run()
 	a.movers = append(a.movers, dm)
 }

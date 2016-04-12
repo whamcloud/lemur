@@ -20,6 +20,15 @@ type (
 		stop      chan struct{}
 		status    chan *pb.ActionStatus
 		mover     Mover
+		config    *Config
+	}
+
+	// Configuration for DatamMoverClient
+	Config struct {
+		Mover      Mover
+		NumThreads int
+		FsName     string
+		ArchiveID  uint32
 	}
 
 	// Action is a data movement action
@@ -32,8 +41,6 @@ type (
 
 	// Mover defines an interface for data mover implementations
 	Mover interface {
-		FsName() string
-		ArchiveID() uint32
 	}
 
 	// Archiver defines an interface for data movers capable of
@@ -58,6 +65,10 @@ type (
 type key int
 
 var handleKey key
+
+const (
+	defaultNumThreads = 4
+)
 
 func withHandle(ctx context.Context, handle *pb.Handle) context.Context {
 	return context.WithValue(ctx, handleKey, handle)
@@ -159,12 +170,13 @@ func (a *Action) SetActualLength(length uint64) {
 }
 
 // NewMover returns a new *DataMoverClient
-func NewMover(cli pb.DataMoverClient, mover Mover) *DataMoverClient {
+func NewMover(cli pb.DataMoverClient, config *Config) *DataMoverClient {
 	return &DataMoverClient{
 		rpcClient: cli,
-		mover:     mover,
+		mover:     config.Mover,
 		stop:      make(chan struct{}),
 		status:    make(chan *pb.ActionStatus, 2),
+		config:    config,
 	}
 }
 
@@ -181,7 +193,12 @@ func (dm *DataMoverClient) Run() {
 	actions := dm.processActions(ctx)
 	dm.processStatus(ctx)
 
-	for i := 0; i < 4; i++ {
+	n := defaultNumThreads
+	if dm.config.NumThreads > 0 {
+		n = dm.config.NumThreads
+	}
+
+	for i := 0; i < n; i++ {
 		wg.Add(1)
 		go func(i int) {
 			dm.handler(fmt.Sprintf("handler-%d", i), actions)
@@ -205,13 +222,13 @@ func (dm *DataMoverClient) Stop() {
 func (dm *DataMoverClient) registerEndpoint(ctx context.Context) (*pb.Handle, error) {
 
 	handle, err := dm.rpcClient.Register(ctx, &pb.Endpoint{
-		FsUrl:   dm.mover.FsName(),
-		Archive: dm.mover.ArchiveID(),
+		FsUrl:   dm.config.FsName,
+		Archive: dm.config.ArchiveID,
 	})
 	if err != nil {
 		return nil, err
 	}
-	debug.Printf("Registered archive %d,  cookie %x", dm.mover.ArchiveID(), handle.Id)
+	debug.Printf("Registered archive %d,  cookie %x", dm.config.ArchiveID, handle.Id)
 	return handle, nil
 }
 

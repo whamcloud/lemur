@@ -19,34 +19,22 @@ import (
 
 // Mover is an S3 data mover
 type Mover struct {
-	name      string
-	client    *client.Client
-	s3Svc     *s3.S3
-	bucket    string
-	prefix    string
-	archiveID uint32
+	name   string
+	client *client.Client
+	s3Svc  *s3.S3
+	bucket string
+	prefix string
 }
 
 // S3Mover returns a new *Mover
 func S3Mover(c *client.Client, s3Svc *s3.S3, archiveID uint32, bucket string, prefix string) *Mover {
 	return &Mover{
-		name:      fmt.Sprintf("s3-%d", archiveID),
-		client:    c,
-		s3Svc:     s3Svc,
-		archiveID: archiveID,
-		bucket:    bucket,
-		prefix:    prefix,
+		name:   fmt.Sprintf("s3-%d", archiveID),
+		client: c,
+		s3Svc:  s3Svc,
+		bucket: bucket,
+		prefix: prefix,
 	}
-}
-
-// FsName returns the name of the associated Lustre filesystem
-func (m *Mover) FsName() string {
-	return m.client.FsName()
-}
-
-// ArchiveID returns the HSM archive number associated with this data mover
-func (m *Mover) ArchiveID() uint32 {
-	return m.archiveID
 }
 
 // Base returns the base path in which the mover is operating
