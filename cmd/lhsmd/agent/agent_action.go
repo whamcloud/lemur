@@ -128,6 +128,11 @@ func (action *Action) Update(status *pb.ActionStatus) (bool, error) {
 			audit.Logf("id:%d completion failed: %v", status.Id, err)
 			return true, err // Completed, but Failed. Internal HSM state is not updated
 		}
+		// action.agent.config.EnableSnapshots ?
+		snapshotEnabled := true
+		if action.aih.Action() == llapi.HsmActionArchive && snapshotEnabled && status.FileId != nil {
+			createSnapshot(action.agent.Root(), action.aih.ArchiveID(), action.aih.Fid(), status.FileId)
+		}
 		return true, nil // Completed
 	}
 	err := action.aih.Progress(status.Offset, status.Length, action.aih.Length(), 0)

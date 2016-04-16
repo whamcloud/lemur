@@ -7,9 +7,6 @@ import (
 	"time"
 
 	"github.intel.com/hpdd/lustre/fs"
-	"github.intel.com/hpdd/lustre/hsm"
-
-	"github.com/golang/glog"
 )
 
 func createSnapDir(p string) (string, error) {
@@ -26,11 +23,12 @@ func createSnapDir(p string) (string, error) {
 }
 
 func createStubFile(f string, fi os.FileInfo, archive uint) error {
-	_, err := hsm.Import(f, archive, fi, 0, 0, 1, 0, "")
-	if err != nil {
-		glog.Error("Import failed", err)
-		return err
-	}
+	/*	_, err := hsm.Import(f, archive, fi, 0, 0, 1, 0, "")
+		if err != nil {
+			glog.Error("Import failed", err)
+			return err
+		}
+	*/
 	return nil
 }
 
