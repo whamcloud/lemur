@@ -8,16 +8,13 @@ import (
 	"path"
 	"strings"
 	"syscall"
-	"time"
 
-	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/hcl"
-	"github.com/rcrowley/go-metrics"
 
 	"github.intel.com/hpdd/logging/alert"
-	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
+	"github.intel.com/hpdd/policy/pdm/lhsm-plugin-posix/posix"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
 	"github.intel.com/hpdd/policy/pkg/client"
 )
@@ -38,8 +35,6 @@ type (
 		Archives     archiveSet `hcl:"archive"`
 	}
 )
-
-var rate metrics.Meter
 
 func (a *archiveConfig) String() string {
 	return fmt.Sprintf("%d:%s", a.ID, a.Root)
@@ -63,29 +58,6 @@ func (a *archiveConfig) checkValid() error {
 	return nil
 }
 
-func init() {
-	rate = metrics.NewMeter()
-
-	// if debug.Enabled() {
-	go func() {
-		var lastCount int64
-		for {
-			if lastCount != rate.Count() {
-				audit.Logf("total %s (1 min/5 min/15 min/inst): %s/%s/%s/%s msg/sec\n",
-					humanize.Comma(rate.Count()),
-					humanize.Comma(int64(rate.Rate1())),
-					humanize.Comma(int64(rate.Rate5())),
-					humanize.Comma(int64(rate.Rate15())),
-					humanize.Comma(int64(rate.RateMean())),
-				)
-				lastCount = rate.Count()
-			}
-			time.Sleep(10 * time.Second)
-		}
-	}()
-	// }
-}
-
 func getAgentEnvSetting(name string) (value string) {
 	if value = os.Getenv(name); value == "" {
 		alert.Fatal("This plugin is intended to be launched by the agent.")
@@ -93,7 +65,7 @@ func getAgentEnvSetting(name string) (value string) {
 	return
 }
 
-func posix(cfg *posixConfig) {
+func start(cfg *posixConfig) {
 	c, err := client.New(cfg.ClientRoot)
 	if err != nil {
 		alert.Fatal(err)
@@ -112,7 +84,7 @@ func posix(cfg *posixConfig) {
 
 	for _, a := range cfg.Archives {
 		plugin.AddMover(&dmplugin.Config{
-			Mover:      PosixMover(c, a.Root, uint32(a.ID)),
+			Mover:      posix.PosixMover(c, a.Root, uint32(a.ID)),
 			NumThreads: 4,
 			ArchiveID:  uint32(a.ID),
 			FsName:     c.FsName(),
@@ -155,7 +127,7 @@ func main() {
 		}
 	}
 
-	posix(cfg)
+	start(cfg)
 }
 
 func interruptHandler(once func()) {

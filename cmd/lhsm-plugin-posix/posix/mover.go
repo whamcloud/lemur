@@ -1,4 +1,4 @@
-package main
+package posix
 
 import (
 	"errors"
@@ -9,12 +9,40 @@ import (
 	"path"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/pborman/uuid"
+	"github.com/rcrowley/go-metrics"
 	"github.intel.com/hpdd/logging/alert"
+	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
 	"github.intel.com/hpdd/policy/pkg/client"
 )
+
+var rate metrics.Meter
+
+func init() {
+	rate = metrics.NewMeter()
+
+	// if debug.Enabled() {
+	go func() {
+		var lastCount int64
+		for {
+			if lastCount != rate.Count() {
+				audit.Logf("total %s (1 min/5 min/15 min/inst): %s/%s/%s/%s msg/sec\n",
+					humanize.Comma(rate.Count()),
+					humanize.Comma(int64(rate.Rate1())),
+					humanize.Comma(int64(rate.Rate5())),
+					humanize.Comma(int64(rate.Rate15())),
+					humanize.Comma(int64(rate.RateMean())),
+				)
+				lastCount = rate.Count()
+			}
+			time.Sleep(10 * time.Second)
+		}
+	}()
+	// }
+}
 
 // Mover is a POSIX data mover
 type Mover struct {
@@ -109,6 +137,8 @@ func (m *Mover) Archive(action *dmplugin.Action) error {
 	}
 	defer dst.Close()
 
+	cw := NewChecksumWriter(dst)
+
 	var length int64
 	if uint64(action.Length()) == math.MaxUint64 {
 		fi, err := src.Stat()
@@ -122,16 +152,17 @@ func (m *Mover) Archive(action *dmplugin.Action) error {
 		length = action.Length()
 	}
 
-	n, err := CopyWithProgress(dst, src, action.Offset(), length, action)
+	n, err := CopyWithProgress(cw, src, action.Offset(), length, action)
 	if err != nil {
 		debug.Printf("copy error %v read %d expected %d", err, n, length)
 		return err
 	}
 
-	debug.Printf("%s id:%d Archived %d bytes in %v from %s to %s", m.name, action.ID(), n,
+	debug.Printf("%s id:%d Archived %d bytes in %v from %s to %s %x", m.name, action.ID(), n,
 		time.Since(start),
 		action.PrimaryPath(),
-		m.destination(fileID))
+		m.destination(fileID),
+		cw.Sum())
 	action.SetFileID([]byte(fileID))
 	action.SetActualLength(uint64(n))
 	return nil
@@ -159,6 +190,8 @@ func (m *Mover) Restore(action *dmplugin.Action) error {
 	}
 	defer dst.Close()
 
+	cw := NewChecksumWriter(dst)
+
 	var length int64
 	if uint64(action.Length()) == math.MaxUint64 {
 		fi, err := src.Stat()
@@ -172,15 +205,16 @@ func (m *Mover) Restore(action *dmplugin.Action) error {
 		length = action.Length()
 	}
 
-	n, err := CopyWithProgress(dst, src, action.Offset(), length, action)
+	n, err := CopyWithProgress(cw, src, action.Offset(), length, action)
 	if err != nil {
 		debug.Printf("copy error %v read %d expected %d", err, n, length)
 		return err
 	}
 
-	debug.Printf("%s id:%d Restored %d bytes in %v to %s", m.name, action.ID(), n,
+	debug.Printf("%s id:%d Restored %d bytes in %v to %s %x", m.name, action.ID(), n,
 		time.Since(start),
-		action.PrimaryPath())
+		action.PrimaryPath(),
+		cw.Sum())
 	action.SetActualLength(uint64(n))
 	return nil
 }

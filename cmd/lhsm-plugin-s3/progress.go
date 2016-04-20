@@ -19,6 +19,7 @@ type (
 	// ReaderAtSeeker groups the io.ReaderAt and io.Seeker interfaces
 	ReaderAtSeeker interface {
 		io.ReaderAt
+		io.Reader
 		io.Seeker
 	}
 
@@ -84,7 +85,8 @@ func (r *ProgressReader) Seek(offset int64, whence int) (int64, error) {
 
 // Read calls the wrapped ReaderAt's ReadAt with offset 0
 func (r *ProgressReader) Read(p []byte) (int, error) {
-	return r.src.ReadAt(p, 0)
+	// Should we count these too?
+	return r.src.Read(p)
 }
 
 // ReadAt reads len(p) bytes into p starting at offset off in the underlying
@@ -108,6 +110,7 @@ func NewProgressReader(src ReaderAtSeeker, updateEvery time.Duration, f progress
 	r := &ProgressReader{
 		src: src,
 	}
+
 	r.startUpdates(updateEvery, f)
 
 	return r
