@@ -1,6 +1,7 @@
 package posix
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -49,6 +50,11 @@ type Mover struct {
 	name       string
 	client     *client.Client
 	archiveDir string
+}
+
+type FileID struct {
+	Uuid string
+	Sum  string
 }
 
 // PosixMover returns a new *Mover
@@ -163,9 +169,27 @@ func (m *Mover) Archive(action *dmplugin.Action) error {
 		action.PrimaryPath(),
 		m.destination(fileID),
 		cw.Sum())
-	action.SetFileID([]byte(fileID))
+
+	id := &FileID{
+		Uuid: fileID,
+		Sum:  fmt.Sprintf("%x", cw.Sum()),
+	}
+	buf, err := json.Marshal(id)
+	if err != nil {
+		return err
+	}
+	action.SetFileID(buf)
 	action.SetActualLength(uint64(n))
 	return nil
+}
+
+func parseFileID(buf []byte) (*FileID, error) {
+	var id FileID
+	err := json.Unmarshal(buf, &id)
+	if err != nil {
+		return nil, err
+	}
+	return &id, nil
 }
 
 // Restore fulfills an HSM Restore request
@@ -177,8 +201,11 @@ func (m *Mover) Restore(action *dmplugin.Action) error {
 	if action.FileID() == "" {
 		return errors.New("Missing file_id")
 	}
-
-	src, err := os.Open(m.destination(action.FileID()))
+	id, err := parseFileID([]byte(action.FileID()))
+	if err != nil {
+		return err
+	}
+	src, err := os.Open(m.destination(id.Uuid))
 	if err != nil {
 		return err
 	}
@@ -226,6 +253,10 @@ func (m *Mover) Remove(action *dmplugin.Action) error {
 	if action.FileID() == "" {
 		return errors.New("Missing file_id")
 	}
+	id, err := parseFileID([]byte(action.FileID()))
+	if err != nil {
+		return err
+	}
 
-	return os.Remove(m.destination(action.FileID()))
+	return os.Remove(m.destination(id.Uuid))
 }
