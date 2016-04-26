@@ -238,6 +238,11 @@ func (m *Mover) Restore(action *dmplugin.Action) error {
 		return err
 	}
 
+	if id.Sum != "" && id.Sum != fmt.Sprintf("%x", cw.Sum()) {
+		alert.Warnf("original checksum doesn't match new:  %s != %x", id.Sum, cw.Sum())
+		return errors.New("Checksum mismatch!")
+	}
+
 	debug.Printf("%s id:%d Restored %d bytes in %v to %s %x", m.name, action.ID(), n,
 		time.Since(start),
 		action.PrimaryPath(),
