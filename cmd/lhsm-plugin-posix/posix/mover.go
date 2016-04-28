@@ -52,13 +52,14 @@ type Mover struct {
 	archiveDir string
 }
 
+// FileID is used to identify a file in the backend
 type FileID struct {
-	Uuid string
+	UUID string
 	Sum  string
 }
 
-// PosixMover returns a new *Mover
-func PosixMover(c *client.Client, archiveDir string, archiveID uint32) *Mover {
+// NewMover returns a new *Mover
+func NewMover(c *client.Client, archiveDir string, archiveID uint32) *Mover {
 	if archiveDir == "" {
 		panic("archiveDir is unset?!?")
 	}
@@ -171,7 +172,7 @@ func (m *Mover) Archive(action *dmplugin.Action) error {
 		cw.Sum())
 
 	id := &FileID{
-		Uuid: fileID,
+		UUID: fileID,
 		Sum:  fmt.Sprintf("%x", cw.Sum()),
 	}
 	buf, err := json.Marshal(id)
@@ -205,7 +206,7 @@ func (m *Mover) Restore(action *dmplugin.Action) error {
 	if err != nil {
 		return err
 	}
-	src, err := os.Open(m.destination(id.Uuid))
+	src, err := os.Open(m.destination(id.UUID))
 	if err != nil {
 		return err
 	}
@@ -263,5 +264,5 @@ func (m *Mover) Remove(action *dmplugin.Action) error {
 		return err
 	}
 
-	return os.Remove(m.destination(id.Uuid))
+	return os.Remove(m.destination(id.UUID))
 }

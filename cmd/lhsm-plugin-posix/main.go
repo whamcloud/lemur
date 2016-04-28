@@ -84,7 +84,7 @@ func start(cfg *posixConfig) {
 
 	for _, a := range cfg.Archives {
 		plugin.AddMover(&dmplugin.Config{
-			Mover:      posix.PosixMover(c, a.Root, uint32(a.ID)),
+			Mover:      posix.NewMover(c, a.Root, uint32(a.ID)),
 			NumThreads: 4,
 			ArchiveID:  uint32(a.ID),
 			FsName:     c.FsName(),

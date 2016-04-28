@@ -11,29 +11,31 @@ import (
 	"github.intel.com/hpdd/logging/audit"
 )
 
-type AgentStats struct {
+// ActionStats is a synchronized container for ArchiveStats instances
+type ActionStats struct {
 	sync.Mutex
 	stats map[int]*ArchiveStats
 }
 
+// ArchiveStats is a per-archive container of statistics for that backend
 type ArchiveStats struct {
 	changes     uint64
 	queueLength metrics.Counter
 	completed   metrics.Timer
 }
 
-var agentStats *AgentStats
+var actionStats *ActionStats
 
 func init() {
-	agentStats = &AgentStats{
+	actionStats = &ActionStats{
 		stats: make(map[int]*ArchiveStats),
 	}
 	go func() {
 		for {
 			time.Sleep(10 * time.Second)
-			avail := agentStats.Archives()
+			avail := actionStats.Archives()
 			for _, k := range avail {
-				archive := agentStats.GetIndex(k)
+				archive := actionStats.GetIndex(k)
 				changes := atomic.LoadUint64(&archive.changes)
 				if changes != 0 {
 					atomic.AddUint64(&archive.changes, -changes)
@@ -44,10 +46,12 @@ func init() {
 	}()
 }
 
-func (agent *AgentStats) GetIndex(i int) *ArchiveStats {
-	agent.Lock()
-	defer agent.Unlock()
-	s, ok := agent.stats[i]
+// GetIndex returns the *ArchiveStats corresponding to the supplied archive
+// number
+func (as *ActionStats) GetIndex(i int) *ArchiveStats {
+	as.Lock()
+	defer as.Unlock()
+	s, ok := as.stats[i]
 	if !ok {
 		s = &ArchiveStats{
 			queueLength: metrics.NewCounter(),
@@ -55,15 +59,17 @@ func (agent *AgentStats) GetIndex(i int) *ArchiveStats {
 		}
 		metrics.Register(fmt.Sprintf("archive%dCompleted", i), s.completed)
 		metrics.Register(fmt.Sprintf("archive%dQueueLength", i), s.queueLength)
-		agent.stats[i] = s
+		as.stats[i] = s
 	}
 	return s
 }
 
-func (agent *AgentStats) Archives() (v []int) {
-	agent.Lock()
-	defer agent.Unlock()
-	for k := range agent.stats {
+// Archives returns a slice of archive numbers corresponding to instrumented
+// backends
+func (as *ActionStats) Archives() (v []int) {
+	as.Lock()
+	defer as.Unlock()
+	for k := range as.stats {
 		v = append(v, k)
 	}
 	return
@@ -87,14 +93,16 @@ func (s *ArchiveStats) String() string {
 		time.Duration(int64(ps[4])))
 }
 
+// StartAction increments stats counters when an action starts
 func StartAction(a *Action) {
-	s := agentStats.GetIndex(int(a.aih.ArchiveID()))
+	s := actionStats.GetIndex(int(a.aih.ArchiveID()))
 	s.queueLength.Inc(1)
 	atomic.AddUint64(&s.changes, 1)
 }
 
+// CompleteAction updates various stats when an action is complete
 func CompleteAction(a *Action, rc int) {
-	s := agentStats.GetIndex(int(a.aih.ArchiveID()))
+	s := actionStats.GetIndex(int(a.aih.ArchiveID()))
 	s.queueLength.Dec(1)
 	s.completed.UpdateSince(a.start)
 	atomic.AddUint64(&s.changes, 1)
