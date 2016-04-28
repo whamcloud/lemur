@@ -8,6 +8,7 @@ import (
 
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
+	"github.intel.com/hpdd/lustre/status"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -36,7 +37,7 @@ func (back S3MirrorBackend) String() string {
 }
 
 func (be S3MirrorBackend) Restore(aih hsm.ActionHandle) ActionResult {
-	names, err := fs.FidPathnames(be.root, aih.Fid())
+	names, err := status.FidPathnames(be.root, aih.Fid())
 	if err != nil {
 		// ?
 	}

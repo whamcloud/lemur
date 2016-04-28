@@ -9,6 +9,7 @@ import (
 
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
+	"github.intel.com/hpdd/lustre/status"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -62,7 +63,7 @@ func (back S3Backend) destination(id string) string {
 
 // Archive copies the file contents to an object in an S3 bucket.
 func (back S3Backend) Archive(aih hsm.ActionHandle) ActionResult {
-	names, err := fs.FidPathnames(back.root, aih.Fid())
+	names, err := status.FidPathnames(back.root, aih.Fid())
 	if err != nil {
 		return ErrorResult(err, -1)
 	}
@@ -107,7 +108,7 @@ func (back S3Backend) Archive(aih hsm.ActionHandle) ActionResult {
 
 // Restore retrieves data from backend
 func (back S3Backend) Restore(aih hsm.ActionHandle) ActionResult {
-	names, err := fs.FidPathnames(back.root, aih.Fid())
+	names, err := status.FidPathnames(back.root, aih.Fid())
 	if err != nil {
 		return ErrorResult(err, -1)
 	}

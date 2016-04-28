@@ -8,10 +8,11 @@ import (
 	"syscall"
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/rcrowley/go-metrics"
 	"github.com/vrischmann/go-metrics-influxdb"
+
+	"golang.org/x/net/context"
+
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
@@ -78,7 +79,6 @@ func main() {
 			conf.InfluxPassword, // your InfluxDB password
 		)
 	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	interruptHandler(func() {
 		ct.Stop()

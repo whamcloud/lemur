@@ -12,6 +12,7 @@ import (
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
 	"github.intel.com/hpdd/lustre/llapi"
+	"github.intel.com/hpdd/lustre/status"
 )
 
 func createSnapDir(p string) (string, error) {
@@ -81,7 +82,7 @@ func createSnapshots(mnt fs.RootDir, archive uint, fileID []byte, names []string
 }
 
 func createSnapshot(mnt fs.RootDir, archive uint, fid *lustre.Fid, fileID []byte) error {
-	names, err := fs.FidPathnames(mnt, fid)
+	names, err := status.FidPathnames(mnt, fid)
 	if err != nil {
 		return err
 	}

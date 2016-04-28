@@ -8,6 +8,7 @@ import (
 
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
+	"github.intel.com/hpdd/lustre/status"
 
 	"github.com/golang/glog"
 )
@@ -72,7 +73,7 @@ func CopyWithProgress(dst io.WriterAt, src io.ReaderAt, max uint64, aih hsm.Acti
 
 // Archive copies the file contents to an object in a local directory
 func (back PosixBackend) Archive(aih hsm.ActionHandle) ActionResult {
-	names, err := fs.FidPathnames(back.root, aih.Fid())
+	names, err := status.FidPathnames(back.root, aih.Fid())
 	if err != nil {
 		return ErrorResult(err, -1)
 	}
@@ -132,7 +133,7 @@ func (back PosixBackend) Archive(aih hsm.ActionHandle) ActionResult {
 
 // Restore copies file data from a local object to original Lustre file
 func (back PosixBackend) Restore(aih hsm.ActionHandle) ActionResult {
-	names, err := fs.FidPathnames(back.root, aih.Fid())
+	names, err := status.FidPathnames(back.root, aih.Fid())
 	if err != nil {
 		return ErrorResult(err, -1)
 	}
@@ -174,7 +175,7 @@ func (back PosixBackend) Restore(aih hsm.ActionHandle) ActionResult {
 
 // Remove deletes the object in the backing store
 func (back PosixBackend) Remove(aih hsm.ActionHandle) ActionResult {
-	names, err := fs.FidPathnames(back.root, aih.Fid())
+	names, err := status.FidPathnames(back.root, aih.Fid())
 	if err != nil {
 		return ErrorResult(err, -1)
 	}

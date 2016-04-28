@@ -8,6 +8,7 @@ import (
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
+	"github.intel.com/hpdd/lustre/status"
 )
 
 type (
@@ -25,7 +26,7 @@ func (back NoopBackend) String() string {
 }
 
 func (back NoopBackend) Archive(aih hsm.ActionHandle) ActionResult {
-	names, err := fs.FidPathnames(back.root, aih.Fid())
+	names, err := status.FidPathnames(back.root, aih.Fid())
 	if err != nil {
 		// ?
 	}
@@ -35,7 +36,7 @@ func (back NoopBackend) Archive(aih hsm.ActionHandle) ActionResult {
 }
 
 func (back NoopBackend) Remove(aih hsm.ActionHandle) ActionResult {
-	names, err := fs.FidPathnames(back.root, aih.Fid())
+	names, err := status.FidPathnames(back.root, aih.Fid())
 	if err != nil {
 		// ?
 	}
