@@ -16,7 +16,7 @@ func CopyAt(dst io.WriterAt, src io.ReaderAt, offset int64, n int64) (written in
 	for written < n {
 		nr, er := src.ReadAt(buf, offset+written)
 		if nr > 0 {
-			nw, ew := dst.WriteAt(buf[0:nr], offset)
+			nw, ew := dst.WriteAt(buf[0:nr], offset+written)
 			if nw > 0 {
 				written += int64(nw)
 			}
