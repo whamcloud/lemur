@@ -297,7 +297,7 @@ func submitHsmRequest(actionName string, requestFn hsmRequestFn, archiveID uint,
 	// batch into multiple batches, each serviced by its own goroutine.
 	for _, path := range paths {
 		absPath, err := filepath.Abs(path)
-		if !strings.HasPrefix(absPath, fsRoot.String()) {
+		if !strings.HasPrefix(absPath, fsRoot.Path()) {
 			return fmt.Errorf("All files in HSM request must be in the same filesystem (%s is not in %s)",
 				path, fsRoot)
 		}
