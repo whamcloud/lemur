@@ -1,0 +1,6 @@
+num_threads = 42
+
+archive "1" {
+	id = 1
+	root = "/tmp/archives/1"
+}

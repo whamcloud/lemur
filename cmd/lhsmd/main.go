@@ -20,7 +20,6 @@ import (
 
 	// Register the supported transports
 	_ "github.intel.com/hpdd/policy/pdm/lhsmd/transport/grpc"
-	//_ "github.intel.com/hpdd/policy/pdm/lhsmd/transport/queue"
 )
 
 func init() {
@@ -69,14 +68,15 @@ func main() {
 		alert.Fatalf("Error creating agent: %s", err)
 	}
 
-	if conf.InfluxURL != "" {
+	if conf.InfluxDB != nil {
+		debug.Print("Configuring InfluxDB stats target")
 		go influxdb.InfluxDB(
 			metrics.DefaultRegistry, // metrics registry
 			time.Second*10,          // interval
-			conf.InfluxURL,
-			conf.InfluxDB,       // your InfluxDB database
-			conf.InfluxUser,     // your InfluxDB user
-			conf.InfluxPassword, // your InfluxDB password
+			conf.InfluxDB.URL,
+			conf.InfluxDB.DB,       // your InfluxDB database
+			conf.InfluxDB.User,     // your InfluxDB user
+			conf.InfluxDB.Password, // your InfluxDB password
 		)
 	}
 	ctx, cancel := context.WithCancel(context.Background())

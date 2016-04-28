@@ -45,16 +45,16 @@ type (
 )
 
 func init() {
-	agent.RegisterTransport(&rpcTransport{})
+	agent.RegisterTransport(TransportType, &rpcTransport{})
 }
 
 func (t *rpcTransport) Init(conf *agent.Config, a *agent.HsmAgent) error {
-	if _, ok := conf.Transports[TransportType]; !ok {
+	if conf.Transport.Type != TransportType {
 		return nil
 	}
 
 	debug.Printf("Initializing grpc transport")
-	sock, err := net.Listen("tcp", conf.Transports[TransportType].ConnectionString())
+	sock, err := net.Listen("tcp", conf.Transport.ConnectionString())
 	if err != nil {
 		return fmt.Errorf("Failed to listen: %v", err)
 	}

@@ -58,6 +58,32 @@ func (a *archiveConfig) checkValid() error {
 	return nil
 }
 
+func (c *posixConfig) Merge(other *posixConfig) *posixConfig {
+	result := new(posixConfig)
+
+	result.AgentAddress = c.AgentAddress
+	if other.AgentAddress != "" {
+		result.AgentAddress = other.AgentAddress
+	}
+
+	result.ClientRoot = c.ClientRoot
+	if other.ClientRoot != "" {
+		result.ClientRoot = other.ClientRoot
+	}
+
+	result.NumThreads = c.NumThreads
+	if other.NumThreads > 0 {
+		result.NumThreads = other.NumThreads
+	}
+
+	result.Archives = c.Archives
+	if len(other.Archives) > 0 {
+		result.Archives = other.Archives
+	}
+
+	return result
+}
+
 func getAgentEnvSetting(name string) (value string) {
 	if value = os.Getenv(name); value == "" {
 		alert.Fatal("This plugin is intended to be launched by the agent.")
@@ -95,25 +121,39 @@ func start(cfg *posixConfig) {
 	plugin.Stop()
 }
 
-func loadConfig(cfg *posixConfig) error {
-	cfgFile := path.Join(getAgentEnvSetting(config.ConfigDirEnvVar), path.Base(os.Args[0]))
-
+func loadConfig(cfgFile string) (*posixConfig, error) {
 	data, err := ioutil.ReadFile(cfgFile)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return hcl.Decode(cfg, string(data))
+	cfg := new(posixConfig)
+	if err := hcl.Decode(cfg, string(data)); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
 }
 
-func main() {
-	cfg := &posixConfig{
+func getMergedConfig() (*posixConfig, error) {
+	baseCfg := &posixConfig{
 		AgentAddress: getAgentEnvSetting(config.AgentConnEnvVar),
 		ClientRoot:   getAgentEnvSetting(config.PluginMountpointEnvVar),
 	}
 
-	if err := loadConfig(cfg); err != nil {
-		alert.Fatalf("Failed to load config: %s", err)
+	cfgFile := path.Join(getAgentEnvSetting(config.ConfigDirEnvVar), path.Base(os.Args[0]))
+	cfg, err := loadConfig(cfgFile)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to load config: %s", err)
+	}
+
+	return baseCfg.Merge(cfg), nil
+}
+
+func main() {
+	cfg, err := getMergedConfig()
+	if err != nil {
+		alert.Fatalf("Unable to determine plugin configuration: %s", err)
 	}
 
 	if len(cfg.Archives) == 0 {

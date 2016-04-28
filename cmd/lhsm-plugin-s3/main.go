@@ -50,6 +50,10 @@ const updateInterval = 10 * time.Second
 
 var rate metrics.Meter
 
+func (a *archiveConfig) String() string {
+	return fmt.Sprintf("%d:%s:%s/%s", a.ID, a.Region, a.Bucket, a.Prefix)
+}
+
 func (a *archiveConfig) checkValid() error {
 	var errors []string
 
@@ -67,6 +71,37 @@ func (a *archiveConfig) checkValid() error {
 	}
 
 	return nil
+}
+
+func (c *s3Config) Merge(other *s3Config) *s3Config {
+	result := new(s3Config)
+
+	result.AgentAddress = c.AgentAddress
+	if other.AgentAddress != "" {
+		result.AgentAddress = other.AgentAddress
+	}
+
+	result.ClientRoot = c.ClientRoot
+	if other.ClientRoot != "" {
+		result.ClientRoot = other.ClientRoot
+	}
+
+	result.NumThreads = c.NumThreads
+	if other.NumThreads > 0 {
+		result.NumThreads = other.NumThreads
+	}
+
+	result.Region = c.Region
+	if other.Region != "" {
+		result.Region = other.Region
+	}
+
+	result.Archives = c.Archives
+	if len(other.Archives) > 0 {
+		result.Archives = other.Archives
+	}
+
+	return result
 }
 
 func init() {
@@ -104,26 +139,40 @@ func s3Svc(region string) *s3.S3 {
 	return s3.New(session.New(aws.NewConfig().WithRegion(region)))
 }
 
-func loadConfig(cfg *s3Config) error {
-	cfgFile := path.Join(getAgentEnvSetting(config.ConfigDirEnvVar), path.Base(os.Args[0]))
-
+func loadConfig(cfgFile string) (*s3Config, error) {
 	data, err := ioutil.ReadFile(cfgFile)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return hcl.Decode(cfg, string(data))
+	cfg := new(s3Config)
+	if err := hcl.Decode(cfg, string(data)); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
 }
 
-func main() {
-	cfg := &s3Config{
+func getMergedConfig() (*s3Config, error) {
+	baseCfg := &s3Config{
 		Region:       "us-east-1",
 		AgentAddress: getAgentEnvSetting(config.AgentConnEnvVar),
 		ClientRoot:   getAgentEnvSetting(config.PluginMountpointEnvVar),
 	}
 
-	if err := loadConfig(cfg); err != nil {
-		alert.Fatalf("Failed to load config: %s", err)
+	cfgFile := path.Join(getAgentEnvSetting(config.ConfigDirEnvVar), path.Base(os.Args[0]))
+	cfg, err := loadConfig(cfgFile)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to load config: %s", err)
+	}
+
+	return baseCfg.Merge(cfg), nil
+}
+
+func main() {
+	cfg, err := getMergedConfig()
+	if err != nil {
+		alert.Fatalf("Unable to determine plugin configuration: %s", err)
 	}
 
 	if len(cfg.Archives) == 0 {

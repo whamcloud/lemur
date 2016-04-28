@@ -69,10 +69,12 @@ func New(cfg *Config) (*HsmAgent, error) {
 
 // Start backgrounds the agent and starts backend data movers
 func (ct *HsmAgent) Start(ctx context.Context) error {
-	for _, t := range transports {
+	if t, ok := transports[ct.config.Transport.Type]; ok {
 		if err := t.Init(ct.config, ct); err != nil {
 			return err
 		}
+	} else {
+		alert.Fatalf("Unknown transport type in configuration: %s", ct.config.Transport.Type)
 	}
 
 	if err := ct.initAgent(); err != nil {
@@ -164,9 +166,9 @@ func (ct *HsmAgent) addHandler(tag string) {
 	}()
 }
 
-var transports []Transport
+var transports = map[string]Transport{}
 
 // RegisterTransport registers the transport in the list of known transports
-func RegisterTransport(t Transport) {
-	transports = append(transports, t)
+func RegisterTransport(name string, t Transport) {
+	transports[name] = t
 }

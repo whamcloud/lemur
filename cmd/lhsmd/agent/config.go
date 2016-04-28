@@ -24,38 +24,100 @@ var (
 )
 
 type (
-	transportMap    map[string]*transportConfig
 	transportConfig struct {
+		Type   string
 		Server string
 		Port   int
 	}
+
+	influxConfig struct {
+		URL      string `hcl:"url"`
+		DB       string `hcl:"db"`
+		User     string `hcl:"user"`
+		Password string `hcl:"password"`
+	}
+
+	clientMountOptions []string
 
 	// Config represents HSM Agent configuration
 	Config struct {
 		MountRoot          string `hcl:"mount_root"`
 		AgentMountpoint    string `hcl:"agent_mountpoint"`
 		ClientDevice       *clientmount.ClientDevice
-		ClientMountOptions []string `hcl:"client_mount_options"`
+		ClientMountOptions clientMountOptions `hcl:"client_mount_options"`
 
 		Processes int `hcl:"handler_count"`
 
-		InfluxURL      string `hcl:"influx_url"`
-		InfluxDB       string `hcl:"influx_db"`
-		InfluxUser     string `hcl:"influx_user"`
-		InfluxPassword string `hcl:"influx_password"`
+		InfluxDB *influxConfig `hcl:"influxdb"`
 
 		EnabledPlugins []string `hcl:"enabled_plugins"`
 		PluginDir      string   `hcl:"plugin_dir"`
 
-		Transports transportMap `hcl:"transport"`
+		Transport *transportConfig `hcl:"transport"`
 	}
 )
+
+func (cmo clientMountOptions) HasOption(o string) bool {
+	for _, option := range cmo {
+		if option == o {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *transportConfig) Merge(other *transportConfig) *transportConfig {
+	result := new(transportConfig)
+
+	result.Type = c.Type
+	if other.Type != "" {
+		result.Type = other.Type
+	}
+
+	result.Port = c.Port
+	if other.Port > 0 {
+		result.Port = other.Port
+	}
+
+	result.Server = c.Server
+	if other.Server != "" {
+		result.Server = other.Server
+	}
+
+	return result
+}
 
 func (c *transportConfig) ConnectionString() string {
 	if c.Port == 0 {
 		return c.Server
 	}
 	return fmt.Sprintf("%s:%d", c.Server, c.Port)
+}
+
+func (c *influxConfig) Merge(other *influxConfig) *influxConfig {
+	result := new(influxConfig)
+
+	result.URL = c.URL
+	if other.URL != "" {
+		result.URL = other.URL
+	}
+
+	result.DB = c.DB
+	if other.DB != "" {
+		result.DB = other.DB
+	}
+
+	result.User = c.User
+	if other.User != "" {
+		result.User = other.User
+	}
+
+	result.Password = c.Password
+	if other.Password != "" {
+		result.Password = other.Password
+	}
+
+	return result
 }
 
 func init() {
@@ -88,16 +150,68 @@ func (c *Config) String() string {
 func (c *Config) Plugins() []*PluginConfig {
 	var plugins []*PluginConfig
 
-	// TODO: Decide if this really needs to be configurable, in which case
-	// we need to make this better, or else just rip out everything other
-	// than grpc.
-	connectAt := c.Transports["grpc"].ConnectionString()
-	for _, pluginName := range c.EnabledPlugins {
-		binPath := path.Join(c.PluginDir, pluginName)
-		plugins = append(plugins, NewPlugin(pluginName, binPath, connectAt, c.MountRoot))
+	connectAt := c.Transport.ConnectionString()
+	for _, name := range c.EnabledPlugins {
+		binPath := path.Join(c.PluginDir, name)
+		plugin := NewPlugin(name, binPath, connectAt, c.MountRoot)
+		plugins = append(plugins, plugin)
 	}
 
 	return plugins
+}
+
+// Merge combines the supplied configuration's values with this one's
+func (c *Config) Merge(other *Config) *Config {
+	result := new(Config)
+
+	result.MountRoot = c.MountRoot
+	if other.MountRoot != "" {
+		result.MountRoot = other.MountRoot
+	}
+	result.AgentMountpoint = c.AgentMountpoint
+	if other.AgentMountpoint != "" {
+		result.AgentMountpoint = other.AgentMountpoint
+	}
+
+	result.ClientDevice = c.ClientDevice
+	if other.ClientDevice != nil {
+		result.ClientDevice = other.ClientDevice
+	}
+
+	result.ClientMountOptions = c.ClientMountOptions
+	for _, otherOption := range other.ClientMountOptions {
+		if result.ClientMountOptions.HasOption(otherOption) {
+			continue
+		}
+		result.ClientMountOptions = append(result.ClientMountOptions, otherOption)
+	}
+
+	result.Processes = c.Processes
+	if other.Processes > result.Processes {
+		result.Processes = other.Processes
+	}
+
+	result.InfluxDB = c.InfluxDB
+	if other.InfluxDB != nil {
+		result.InfluxDB = result.InfluxDB.Merge(other.InfluxDB)
+	}
+
+	result.EnabledPlugins = c.EnabledPlugins
+	if len(other.EnabledPlugins) > 0 {
+		result.EnabledPlugins = other.EnabledPlugins
+	}
+
+	result.PluginDir = c.PluginDir
+	if other.PluginDir != "" {
+		result.PluginDir = other.PluginDir
+	}
+
+	result.Transport = c.Transport
+	if other.Transport != nil {
+		result.Transport = result.Transport.Merge(other.Transport)
+	}
+
+	return result
 }
 
 func defaultConfig() *Config {
@@ -107,7 +221,10 @@ agent_mountpoint = "/mnt/lhsmd/agent"
 client_mount_options = ["user_xattr"]
 plugin_dir = "/usr/share/lhsmd/plugins"
 
-transport "grpc" {
+influxdb {}
+
+transport {
+	type = "grpc"
 	port = 4242
 }
 `
@@ -123,59 +240,62 @@ transport "grpc" {
 }
 
 // LoadConfig reads a config at the supplied path
-func LoadConfig(configPath string, cfg *Config) error {
+func LoadConfig(configPath string) (*Config, error) {
 	data, err := ioutil.ReadFile(configPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	obj, err := hcl.Parse(string(data))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	cfg := new(Config)
 	if err := hcl.DecodeObject(cfg, obj); err != nil {
-		return err
+		return nil, err
 	}
 
 	list, ok := obj.Node.(*ast.ObjectList)
 	if !ok {
-		return fmt.Errorf("Malformed config file")
+		return nil, fmt.Errorf("Malformed config file")
 	}
 
 	f := list.Filter("client_device")
 	if len(f.Items) == 0 {
-		return fmt.Errorf("No client_device specified")
+		return nil, fmt.Errorf("No client_device specified")
 	}
 	if len(f.Items) > 1 {
-		return fmt.Errorf("Line %d: More than 1 client_device specified", f.Items[1].Assign.Line)
+		return nil, fmt.Errorf("Line %d: More than 1 client_device specified", f.Items[1].Assign.Line)
 	}
 
 	var devStr string
 	if err := hcl.DecodeObject(&devStr, f.Elem().Items[0].Val); err != nil {
-		return err
+		return nil, err
 	}
 	cfg.ClientDevice, err = clientmount.ClientDeviceFromString(devStr)
 	if err != nil {
-		return fmt.Errorf("Line %d: Invalid client_device %q: %s", f.Items[0].Assign.Line, devStr, err)
+		return nil, fmt.Errorf("Line %d: Invalid client_device %q: %s", f.Items[0].Assign.Line, devStr, err)
 	}
 
-	return err
+	return cfg, nil
 }
 
 // ConfigInitMust returns a valid *Config or fails trying
 func ConfigInitMust() *Config {
 	flag.Parse()
 
-	cfg := defaultConfig()
+	defCfg := defaultConfig()
 	debug.Printf("loading config from %s", optConfigPath)
-	err := LoadConfig(optConfigPath, cfg)
+	cfg, err := LoadConfig(optConfigPath)
 	if err != nil {
 		if !(optConfigPath == config.DefaultConfigPath && os.IsNotExist(err)) {
 			alert.Fatalf("Failed to load config: %s", err)
 		}
 	}
-	if len(cfg.Transports) == 0 {
+	cfg = defCfg.Merge(cfg)
+
+	if cfg.Transport == nil {
 		alert.Fatal("Invalid configuration: No transports configured")
 	}
 
