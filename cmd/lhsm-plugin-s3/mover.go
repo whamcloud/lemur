@@ -20,14 +20,14 @@ import (
 // Mover is an S3 data mover
 type Mover struct {
 	name   string
-	client *client.Client
+	client client.Client
 	s3Svc  *s3.S3
 	bucket string
 	prefix string
 }
 
 // S3Mover returns a new *Mover
-func S3Mover(c *client.Client, s3Svc *s3.S3, archiveID uint32, bucket string, prefix string) *Mover {
+func S3Mover(c client.Client, s3Svc *s3.S3, archiveID uint32, bucket string, prefix string) *Mover {
 	return &Mover{
 		name:   fmt.Sprintf("s3-%d", archiveID),
 		client: c,
