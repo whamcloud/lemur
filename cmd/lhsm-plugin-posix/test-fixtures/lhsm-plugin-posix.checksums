@@ -1,0 +1,24 @@
+checksums {
+	disabled = true
+}
+
+archive "1" {
+	id = 1
+	root = "/tmp/archives/1"
+	checksums {
+		disabled = false
+	}
+}
+
+archive "2" {
+	id = 2
+	root = "/tmp/archives/2"
+	checksums {
+		disable_compare_on_restore = true
+	}
+}
+
+archive "3" {
+	id = 3
+	root = "/tmp/archives/3"
+}

@@ -21,18 +21,25 @@ import (
 
 type (
 	archiveConfig struct {
-		Name string `hcl:",key"`
-		ID   int    `hcl:"id"`
-		Root string `hcl:"root"`
+		Name      string          `hcl:",key"`
+		ID        int             `hcl:"id"`
+		Root      string          `hcl:"root"`
+		Checksums *checksumConfig `hcl:"checksums"`
 	}
 
 	archiveSet []*archiveConfig
 
+	checksumConfig struct {
+		Disabled                bool `hcl:"disabled"`
+		DisableCompareOnRestore bool `hcl:"disable_compare_on_restore"`
+	}
+
 	posixConfig struct {
 		AgentAddress string
 		ClientRoot   string
-		NumThreads   int        `hcl:"num_threads"`
-		Archives     archiveSet `hcl:"archive"`
+		NumThreads   int             `hcl:"num_threads"`
+		Archives     archiveSet      `hcl:"archive"`
+		Checksums    *checksumConfig `hcl:"checksums"`
 	}
 )
 
@@ -58,6 +65,23 @@ func (a *archiveConfig) checkValid() error {
 	return nil
 }
 
+func (c *checksumConfig) Merge(other *checksumConfig) *checksumConfig {
+	result := new(checksumConfig)
+
+	// Just defer to the other config
+	result.Disabled = other.Disabled
+	result.DisableCompareOnRestore = other.DisableCompareOnRestore
+
+	return result
+}
+
+func (c *checksumConfig) ToPosix() *posix.ChecksumConfig {
+	return &posix.ChecksumConfig{
+		Disabled:                c.Disabled,
+		DisableCompareOnRestore: c.DisableCompareOnRestore,
+	}
+}
+
 func (c *posixConfig) Merge(other *posixConfig) *posixConfig {
 	result := new(posixConfig)
 
@@ -81,6 +105,11 @@ func (c *posixConfig) Merge(other *posixConfig) *posixConfig {
 		result.Archives = other.Archives
 	}
 
+	result.Checksums = c.Checksums
+	if other.Checksums != nil {
+		result.Checksums = result.Checksums.Merge(other.Checksums)
+	}
+
 	return result
 }
 
@@ -89,6 +118,30 @@ func getAgentEnvSetting(name string) (value string) {
 		alert.Fatal("This plugin is intended to be launched by the agent.")
 	}
 	return
+}
+
+func createMovers(c client.Client, cfg *posixConfig) (map[uint32]*posix.Mover, error) {
+	movers := make(map[uint32]*posix.Mover)
+
+	for _, a := range cfg.Archives {
+		csc := cfg.Checksums // use global config by default
+		if a.Checksums != nil {
+			csc = a.Checksums
+		}
+		mover, err := posix.NewMover(&posix.MoverConfig{
+			Name:       fmt.Sprintf("posix-%d", a.ID),
+			Client:     c,
+			ArchiveDir: a.Root,
+			Checksums:  csc.ToPosix(),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("Unable to create new POSIX mover: %s", err)
+		}
+
+		movers[uint32(a.ID)] = mover
+	}
+
+	return movers, nil
 }
 
 func start(cfg *posixConfig) {
@@ -108,11 +161,16 @@ func start(cfg *posixConfig) {
 	}
 	defer plugin.Close()
 
-	for _, a := range cfg.Archives {
+	movers, err := createMovers(c, cfg)
+	if err != nil {
+		alert.Fatal(err)
+	}
+
+	for id, mover := range movers {
 		plugin.AddMover(&dmplugin.Config{
-			Mover:      posix.NewMover(c, a.Root, uint32(a.ID)),
+			Mover:      mover,
 			NumThreads: 4,
-			ArchiveID:  uint32(a.ID),
+			ArchiveID:  id,
 			FsName:     c.FsName(),
 		})
 	}
@@ -139,6 +197,7 @@ func getMergedConfig() (*posixConfig, error) {
 	baseCfg := &posixConfig{
 		AgentAddress: getAgentEnvSetting(config.AgentConnEnvVar),
 		ClientRoot:   getAgentEnvSetting(config.PluginMountpointEnvVar),
+		Checksums:    &checksumConfig{},
 	}
 
 	cfgFile := path.Join(getAgentEnvSetting(config.ConfigDirEnvVar), path.Base(os.Args[0]))

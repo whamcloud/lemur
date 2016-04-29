@@ -36,7 +36,7 @@ type (
 	// HsmAgent for a single filesytem and a collection of backends.
 	HsmAgent struct {
 		config    *Config
-		client    *client.Client
+		client    client.Client
 		wg        sync.WaitGroup
 		Endpoints *Endpoints
 		mu        sync.Mutex // Protject the agent
