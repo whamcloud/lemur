@@ -21,7 +21,7 @@ type (
 	}
 
 	// FsClient is an implementation of the Client interface
-	FsClient struct {
+	fsClient struct {
 		root   fs.RootDir
 		fsName string
 		fsID   *FsID
@@ -48,8 +48,8 @@ func getFsID(mountPath string) (*FsID, error) {
 	return &id, nil
 }
 
-// New returns a new FsClient
-func New(path string) (*FsClient, error) {
+// New returns a new Client
+func New(path string) (*fsClient, error) {
 	root, err := fs.MountRoot(path)
 	if err != nil {
 		return nil, err
@@ -62,23 +62,23 @@ func New(path string) (*FsClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &FsClient{root: root,
+	return &fsClient{root: root,
 		fsName: name,
 		fsID:   id,
 	}, nil
 }
 
 // FsName returns the filesystem name
-func (c *FsClient) FsName() string {
+func (c *fsClient) FsName() string {
 	return c.fsName
 }
 
 // Path returns the filesystem root path
-func (c *FsClient) Path() string {
+func (c *fsClient) Path() string {
 	return c.root.Path()
 }
 
 // Root returns the underlying fs.RootDir item
-func (c *FsClient) Root() fs.RootDir {
+func (c *fsClient) Root() fs.RootDir {
 	return c.root
 }
