@@ -7,14 +7,26 @@ import (
 	"github.intel.com/hpdd/lustre/pkg/mntent"
 )
 
-type FsID struct {
-	val [2]int32
-}
-type Client struct {
-	root   fs.RootDir
-	fsName string
-	fsID   *FsID
-}
+type (
+	// FsID is a Lustre filesystem ID
+	FsID struct {
+		val [2]int32
+	}
+
+	// Client defines an interface for Lustre filesystem clients
+	Client interface {
+		FsName() string
+		Path() string
+		Root() fs.RootDir
+	}
+
+	// FsClient is an implementation of the Client interface
+	FsClient struct {
+		root   fs.RootDir
+		fsName string
+		fsID   *FsID
+	}
+)
 
 func getFsName(mountPath string) (string, error) {
 	entry, err := mntent.GetEntryByDir(mountPath)
@@ -36,7 +48,8 @@ func getFsID(mountPath string) (*FsID, error) {
 	return &id, nil
 }
 
-func New(path string) (*Client, error) {
+// New returns a new FsClient
+func New(path string) (*FsClient, error) {
 	root, err := fs.MountRoot(path)
 	if err != nil {
 		return nil, err
@@ -49,20 +62,23 @@ func New(path string) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Client{root: root,
+	return &FsClient{root: root,
 		fsName: name,
 		fsID:   id,
 	}, nil
 }
 
-func (c *Client) FsName() string {
+// FsName returns the filesystem name
+func (c *FsClient) FsName() string {
 	return c.fsName
 }
 
-func (c *Client) Path() string {
+// Path returns the filesystem root path
+func (c *FsClient) Path() string {
 	return c.root.Path()
 }
 
-func (c *Client) Root() fs.RootDir {
+// Root returns the underlying fs.RootDir item
+func (c *FsClient) Root() fs.RootDir {
 	return c.root
 }
