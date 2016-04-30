@@ -25,5 +25,5 @@ func (c *testClient) Path() string {
 // Root returns a fake fs.RootDir item
 func (c *testClient) Root() fs.RootDir {
 	// Todo need a TestRootDir
-	return fs.RootDir{path: root}
+	return fs.RootDir{}
 }
