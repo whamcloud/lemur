@@ -49,7 +49,7 @@ func getFsID(mountPath string) (*FsID, error) {
 }
 
 // New returns a new Client
-func New(path string) (*fsClient, error) {
+func New(path string) (Client, error) {
 	root, err := fs.MountRoot(path)
 	if err != nil {
 		return nil, err

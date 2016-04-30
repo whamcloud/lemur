@@ -7,6 +7,7 @@ type testClient struct {
 	root string
 }
 
+// Test returns a test client.
 func Test(root string) Client {
 	return &testClient{root: root}
 }
