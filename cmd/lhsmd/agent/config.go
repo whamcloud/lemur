@@ -25,9 +25,9 @@ var (
 
 type (
 	transportConfig struct {
-		Type   string
-		Server string
-		Port   int
+		Type   string `hcl:"type"`
+		Server string `hcl:"server"`
+		Port   int    `hcl:"port"`
 	}
 
 	influxConfig struct {
@@ -35,6 +35,10 @@ type (
 		DB       string `hcl:"db"`
 		User     string `hcl:"user"`
 		Password string `hcl:"password"`
+	}
+
+	snapshotConfig struct {
+		Enabled bool `hcl:"enabled"`
 	}
 
 	clientMountOptions []string
@@ -53,6 +57,7 @@ type (
 		EnabledPlugins []string `hcl:"enabled_plugins"`
 		PluginDir      string   `hcl:"plugin_dir"`
 
+		Snapshots *snapshotConfig  `hcl:"snapshots"`
 		Transport *transportConfig `hcl:"transport"`
 	}
 )
@@ -116,6 +121,14 @@ func (c *influxConfig) Merge(other *influxConfig) *influxConfig {
 	if other.Password != "" {
 		result.Password = other.Password
 	}
+
+	return result
+}
+
+func (c *snapshotConfig) Merge(other *snapshotConfig) *snapshotConfig {
+	result := new(snapshotConfig)
+
+	result.Enabled = other.Enabled
 
 	return result
 }
@@ -206,6 +219,11 @@ func (c *Config) Merge(other *Config) *Config {
 		result.PluginDir = other.PluginDir
 	}
 
+	result.Snapshots = c.Snapshots
+	if other.Snapshots != nil {
+		result.Snapshots = result.Snapshots.Merge(other.Snapshots)
+	}
+
 	result.Transport = c.Transport
 	if other.Transport != nil {
 		result.Transport = result.Transport.Merge(other.Transport)
@@ -228,15 +246,21 @@ transport {
 	port = 4242
 }
 `
-	cfg := &Config{
-		Processes: runtime.NumCPU(),
-	}
-
+	cfg := NewConfig()
 	if err := hcl.Decode(cfg, cfgStr); err != nil {
 		alert.Fatalf("Error while generating default config: %s", err)
 	}
 
 	return cfg
+}
+
+// NewConfig initializes a new Config struct
+func NewConfig() *Config {
+	return &Config{
+		Processes: runtime.NumCPU(),
+		InfluxDB:  &influxConfig{},
+		Snapshots: &snapshotConfig{},
+	}
 }
 
 // LoadConfig reads a config at the supplied path
@@ -251,7 +275,7 @@ func LoadConfig(configPath string) (*Config, error) {
 		return nil, err
 	}
 
-	cfg := new(Config)
+	cfg := NewConfig()
 	if err := hcl.DecodeObject(cfg, obj); err != nil {
 		return nil, err
 	}

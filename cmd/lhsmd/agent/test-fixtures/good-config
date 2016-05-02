@@ -9,4 +9,8 @@ influxdb {
         db = "lhsmd"
 }
 
+snapshots {
+	enabled = false
+}
+
 enabled_plugins = ["lhsm-plugin-posix"]

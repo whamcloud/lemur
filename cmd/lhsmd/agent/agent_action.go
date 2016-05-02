@@ -33,8 +33,8 @@ type Action struct {
 	start time.Time
 }
 
-func (a *Action) String() string {
-	return fmt.Sprintf("id:%d %s %v ", a.id, a.aih.Action(), a.aih.Fid())
+func (action *Action) String() string {
+	return fmt.Sprintf("id:%d %s %v ", action.id, action.aih.Action(), action.aih.Fid())
 }
 
 func hsm2Command(a llapi.HsmAction) (c pb.Command) {
@@ -128,9 +128,8 @@ func (action *Action) Update(status *pb.ActionStatus) (bool, error) {
 			audit.Logf("id:%d completion failed: %v", status.Id, err)
 			return true, err // Completed, but Failed. Internal HSM state is not updated
 		}
-		// action.agent.config.EnableSnapshots ?
-		snapshotEnabled := true
-		if action.aih.Action() == llapi.HsmActionArchive && snapshotEnabled && status.FileId != nil {
+
+		if action.aih.Action() == llapi.HsmActionArchive && action.agent.config.Snapshots.Enabled && status.FileId != nil {
 			createSnapshot(action.agent.Root(), action.aih.ArchiveID(), action.aih.Fid(), status.FileId)
 		}
 		return true, nil // Completed

@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.intel.com/hpdd/policy/pdm/lhsm-plugin-posix/posix"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
+	"github.intel.com/hpdd/policy/pkg/client"
 )
 
 func TestLoadConfig(t *testing.T) {
@@ -135,7 +135,7 @@ func TestChecksumConfig(t *testing.T) {
 	}
 
 	// Next, ensure that the archive backends are configured correctly
-	movers, err := createMovers(&posix.TestClient{}, loaded)
+	movers, err := createMovers(client.Test("/tmp"), loaded)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

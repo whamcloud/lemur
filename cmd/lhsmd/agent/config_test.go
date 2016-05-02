@@ -2,6 +2,7 @@ package agent
 
 import (
 	"reflect"
+	"runtime"
 	"testing"
 
 	"github.intel.com/hpdd/ce-tools/resources/lustre/clientmount"
@@ -24,13 +25,16 @@ func TestLoadConfig(t *testing.T) {
 		ClientMountOptions: []string{
 			"user_xattr",
 		},
-		Processes: 0,
+		Processes: runtime.NumCPU(),
 		InfluxDB: &influxConfig{
 			URL: "http://172.17.0.4:8086",
 			DB:  "lhsmd",
 		},
 		EnabledPlugins: []string{
 			"lhsm-plugin-posix",
+		},
+		Snapshots: &snapshotConfig{
+			Enabled: false,
 		},
 		PluginDir: "/go/bin",
 	}
@@ -51,6 +55,9 @@ func TestMergedConfig(t *testing.T) {
 			"lhsm-plugin-noop",
 		},
 		PluginDir: "/usr/share/lhsmd/plugins",
+		Snapshots: &snapshotConfig{
+			Enabled: true,
+		},
 		Transport: &transportConfig{
 			Type: "grpc",
 			Port: 9000,
@@ -83,6 +90,9 @@ func TestMergedConfig(t *testing.T) {
 			"lhsm-plugin-posix",
 		},
 		PluginDir: "/go/bin",
+		Snapshots: &snapshotConfig{
+			Enabled: false,
+		},
 		Transport: &transportConfig{
 			Type: "grpc",
 			Port: 9000,
@@ -90,6 +100,6 @@ func TestMergedConfig(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(loaded, expected) {
-		t.Fatalf("\nexpected:\n%#v\ngot:\n%#v\n", expected, loaded)
+		t.Fatalf("\nexpected:\n%s\ngot:\n%s\n", expected, loaded)
 	}
 }
