@@ -6,7 +6,44 @@ import (
 	"testing"
 
 	"github.intel.com/hpdd/ce-tools/resources/lustre/clientmount"
+	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
 )
+
+func TestConfiguredPlugins(t *testing.T) {
+	loaded, err := LoadConfig("./test-fixtures/plugin-config")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	expected := []*PluginConfig{
+		{
+			Name:             "lhsm-plugin-posix",
+			BinPath:          config.DefaultPluginDir + "/lhsm-plugin-posix",
+			AgentConnection:  ":4242",
+			ClientMount:      "/mnt/lhsmd/lhsm-plugin-posix",
+			RestartOnFailure: true,
+		},
+		{
+			Name:             "lhsm-plugin-s3",
+			BinPath:          config.DefaultPluginDir + "/lhsm-plugin-s3",
+			AgentConnection:  ":4242",
+			ClientMount:      "/mnt/lhsmd/lhsm-plugin-s3",
+			RestartOnFailure: true,
+		},
+		{
+			Name:             "lhsm-plugin-noop",
+			BinPath:          config.DefaultPluginDir + "/lhsm-plugin-noop",
+			AgentConnection:  ":4242",
+			ClientMount:      "/mnt/lhsmd/lhsm-plugin-noop",
+			RestartOnFailure: true,
+		},
+	}
+
+	got := loaded.Plugins()
+	if !reflect.DeepEqual(got, expected) {
+		t.Fatalf("\nexpected:\n%s\ngot:\n%s\n", expected, got)
+	}
+}
 
 func TestLoadConfig(t *testing.T) {
 	loaded, err := LoadConfig("./test-fixtures/good-config")
@@ -37,38 +74,24 @@ func TestLoadConfig(t *testing.T) {
 			Enabled: false,
 		},
 		PluginDir: "/go/bin",
+		Transport: &transportConfig{
+			Type: "grpc",
+			Port: 4242,
+		},
 	}
 
 	if !reflect.DeepEqual(loaded, expected) {
-		t.Fatalf("\nexpected:\n%#v\ngot:\n%#v\n", expected, loaded)
+		t.Fatalf("\nexpected:\n%s\ngot:\n%s\n", expected, loaded)
 	}
 }
 
 func TestMergedConfig(t *testing.T) {
-	defCfg := &Config{
-		Processes: 2,
-		InfluxDB:  &influxConfig{},
-		ClientMountOptions: []string{
-			"user_xattr",
-		},
-		EnabledPlugins: []string{
-			"lhsm-plugin-noop",
-		},
-		PluginDir: "/usr/share/lhsmd/plugins",
-		Snapshots: &snapshotConfig{
-			Enabled: true,
-		},
-		Transport: &transportConfig{
-			Type: "grpc",
-			Port: 9000,
-		},
-	}
-
-	loaded, err := LoadConfig("./test-fixtures/good-config")
+	defCfg := NewConfig()
+	loaded, err := LoadConfig("./test-fixtures/merge-config")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	loaded = defCfg.Merge(loaded)
+	got := defCfg.Merge(loaded)
 
 	expectedDevice, err := clientmount.ClientDeviceFromString("10.211.55.37@tcp0:/testFs")
 	if err != nil {
@@ -99,7 +122,7 @@ func TestMergedConfig(t *testing.T) {
 		},
 	}
 
-	if !reflect.DeepEqual(loaded, expected) {
-		t.Fatalf("\nexpected:\n%s\ngot:\n%s\n", expected, loaded)
+	if !reflect.DeepEqual(got, expected) {
+		t.Fatalf("\nexpected:\n%s\ngot:\n%s\n", expected, got)
 	}
 }

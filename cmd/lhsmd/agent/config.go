@@ -232,34 +232,29 @@ func (c *Config) Merge(other *Config) *Config {
 	return result
 }
 
-func defaultConfig() *Config {
-	var cfgStr = `
-mount_root = "/mnt/lhsmd"
-agent_mountpoint = "/mnt/lhsmd/agent"
-client_mount_options = ["user_xattr"]
-plugin_dir = "/usr/share/lhsmd/plugins"
-
-influxdb {}
-
-transport {
-	type = "grpc"
-	port = 4242
-}
-`
-	cfg := NewConfig()
-	if err := hcl.Decode(cfg, cfgStr); err != nil {
-		alert.Fatalf("Error while generating default config: %s", err)
+// DefaultConfig initializes a new Config struct with default values
+func DefaultConfig() *Config {
+	return &Config{
+		MountRoot:          config.DefaultAgentMountRoot,
+		AgentMountpoint:    config.DefaultAgentMountRoot + "/agent",
+		ClientMountOptions: config.DefaultClientMountOptions,
+		PluginDir:          config.DefaultPluginDir,
+		Processes:          runtime.NumCPU(),
+		InfluxDB:           &influxConfig{},
+		Snapshots:          &snapshotConfig{},
+		Transport: &transportConfig{
+			Type: config.DefaultTransport,
+			Port: config.DefaultTransportPort,
+		},
 	}
-
-	return cfg
 }
 
-// NewConfig initializes a new Config struct
+// NewConfig initializes a new Config struct with zero values
 func NewConfig() *Config {
 	return &Config{
-		Processes: runtime.NumCPU(),
 		InfluxDB:  &influxConfig{},
 		Snapshots: &snapshotConfig{},
+		Transport: &transportConfig{},
 	}
 }
 
@@ -275,10 +270,12 @@ func LoadConfig(configPath string) (*Config, error) {
 		return nil, err
 	}
 
+	defaults := DefaultConfig()
 	cfg := NewConfig()
 	if err := hcl.DecodeObject(cfg, obj); err != nil {
 		return nil, err
 	}
+	cfg = defaults.Merge(cfg)
 
 	list, ok := obj.Node.(*ast.ObjectList)
 	if !ok {
@@ -309,7 +306,6 @@ func LoadConfig(configPath string) (*Config, error) {
 func ConfigInitMust() *Config {
 	flag.Parse()
 
-	defCfg := defaultConfig()
 	debug.Printf("loading config from %s", optConfigPath)
 	cfg, err := LoadConfig(optConfigPath)
 	if err != nil {
@@ -317,7 +313,6 @@ func ConfigInitMust() *Config {
 			alert.Fatalf("Failed to load config: %s", err)
 		}
 	}
-	cfg = defCfg.Merge(cfg)
 
 	if cfg.Transport == nil {
 		alert.Fatal("Invalid configuration: No transports configured")

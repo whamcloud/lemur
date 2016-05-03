@@ -20,4 +20,19 @@ const (
 	// PluginMountpointEnvVar is the environment variable containing
 	// a Lustre client mountpoint to be used by the plugin
 	PluginMountpointEnvVar = "LHSMD_CLIENT_MOUNTPOINT"
+
+	// DefaultTransport is the default agent<->plugin transport
+	DefaultTransport = "grpc"
+	// DefaultTransportPort is the default listen port for the agent
+	DefaultTransportPort = 4242
+
+	// DefaultAgentMountRoot is the root directory for agent client mounts
+	DefaultAgentMountRoot = "/mnt/lhsmd"
+
+	// DefaultPluginDir is the default location for plugin binaries
+	DefaultPluginDir = "/usr/share/lhsmd/plugins"
 )
+
+// DefaultClientMountOptions is the default set of Lustre client
+// mount options
+var DefaultClientMountOptions = []string{"user_xattr"}

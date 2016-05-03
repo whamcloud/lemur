@@ -1,13 +1,15 @@
 package agent
 
 import (
-	"fmt"
+	"bytes"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path"
 
 	"golang.org/x/net/context"
 
+	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
@@ -46,7 +48,14 @@ type (
 )
 
 func (p *PluginConfig) String() string {
-	return fmt.Sprintf("%s (%s): %s", p.Name, p.BinPath, p.Args)
+	data, err := json.Marshal(p)
+	if err != nil {
+		alert.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	json.Indent(&out, data, "", "\t")
+	return out.String()
 }
 
 // NoRestart optionally sets a plugin to not be restarted on failure
