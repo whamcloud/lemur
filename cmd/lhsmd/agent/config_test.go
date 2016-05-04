@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.intel.com/hpdd/ce-tools/resources/lustre/clientmount"
+	"github.intel.com/hpdd/lustre/fs/spec"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
 )
 
@@ -51,7 +51,7 @@ func TestLoadConfig(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	expectedDevice, err := clientmount.ClientDeviceFromString("10.211.55.37@tcp0:/testFs")
+	expectedDevice, err := spec.ClientDeviceFromString("10.211.55.37@tcp0:/testFs")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -93,7 +93,7 @@ func TestMergedConfig(t *testing.T) {
 	}
 	got := defCfg.Merge(loaded)
 
-	expectedDevice, err := clientmount.ClientDeviceFromString("10.211.55.37@tcp0:/testFs")
+	expectedDevice, err := spec.ClientDeviceFromString("10.211.55.37@tcp0:/testFs")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

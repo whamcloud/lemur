@@ -14,9 +14,9 @@ import (
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 
-	"github.intel.com/hpdd/ce-tools/resources/lustre/clientmount"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
+	"github.intel.com/hpdd/lustre/fs/spec"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
 )
 
@@ -48,7 +48,7 @@ type (
 	Config struct {
 		MountRoot          string `hcl:"mount_root"`
 		AgentMountpoint    string `hcl:"agent_mountpoint"`
-		ClientDevice       *clientmount.ClientDevice
+		ClientDevice       *spec.ClientDevice
 		ClientMountOptions clientMountOptions `hcl:"client_mount_options"`
 
 		Processes int `hcl:"handler_count"`
@@ -299,7 +299,7 @@ func LoadConfig(configPath string) (*Config, error) {
 	if err := hcl.DecodeObject(&devStr, f.Elem().Items[0].Val); err != nil {
 		return nil, err
 	}
-	cfg.ClientDevice, err = clientmount.ClientDeviceFromString(devStr)
+	cfg.ClientDevice, err = spec.ClientDeviceFromString(devStr)
 	if err != nil {
 		return nil, fmt.Errorf("Line %d: Invalid client_device %q: %s", f.Items[0].Assign.Line, devStr, err)
 	}

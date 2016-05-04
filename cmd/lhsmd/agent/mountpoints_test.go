@@ -6,7 +6,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.intel.com/hpdd/ce-tools/resources/lustre/clientmount"
+	"github.intel.com/hpdd/lustre/fs/spec"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
 )
 
@@ -16,7 +16,7 @@ func TestMountConfigs(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	d, err := clientmount.ClientDeviceFromString("0@lo:/test")
+	d, err := spec.ClientDeviceFromString("0@lo:/test")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
