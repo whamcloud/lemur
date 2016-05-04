@@ -17,6 +17,7 @@ import (
 	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/agent"
+	"github.intel.com/hpdd/policy/pkg/client"
 
 	// Register the supported transports
 	_ "github.intel.com/hpdd/policy/pdm/lhsmd/transport/grpc"
@@ -63,7 +64,11 @@ func main() {
 		alert.Fatalf("Error while creating Lustre mountpoints: %s", err)
 	}
 
-	ct, err := agent.New(conf)
+	client, err := client.New(conf.AgentMountpoint)
+	if err != nil {
+		alert.Fatalf("Error while create Lustre client: %s", err)
+	}
+	ct, err := agent.New(conf, client)
 	if err != nil {
 		alert.Fatalf("Error creating agent: %s", err)
 	}

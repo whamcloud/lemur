@@ -51,15 +51,11 @@ type (
 )
 
 // New accepts a config and returns a *HsmAgent
-func New(cfg *Config) (*HsmAgent, error) {
-	client, err := client.New(cfg.AgentMountpoint)
-	if err != nil {
-		return nil, err
-	}
+func New(cfg *Config, cl client.Client) (*HsmAgent, error) {
 
 	ct := &HsmAgent{
 		config:    cfg,
-		client:    client,
+		client:    cl,
 		monitor:   NewMonitor(),
 		Endpoints: NewEndpoints(),
 	}
