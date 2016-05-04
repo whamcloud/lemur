@@ -1,0 +1,23 @@
+mount_root = "/mnt/lhsmd"
+agent_mountpoint = "/mnt/lhsmd/agent"
+client_device = "10.211.55.37@tcp:/testFs"
+client_mount_options = ["user_xattr"]
+plugin_dir = "/go/bin"
+
+handler_count = 2
+
+influxdb {
+        url = "http://172.17.0.4:8086"
+        db = "lhsmd"
+}
+
+snapshots {
+	enabled = false
+}
+
+enabled_plugins = ["lhsm-plugin-posix"]
+
+transport {
+	type = "grpc"
+	port = 9000
+}

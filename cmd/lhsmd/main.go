@@ -59,7 +59,7 @@ func main() {
 	conf := agent.ConfigInitMust()
 
 	debug.Printf("current configuration:\n%v", conf.String())
-	if err := configureMounts(conf); err != nil {
+	if err := agent.ConfigureMounts(conf); err != nil {
 		alert.Fatalf("Error while creating Lustre mountpoints: %s", err)
 	}
 
@@ -87,5 +87,9 @@ func main() {
 
 	if err := ct.Start(ctx); err != nil {
 		alert.Fatalf("Error in HsmAgent.Start(): %s", err)
+	}
+
+	if err := agent.CleanupMounts(conf); err != nil {
+		alert.Warnf("Error while cleaning up Lustre mountpoints: %s", err)
 	}
 }

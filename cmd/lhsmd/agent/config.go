@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"strings"
 
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
@@ -69,6 +70,10 @@ func (cmo clientMountOptions) HasOption(o string) bool {
 		}
 	}
 	return false
+}
+
+func (cmo clientMountOptions) String() string {
+	return strings.Join(cmo, ",")
 }
 
 func (c *transportConfig) Merge(other *transportConfig) *transportConfig {
