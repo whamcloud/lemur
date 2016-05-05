@@ -41,11 +41,14 @@ func TestAgentStartStop(t *testing.T) {
 	}
 
 	ctx := context.Background()
+	errChan := make(chan error)
 	go func() {
-		if err := a.Start(ctx); err != nil {
-			t.Fatalf("error starting agent: %s", err)
-		}
+		errChan <- a.Start(ctx)
 	}()
 
 	a.Stop()
+
+	if err := <-errChan; err != nil {
+		t.Fatalf("error starting agent: %s", err)
+	}
 }

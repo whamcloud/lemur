@@ -24,7 +24,9 @@ const (
 )
 
 type (
-	rpcTransport struct{}
+	rpcTransport struct {
+		done chan struct{}
+	}
 
 	dmRPCServer struct {
 		stats *messageStats
@@ -45,7 +47,9 @@ type (
 )
 
 func init() {
-	agent.RegisterTransport(TransportType, &rpcTransport{})
+	agent.RegisterTransport(TransportType, &rpcTransport{
+		done: make(chan struct{}),
+	})
 }
 
 func (t *rpcTransport) Init(conf *agent.Config, a *agent.HsmAgent) error {
@@ -53,7 +57,7 @@ func (t *rpcTransport) Init(conf *agent.Config, a *agent.HsmAgent) error {
 		return nil
 	}
 
-	debug.Printf("Initializing grpc transport")
+	debug.Print("Initializing grpc transport")
 	sock, err := net.Listen("tcp", conf.Transport.ConnectionString())
 	if err != nil {
 		return fmt.Errorf("Failed to listen: %v", err)
@@ -61,7 +65,18 @@ func (t *rpcTransport) Init(conf *agent.Config, a *agent.HsmAgent) error {
 
 	srv := grpc.NewServer()
 	pb.RegisterDataMoverServer(srv, newServer(a))
-	go srv.Serve(sock)
+	go func() {
+		go srv.Serve(sock)
+		<-t.done
+		debug.Print("Shutting down grpc transport")
+		srv.Stop()
+	}()
+
+	return nil
+}
+
+func (t *rpcTransport) Shutdown() error {
+	t.done <- struct{}{}
 
 	return nil
 }

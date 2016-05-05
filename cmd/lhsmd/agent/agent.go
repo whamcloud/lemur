@@ -47,6 +47,7 @@ type (
 	// Transport for backend plugins
 	Transport interface {
 		Init(*Config, *HsmAgent) error
+		Shutdown() error
 	}
 )
 
@@ -70,11 +71,11 @@ func (ct *HsmAgent) Start(ctx context.Context) error {
 			return err
 		}
 	} else {
-		alert.Fatalf("Unknown transport type in configuration: %s", ct.config.Transport.Type)
+		return fmt.Errorf("Unknown transport type in configuration: %s", ct.config.Transport.Type)
 	}
 
 	if err := ct.initAgent(); err != nil {
-		return err
+		return fmt.Errorf("Unable to initialize HSM agent connection: %s", err)
 	}
 
 	for i := 0; i < ct.config.Processes; i++ {
@@ -85,7 +86,7 @@ func (ct *HsmAgent) Start(ctx context.Context) error {
 	for _, pluginConf := range ct.config.Plugins() {
 		err := ct.monitor.StartPlugin(pluginConf)
 		if err != nil {
-			return err
+			return fmt.Errorf("Error while creating plugin: %s", err)
 		}
 	}
 
@@ -97,6 +98,9 @@ func (ct *HsmAgent) Start(ctx context.Context) error {
 func (ct *HsmAgent) Stop() {
 	ct.mu.Lock()
 	defer ct.mu.Unlock()
+	if err := transports[ct.config.Transport.Type].Shutdown(); err != nil {
+		alert.Warnf("Error while shutting down transport: %s", err)
+	}
 	if ct.agent != nil {
 		ct.agent.Stop()
 	}
