@@ -15,19 +15,19 @@ type (
 	CopyTool struct {
 		root     fs.RootDir
 		backends map[uint]Backend
-		agent    hsm.Agent
+		actionSource    hsm.ActionSource
 		wg       sync.WaitGroup
 	}
 )
 
 func (ct *CopyTool) Stop() {
-	if ct.agent != nil {
-		ct.agent.Stop()
+	if ct.actionSource != nil {
+		ct.actionSource.Stop()
 	}
 }
 
 func (ct *CopyTool) initAgent() (err error) {
-	ct.agent, err = hsm.Start(ct.root)
+	ct.actionSource, err = hsm.Start(ct.root)
 	return
 }
 
@@ -79,7 +79,7 @@ func (ct *CopyTool) GetBackend(i uint) (Backend, bool) {
 
 // Actions returns the channel for receiving hsm.ActionRequests.
 func (ct *CopyTool) Actions() <-chan hsm.ActionRequest {
-	return ct.agent.Actions()
+	return ct.actionSource.Actions()
 }
 
 func copytool(conf *HSMConfig) {

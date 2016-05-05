@@ -35,13 +35,13 @@ import (
 type (
 	// HsmAgent for a single filesytem and a collection of backends.
 	HsmAgent struct {
-		config    *Config
-		client    client.Client
-		wg        sync.WaitGroup
-		Endpoints *Endpoints
-		mu        sync.Mutex // Protject the agent
-		agent     hsm.Agent
-		monitor   *PluginMonitor
+		config       *Config
+		client       client.Client
+		wg           sync.WaitGroup
+		Endpoints    *Endpoints
+		mu           sync.Mutex // Protect the agent
+		actionSource hsm.ActionSource
+		monitor      *PluginMonitor
 	}
 
 	// Transport for backend plugins
@@ -101,8 +101,8 @@ func (ct *HsmAgent) Stop() {
 	if err := transports[ct.config.Transport.Type].Shutdown(); err != nil {
 		alert.Warnf("Error while shutting down transport: %s", err)
 	}
-	if ct.agent != nil {
-		ct.agent.Stop()
+	if ct.actionSource != nil {
+		ct.actionSource.Stop()
 	}
 	if actionStats != nil {
 		actionStats.Stop()
@@ -117,7 +117,7 @@ func (ct *HsmAgent) Root() fs.RootDir {
 func (ct *HsmAgent) initAgent() (err error) {
 	ct.mu.Lock()
 	defer ct.mu.Unlock()
-	ct.agent, err = hsm.Start(ct.client.Root())
+	ct.actionSource, err = hsm.Start(ct.client.Root())
 	return
 }
 
@@ -131,8 +131,7 @@ func (ct *HsmAgent) newAction(aih hsm.ActionHandle) *Action {
 }
 
 func (ct *HsmAgent) handleActions(tag string) {
-	ch := ct.agent.Actions()
-	for ai := range ch {
+	for ai := range ct.actionSource.Actions() {
 		debug.Printf("%s: incoming: %s", tag, ai)
 		// AFAICT, this is how the copytool is expected to handle cancels.
 		if ai.Action() == llapi.HsmActionCancel {
