@@ -9,11 +9,13 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/rcrowley/go-metrics"
 	"github.intel.com/hpdd/logging/audit"
+	"github.intel.com/hpdd/logging/debug"
 )
 
 // ActionStats is a synchronized container for ArchiveStats instances
 type ActionStats struct {
 	sync.Mutex
+	done  chan struct{}
 	stats map[int]*ArchiveStats
 }
 
@@ -28,22 +30,43 @@ var actionStats *ActionStats
 
 func init() {
 	actionStats = &ActionStats{
+		done:  make(chan struct{}),
 		stats: make(map[int]*ArchiveStats),
 	}
+
+	actionStats.Start()
+}
+
+func (as *ActionStats) update() {
+	for _, k := range as.Archives() {
+		archive := as.GetIndex(k)
+		changes := atomic.LoadUint64(&archive.changes)
+		if changes != 0 {
+			atomic.AddUint64(&archive.changes, -changes)
+			audit.Logf("archive:%d %s", k, archive)
+		}
+	}
+}
+
+// Start creates a new goroutine for collecting archive stats
+func (as *ActionStats) Start() {
 	go func() {
 		for {
-			time.Sleep(10 * time.Second)
-			avail := actionStats.Archives()
-			for _, k := range avail {
-				archive := actionStats.GetIndex(k)
-				changes := atomic.LoadUint64(&archive.changes)
-				if changes != 0 {
-					atomic.AddUint64(&archive.changes, -changes)
-					audit.Logf("archive:%d %s", k, archive)
-				}
+			select {
+			case <-as.done:
+				debug.Print("Shutting down stats collector")
+				return
+			case <-time.After(10 * time.Second):
+				as.update()
 			}
 		}
 	}()
+	debug.Print("Stats collector started in background")
+}
+
+// Stop shuts down the collection goroutine
+func (as *ActionStats) Stop() {
+	as.done <- struct{}{}
 }
 
 // GetIndex returns the *ArchiveStats corresponding to the supplied archive

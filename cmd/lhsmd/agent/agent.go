@@ -104,6 +104,9 @@ func (ct *HsmAgent) Stop() {
 	if ct.agent != nil {
 		ct.agent.Stop()
 	}
+	if actionStats != nil {
+		actionStats.Stop()
+	}
 }
 
 // Root returns a fs.RootDir representing the Lustre filesystem root
