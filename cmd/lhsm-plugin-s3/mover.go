@@ -68,7 +68,7 @@ func (m *Mover) newDownloader() *s3manager.Downloader {
 }
 
 // Archive fulfills an HSM Archive request
-func (m *Mover) Archive(action *dmplugin.Action) error {
+func (m *Mover) Archive(action dmplugin.Action) error {
 	debug.Printf("%s id:%d archive %s %s", m.name, action.ID(), action.PrimaryPath(), action.FileID())
 	rate.Mark(1)
 	start := time.Now()
@@ -116,7 +116,7 @@ func (m *Mover) Archive(action *dmplugin.Action) error {
 }
 
 // Restore fulfills an HSM Restore request
-func (m *Mover) Restore(action *dmplugin.Action) error {
+func (m *Mover) Restore(action dmplugin.Action) error {
 	debug.Printf("%s id:%d restore %s %s", m.name, action.ID(), action.PrimaryPath(), action.FileID())
 	rate.Mark(1)
 
@@ -168,7 +168,7 @@ func (m *Mover) Restore(action *dmplugin.Action) error {
 }
 
 // Remove fulfills an HSM Remove request
-func (m *Mover) Remove(action *dmplugin.Action) error {
+func (m *Mover) Remove(action dmplugin.Action) error {
 	debug.Printf("%s id:%d remove %s %s", m.name, action.ID(), action.PrimaryPath(), action.FileID())
 	rate.Mark(1)
 

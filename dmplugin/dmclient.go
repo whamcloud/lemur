@@ -32,11 +32,41 @@ type (
 	}
 
 	// Action is a data movement action
-	Action struct {
+	dmAction struct {
 		status       chan *pb.ActionStatus
 		item         *pb.ActionItem
 		fileID       []byte
 		actualLength *uint64
+	}
+
+	Action interface {
+		// Update sends an action status update
+		Update(offset, length, max int64) error
+		// Complete signals that the action has completed
+		Complete() error
+		// Fail signals that the action has failed
+		Fail(err error) error
+		// ID returns the action item's ID
+		ID() uint64
+		// Offset returns the current offset of the action item
+		Offset() int64
+		// Length returns the expected length of the action item's file
+		Length() int64
+		// Data returns a byte slice of the action item's data
+		Data() []byte
+		// PrimaryPath returns the action item's primary file path
+		PrimaryPath() string
+
+		// WritePath returns the action item's write path (e.g. for restores)
+		WritePath() string
+		// FileID returns the action item's file id
+		FileID() string
+
+		// SetFileID sets the action's file id
+		SetFileID(id []byte)
+
+		// SetActualLength sets the action's actual file length
+		SetActualLength(length uint64)
 	}
 
 	// Mover defines an interface for data mover implementations
@@ -46,19 +76,19 @@ type (
 	// Archiver defines an interface for data movers capable of
 	// fulfilling Archive requests
 	Archiver interface {
-		Archive(*Action) error
+		Archive(Action) error
 	}
 
 	// Restorer defines an interface for data movers capable of
 	// fulfilling Restore requests
 	Restorer interface {
-		Restore(*Action) error
+		Restore(Action) error
 	}
 
 	// Remover defines an interface for data movers capable of
 	// fulfilling Remove requests
 	Remover interface {
-		Remove(*Action) error
+		Remove(Action) error
 	}
 )
 
@@ -80,7 +110,7 @@ func getHandle(ctx context.Context) (*pb.Handle, bool) {
 }
 
 // Update sends an action status update
-func (a *Action) Update(offset, length, max int64) error {
+func (a *dmAction) Update(offset, length, max int64) error {
 	a.status <- &pb.ActionStatus{
 		Id:     a.item.Id,
 		Offset: uint64(offset),
@@ -90,7 +120,7 @@ func (a *Action) Update(offset, length, max int64) error {
 }
 
 // Complete signals that the action has completed
-func (a *Action) Complete() error {
+func (a *dmAction) Complete() error {
 	status := &pb.ActionStatus{
 		Id:        a.item.Id,
 		Completed: true,
@@ -113,7 +143,7 @@ func getErrno(err error) int32 {
 }
 
 // Fail signals that the action has failed
-func (a *Action) Fail(err error) error {
+func (a *dmAction) Fail(err error) error {
 	alert.Warnf("fail: id:%d %v", a.item.Id, err)
 	a.status <- &pb.ActionStatus{
 		Id:        a.item.Id,
@@ -125,47 +155,47 @@ func (a *Action) Fail(err error) error {
 }
 
 // ID returns the action item's ID
-func (a *Action) ID() uint64 {
+func (a *dmAction) ID() uint64 {
 	return a.item.Id
 }
 
 // Offset returns the current offset of the action item
-func (a *Action) Offset() int64 {
+func (a *dmAction) Offset() int64 {
 	return int64(a.item.Offset)
 }
 
 // Length returns the expected length of the action item's file
-func (a *Action) Length() int64 {
+func (a *dmAction) Length() int64 {
 	return int64(a.item.Length)
 }
 
 // Data returns a byte slice of the action item's data
-func (a *Action) Data() []byte {
+func (a *dmAction) Data() []byte {
 	return a.item.Data
 }
 
 // PrimaryPath returns the action item's primary file path
-func (a *Action) PrimaryPath() string {
+func (a *dmAction) PrimaryPath() string {
 	return a.item.PrimaryPath
 }
 
 // WritePath returns the action item's write path (e.g. for restores)
-func (a *Action) WritePath() string {
+func (a *dmAction) WritePath() string {
 	return a.item.WritePath
 }
 
 // FileID returns the action item's file id
-func (a *Action) FileID() string {
+func (a *dmAction) FileID() string {
 	return string(a.item.FileId)
 }
 
 // SetFileID sets the action's file id
-func (a *Action) SetFileID(id []byte) {
+func (a *dmAction) SetFileID(id []byte) {
 	a.fileID = id
 }
 
 // SetActualLength sets the action's actual file length
-func (a *Action) SetActualLength(length uint64) {
+func (a *dmAction) SetActualLength(length uint64) {
 	a.actualLength = &length
 }
 
@@ -289,7 +319,7 @@ func (dm *DataMoverClient) processStatus(ctx context.Context) {
 func (dm *DataMoverClient) handler(name string, actions chan *pb.ActionItem) {
 	for item := range actions {
 		var ret error
-		action := &Action{
+		action := &dmAction{
 			status: dm.status,
 			item:   item,
 		}

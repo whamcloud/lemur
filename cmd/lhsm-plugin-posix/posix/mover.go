@@ -79,6 +79,9 @@ func NewMover(cfg *MoverConfig) (*Mover, error) {
 		return nil, fmt.Errorf("Invalid mover config: ArchiveDir is unset")
 	}
 
+	if cfg.Checksums == nil {
+		cfg.Checksums = &ChecksumConfig{}
+	}
 	return &Mover{
 		cfg: cfg,
 	}, nil
@@ -89,7 +92,7 @@ func newFileID() string {
 }
 
 // CopyWithProgress initiates a movement of data with progress updates
-func CopyWithProgress(dst io.WriterAt, src io.ReaderAt, start int64, length int64, action *dmplugin.Action) (int64, error) {
+func CopyWithProgress(dst io.WriterAt, src io.ReaderAt, start int64, length int64, action dmplugin.Action) (int64, error) {
 	var blockSize int64 = 10 * 1024 * 1024 // FIXME: parameterize
 
 	offset := start
@@ -128,7 +131,7 @@ func (m *Mover) destination(id string) string {
 		fmt.Sprintf("%s", id[0:2]),
 		fmt.Sprintf("%s", id[2:4]))
 
-	err := os.MkdirAll(dir, 0600)
+	err := os.MkdirAll(dir, 0700)
 	if err != nil {
 		alert.Fatal(err)
 	}
@@ -143,7 +146,7 @@ func min(a, b int64) int64 {
 }
 
 // Archive fulfills an HSM Archive request
-func (m *Mover) Archive(action *dmplugin.Action) error {
+func (m *Mover) Archive(action dmplugin.Action) error {
 	debug.Printf("%s id:%d archive %s", m.cfg.Name, action.ID(), action.PrimaryPath())
 	rate.Mark(1)
 	start := time.Now()
@@ -215,7 +218,7 @@ func parseFileID(buf []byte) (*FileID, error) {
 }
 
 // Restore fulfills an HSM Restore request
-func (m *Mover) Restore(action *dmplugin.Action) error {
+func (m *Mover) Restore(action dmplugin.Action) error {
 	debug.Printf("%s id:%d restore %s %s", m.cfg.Name, action.ID(), action.PrimaryPath(), action.FileID())
 	rate.Mark(1)
 	start := time.Now()
@@ -279,7 +282,7 @@ func (m *Mover) Restore(action *dmplugin.Action) error {
 }
 
 // Remove fulfills an HSM Remove request
-func (m *Mover) Remove(action *dmplugin.Action) error {
+func (m *Mover) Remove(action dmplugin.Action) error {
 	debug.Printf("%s: remove %s %s", m.cfg.Name, action.PrimaryPath(), action.FileID())
 	rate.Mark(1)
 	if action.FileID() == "" {

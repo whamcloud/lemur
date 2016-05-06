@@ -8,11 +8,21 @@ import (
 
 var testPrefix = "ptest"
 
-func testChdirTemp(t *testing.T) func() {
-	tdir, err := ioutil.TempDir(os.TempDir(), testPrefix)
+func testTempDir(t *testing.T) (string, func()) {
+	tdir, err := ioutil.TempDir("", testPrefix)
 	if err != nil {
 		t.Fatal(err)
 	}
+	return tdir, func() {
+		err = os.RemoveAll(tdir)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func testChdirTemp(t *testing.T) (string, func()) {
+	tdir, cleanDir := testTempDir(t)
 
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -24,16 +34,12 @@ func testChdirTemp(t *testing.T) func() {
 		t.Fatal(err)
 	}
 
-	return func() {
+	return tdir, func() {
 		err := os.Chdir(cwd)
 		if err != nil {
 			t.Fatal(err)
 		}
-
-		err = os.RemoveAll(tdir)
-		if err != nil {
-			t.Fatal(err)
-		}
+		cleanDir()
 	}
 }
 
@@ -46,7 +52,7 @@ func testFill(t *testing.T, fp *os.File, size int) {
 	}
 
 	for i := 0; i < size; i += bs {
-		if bs < size {
+		if size < bs {
 			bs = size
 		}
 		fp.Write(buf[:bs])
