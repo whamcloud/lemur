@@ -73,7 +73,7 @@ func main() {
 		alert.Fatalf("Error creating agent: %s", err)
 	}
 
-	if conf.InfluxDB != nil {
+	if conf.InfluxDB != nil && conf.InfluxDB.URL != "" {
 		debug.Print("Configuring InfluxDB stats target")
 		go influxdb.InfluxDB(
 			metrics.DefaultRegistry, // metrics registry
