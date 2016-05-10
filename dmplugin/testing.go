@@ -5,9 +5,14 @@ import (
 	"path"
 	"testing"
 
+	"google.golang.org/grpc"
+
 	"github.intel.com/hpdd/logging/alert"
+	"github.intel.com/hpdd/logging/debug"
+	pb "github.intel.com/hpdd/policy/pdm/pdm"
 )
 
+// TestAction is a testing implementation of the Action interface
 type TestAction struct {
 	t            *testing.T
 	id           uint64
@@ -97,9 +102,11 @@ func (a *TestAction) SetActualLength(length uint64) {
 }
 
 type testPlugin struct {
-	name   string
-	config *pluginConfig
-	t      *testing.T
+	name    string
+	config  *pluginConfig
+	t       *testing.T
+	movers  []*DataMoverClient
+	rpcConn *grpc.ClientConn
 }
 
 // NewTestPlugin returns a test plugin
@@ -109,6 +116,11 @@ func NewTestPlugin(t *testing.T, name string) Plugin {
 		name:   name,
 		t:      t,
 	}
+}
+
+// FsName returns the associate Lustre filesystem name
+func (a *testPlugin) FsName() string {
+	return "test-fake-fs"
 }
 
 // Base returns the root directory for plugin.
@@ -121,17 +133,36 @@ func (a *testPlugin) ConfigFile() string {
 	return path.Join(a.config.ConfigDir, a.name)
 }
 
-// AddMover registers a new data mover with the plugin
+// AddMover registers a new data mover with the plugin. In this test
+// implementation, it is assumed that a real grpc connection to an agent
+// is desired. Simple tests which don't call AddMover() will skip this
+// connection.
 func (a *testPlugin) AddMover(config *Config) {
-	a.t.Fatal("AddMover not implemeneted in testPlugin")
+	// TODO: grpc config should be centralized
+	conn, err := grpc.Dial(a.config.AgentAddress, grpc.WithInsecure())
+	if err != nil {
+		a.t.Fatalf("error in grpc connection to agent: %s", err)
+	}
+	a.rpcConn = conn
+	dm := NewMover(a, pb.NewDataMoverClient(conn), config)
+	go dm.Run()
+	a.movers = append(a.movers, dm)
 }
 
 // Stop signals to all registered data movers that they should stop processing
 // and shut down
 func (a *testPlugin) Stop() {
+	debug.Print("Shutting down all data movers")
+	for _, dm := range a.movers {
+		dm.Stop()
+	}
 }
 
 // Close closes the connection to the agent
 func (a *testPlugin) Close() error {
-	return nil
+	if a.rpcConn == nil {
+		return nil
+	}
+	debug.Print("Closing RPC connection to agent")
+	return a.rpcConn.Close()
 }
