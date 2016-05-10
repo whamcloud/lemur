@@ -133,13 +133,6 @@ func (m *Mover) Destination(id string) string {
 	return path.Join(dir, id)
 }
 
-func min(a, b int64) int64 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // Archive fulfills an HSM Archive request
 func (m *Mover) Archive(action dmplugin.Action) error {
 	debug.Printf("%s id:%d archive %s", m.cfg.Name, action.ID(), action.PrimaryPath())
@@ -160,8 +153,10 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 	}
 	defer dst.Close()
 
-	cw := NewSha1HashWriter(dst)
-	if m.cfg.Checksums.Disabled {
+	var cw ChecksumWriter
+	if !m.cfg.Checksums.Disabled {
+		cw = NewSha1HashWriter(dst)
+	} else {
 		cw = NewNoopHashWriter(dst)
 	}
 
@@ -194,6 +189,7 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 		UUID: fileID,
 		Sum:  fmt.Sprintf("%x", cw.Sum()),
 	}
+
 	buf, err := EncodeFileID(id)
 	if err != nil {
 		return err
@@ -249,8 +245,10 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	}
 	defer dst.Close()
 
-	cw := NewSha1HashWriter(dst)
-	if m.cfg.Checksums.Disabled {
+	var cw ChecksumWriter
+	if id.Sum != "" && !m.cfg.Checksums.DisableCompareOnRestore {
+		cw = NewSha1HashWriter(dst)
+	} else {
 		cw = NewNoopHashWriter(dst)
 	}
 
@@ -273,8 +271,8 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 		return err
 	}
 
-	if !m.cfg.Checksums.Disabled && !m.cfg.Checksums.DisableCompareOnRestore {
-		if id.Sum != "" && id.Sum != fmt.Sprintf("%x", cw.Sum()) {
+	if id.Sum != "" && !m.cfg.Checksums.DisableCompareOnRestore {
+		if id.Sum != fmt.Sprintf("%x", cw.Sum()) {
 			alert.Warnf("original checksum doesn't match new:  %s != %x", id.Sum, cw.Sum())
 			return errors.New("Checksum mismatch!")
 		}
