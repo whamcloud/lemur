@@ -17,7 +17,6 @@ import (
 	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/agent"
-	"github.intel.com/hpdd/policy/pkg/client"
 
 	// Register the supported transports
 	_ "github.intel.com/hpdd/policy/pdm/lhsmd/transport/grpc"
@@ -64,15 +63,6 @@ func main() {
 		alert.Fatalf("Error while creating Lustre mountpoints: %s", err)
 	}
 
-	client, err := client.New(conf.AgentMountpoint)
-	if err != nil {
-		alert.Fatalf("Error while create Lustre client: %s", err)
-	}
-	ct, err := agent.New(conf, client)
-	if err != nil {
-		alert.Fatalf("Error creating agent: %s", err)
-	}
-
 	if conf.InfluxDB != nil && conf.InfluxDB.URL != "" {
 		debug.Print("Configuring InfluxDB stats target")
 		go influxdb.InfluxDB(
@@ -84,13 +74,17 @@ func main() {
 			conf.InfluxDB.Password, // your InfluxDB password
 		)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+
+	ct, err := agent.New(conf)
+	if err != nil {
+		alert.Fatalf("Error creating agent: %s", err)
+	}
+
 	interruptHandler(func() {
 		ct.Stop()
-		cancel()
 	})
 
-	if err := ct.Start(ctx); err != nil {
+	if err := ct.Start(context.Background()); err != nil {
 		alert.Fatalf("Error in HsmAgent.Start(): %s", err)
 	}
 

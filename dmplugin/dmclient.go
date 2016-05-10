@@ -277,12 +277,14 @@ func (dm *DataMoverClient) processActions(ctx context.Context) chan *pb.ActionIt
 		}
 		for {
 			action, err := stream.Recv()
-			if err == io.EOF {
-				return
-			}
 			if err != nil {
 				close(actions)
-				alert.Fatalf("Failed to receive a message: %v", err)
+				if err == io.EOF {
+					debug.Print("Shutting down dmclient action stream")
+					return
+				}
+				alert.Warnf("Shutting down dmclient action stream due to error on Recv(): %v", err)
+				return
 			}
 			// debug.Printf("Got message id:%d op: %v %v", action.Id, action.Op, action.PrimaryPath)
 

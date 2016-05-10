@@ -6,8 +6,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/dustin/go-humanize"
 	"github.com/rcrowley/go-metrics"
+
 	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
 )
@@ -15,7 +18,6 @@ import (
 // ActionStats is a synchronized container for ArchiveStats instances
 type ActionStats struct {
 	sync.Mutex
-	done  chan struct{}
 	stats map[int]*ArchiveStats
 }
 
@@ -26,15 +28,11 @@ type ArchiveStats struct {
 	completed   metrics.Timer
 }
 
-var actionStats *ActionStats
-
-func init() {
-	actionStats = &ActionStats{
-		done:  make(chan struct{}),
+// NewActionStats initializes a new ActionStats container
+func NewActionStats() *ActionStats {
+	return &ActionStats{
 		stats: make(map[int]*ArchiveStats),
 	}
-
-	actionStats.Start()
 }
 
 func (as *ActionStats) update() {
@@ -48,25 +46,37 @@ func (as *ActionStats) update() {
 	}
 }
 
-// Start creates a new goroutine for collecting archive stats
-func (as *ActionStats) Start() {
-	go func() {
-		for {
-			select {
-			case <-as.done:
-				debug.Print("Shutting down stats collector")
-				return
-			case <-time.After(10 * time.Second):
-				as.update()
-			}
+func (as *ActionStats) run(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			debug.Print("Shutting down stats collector")
+			return
+		case <-time.After(10 * time.Second):
+			as.update()
 		}
-	}()
+	}
+}
+
+// Start creates a new goroutine for collecting archive stats
+func (as *ActionStats) Start(ctx context.Context) {
+	go as.run(ctx)
 	debug.Print("Stats collector started in background")
 }
 
-// Stop shuts down the collection goroutine
-func (as *ActionStats) Stop() {
-	as.done <- struct{}{}
+// StartAction increments stats counters when an action starts
+func (as *ActionStats) StartAction(a *Action) {
+	s := as.GetIndex(int(a.aih.ArchiveID()))
+	s.queueLength.Inc(1)
+	atomic.AddUint64(&s.changes, 1)
+}
+
+// CompleteAction updates various stats when an action is complete
+func (as *ActionStats) CompleteAction(a *Action, rc int) {
+	s := as.GetIndex(int(a.aih.ArchiveID()))
+	s.queueLength.Dec(1)
+	s.completed.UpdateSince(a.start)
+	atomic.AddUint64(&s.changes, 1)
 }
 
 // GetIndex returns the *ArchiveStats corresponding to the supplied archive
@@ -114,19 +124,4 @@ func (s *ArchiveStats) String() string {
 		time.Duration(int64(ps[2])),
 		time.Duration(int64(ps[3])),
 		time.Duration(int64(ps[4])))
-}
-
-// StartAction increments stats counters when an action starts
-func StartAction(a *Action) {
-	s := actionStats.GetIndex(int(a.aih.ArchiveID()))
-	s.queueLength.Inc(1)
-	atomic.AddUint64(&s.changes, 1)
-}
-
-// CompleteAction updates various stats when an action is complete
-func CompleteAction(a *Action, rc int) {
-	s := actionStats.GetIndex(int(a.aih.ArchiveID()))
-	s.queueLength.Dec(1)
-	s.completed.UpdateSince(a.start)
-	atomic.AddUint64(&s.changes, 1)
 }
