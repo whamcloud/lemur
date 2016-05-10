@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"os"
+	"path"
 
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
@@ -24,7 +26,7 @@ type Mover struct {
 func noop(agentAddress string) {
 	done := make(chan struct{})
 
-	plugin, err := dmplugin.New(agentAddress)
+	plugin, err := dmplugin.New(path.Base(os.Args[0]))
 	if err != nil {
 		alert.Fatal(err)
 	}
@@ -32,12 +34,11 @@ func noop(agentAddress string) {
 	mover := Mover{}
 	plugin.AddMover(&dmplugin.Config{
 		Mover:     &mover,
-		FsName:    "noop",
 		ArchiveID: uint32(archive),
 	})
 
 	<-done
-	plugin.Stop()
+	plugin.Close()
 }
 
 func main() {

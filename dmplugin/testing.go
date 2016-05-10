@@ -1,6 +1,7 @@
 package dmplugin
 
 import (
+	"path"
 	"testing"
 
 	"github.intel.com/hpdd/logging/alert"
@@ -91,4 +92,44 @@ func (a *TestAction) SetActualLength(length uint64) {
 		a.t.Fatalf("actual length does not match original %d !=%d", length, a.length)
 	}
 	a.ActualLength = int(length)
+}
+
+type testPlugin struct {
+	name   string
+	config *pluginConfig
+	t      *testing.T
+}
+
+// NewTestPlugin returns a test plugin
+func NewTestPlugin(t *testing.T, name string) Plugin {
+	return &testPlugin{
+		config: mustInitConfig(),
+		name:   name,
+		t:      t,
+	}
+}
+
+// Base returns the root directory for plugin.
+func (a *testPlugin) Base() string {
+	return a.config.ClientRoot
+}
+
+// ConfigFile returns path to the plugin config file.
+func (a *testPlugin) ConfigFile() string {
+	return path.Join(a.config.ConfigDir, a.name)
+}
+
+// AddMover registers a new data mover with the plugin
+func (a *testPlugin) AddMover(config *Config) {
+	a.t.Fatal("AddMover not implemeneted in testPlugin")
+}
+
+// Stop signals to all registered data movers that they should stop processing
+// and shut down
+func (a *testPlugin) Stop() {
+}
+
+// Close closes the connection to the agent
+func (a *testPlugin) Close() error {
+	return nil
 }

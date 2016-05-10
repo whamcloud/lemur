@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"path"
@@ -14,15 +13,12 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/dustin/go-humanize"
-	"github.com/hashicorp/hcl"
 	"github.com/rcrowley/go-metrics"
 
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
-	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
-	"github.intel.com/hpdd/policy/pkg/client"
 )
 
 type (
@@ -37,11 +33,9 @@ type (
 	archiveSet []*archiveConfig
 
 	s3Config struct {
-		AgentAddress string
-		ClientRoot   string
-		NumThreads   int        `hcl:"num_threads"`
-		Region       string     `hcl:"region"`
-		Archives     archiveSet `hcl:"archive"`
+		NumThreads int        `hcl:"num_threads"`
+		Region     string     `hcl:"region"`
+		Archives   archiveSet `hcl:"archive"`
 	}
 )
 
@@ -49,6 +43,10 @@ type (
 const updateInterval = 10 * time.Second
 
 var rate metrics.Meter
+
+func (c *s3Config) String() string {
+	return dmplugin.DisplayConfig(c)
+}
 
 func (a *archiveConfig) String() string {
 	return fmt.Sprintf("%d:%s:%s/%s", a.ID, a.Region, a.Bucket, a.Prefix)
@@ -75,16 +73,6 @@ func (a *archiveConfig) checkValid() error {
 
 func (c *s3Config) Merge(other *s3Config) *s3Config {
 	result := new(s3Config)
-
-	result.AgentAddress = c.AgentAddress
-	if other.AgentAddress != "" {
-		result.AgentAddress = other.AgentAddress
-	}
-
-	result.ClientRoot = c.ClientRoot
-	if other.ClientRoot != "" {
-		result.ClientRoot = other.ClientRoot
-	}
 
 	result.NumThreads = c.NumThreads
 	if other.NumThreads > 0 {
@@ -139,41 +127,34 @@ func s3Svc(region string) *s3.S3 {
 	return s3.New(session.New(aws.NewConfig().WithRegion(region)))
 }
 
-func loadConfig(cfgFile string) (*s3Config, error) {
-	data, err := ioutil.ReadFile(cfgFile)
-	if err != nil {
-		return nil, err
-	}
-
-	cfg := new(s3Config)
-	if err := hcl.Decode(cfg, string(data)); err != nil {
-		return nil, err
-	}
-
-	return cfg, nil
-}
-
-func getMergedConfig() (*s3Config, error) {
+func getMergedConfig(plugin dmplugin.Plugin) (*s3Config, error) {
 	baseCfg := &s3Config{
-		Region:       "us-east-1",
-		AgentAddress: getAgentEnvSetting(config.AgentConnEnvVar),
-		ClientRoot:   getAgentEnvSetting(config.PluginMountpointEnvVar),
+		Region: "us-east-1",
 	}
 
-	cfgFile := path.Join(getAgentEnvSetting(config.ConfigDirEnvVar), path.Base(os.Args[0]))
-	cfg, err := loadConfig(cfgFile)
+	var cfg s3Config
+	err := dmplugin.LoadConfig(plugin.ConfigFile(), &cfg)
+
 	if err != nil {
 		return nil, fmt.Errorf("Failed to load config: %s", err)
 	}
 
-	return baseCfg.Merge(cfg), nil
+	return baseCfg.Merge(&cfg), nil
 }
 
 func main() {
-	cfg, err := getMergedConfig()
+	plugin, err := dmplugin.New(path.Base(os.Args[0]))
+	if err != nil {
+		alert.Fatalf("failed to initialize plugin: %s", err)
+	}
+	defer plugin.Close()
+
+	cfg, err := getMergedConfig(plugin)
 	if err != nil {
 		alert.Fatalf("Unable to determine plugin configuration: %s", err)
 	}
+
+	debug.Printf("S3Mover configuration:\n%v", cfg)
 
 	if len(cfg.Archives) == 0 {
 		alert.Fatalf("Invalid configuration: No archives defined")
@@ -186,7 +167,8 @@ func main() {
 		}
 	}
 
-	c, err := client.New(cfg.ClientRoot)
+	// All base filesystem operations will be relative to current directory
+	err = os.Chdir(plugin.Base())
 	if err != nil {
 		alert.Fatal(err)
 	}
@@ -195,12 +177,6 @@ func main() {
 	interruptHandler(func() {
 		close(done)
 	})
-
-	plugin, err := dmplugin.New(cfg.AgentAddress)
-	if err != nil {
-		alert.Fatalf("failed to dial: %s", err)
-	}
-	defer plugin.Close()
 
 	for _, a := range cfg.Archives {
 		// Allow each archive to set its own region, but default
@@ -211,9 +187,8 @@ func main() {
 		}
 		s3Svc := s3Svc(region)
 		plugin.AddMover(&dmplugin.Config{
-			Mover:      S3Mover(c, s3Svc, uint32(a.ID), a.Bucket, a.Prefix),
-			NumThreads: 4,
-			FsName:     c.FsName(),
+			Mover:      S3Mover(s3Svc, uint32(a.ID), a.Bucket, a.Prefix),
+			NumThreads: cfg.NumThreads,
 			ArchiveID:  uint32(a.ID),
 		})
 	}

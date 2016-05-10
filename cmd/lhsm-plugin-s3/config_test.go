@@ -2,14 +2,18 @@ package main
 
 import (
 	"os"
+	"path"
 	"reflect"
 	"testing"
 
+	"github.intel.com/hpdd/policy/pdm/dmplugin"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
 )
 
 func TestLoadConfig(t *testing.T) {
-	loaded, err := loadConfig("./test-fixtures/lhsm-plugin-s3.test")
+	var cfg s3Config
+	err := dmplugin.LoadConfig("./test-fixtures/lhsm-plugin-s3.test", &cfg)
+	loaded := &cfg
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -36,15 +40,14 @@ func TestMergedConfig(t *testing.T) {
 	os.Setenv(config.PluginMountpointEnvVar, "/foo/bar/baz")
 	os.Setenv(config.ConfigDirEnvVar, "./test-fixtures")
 
-	merged, err := getMergedConfig()
+	plugin := dmplugin.NewTestPlugin(t, path.Base(os.Args[0]))
+	merged, err := getMergedConfig(plugin)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
 	expected := &s3Config{
-		AgentAddress: "foo://bar:1234",
-		ClientRoot:   "/foo/bar/baz",
-		Region:       "us-east-1",
+		Region: "us-east-1",
 		Archives: archiveSet{
 			&archiveConfig{
 				Name:   "2",
@@ -62,7 +65,9 @@ func TestMergedConfig(t *testing.T) {
 }
 
 func TestArchiveValidation(t *testing.T) {
-	loaded, err := loadConfig("./test-fixtures/lhsm-plugin-s3.test")
+	var cfg s3Config
+	err := dmplugin.LoadConfig("./test-fixtures/lhsm-plugin-s3.test", &cfg)
+	loaded := &cfg
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -73,7 +78,9 @@ func TestArchiveValidation(t *testing.T) {
 		}
 	}
 
-	loaded, err = loadConfig("./test-fixtures/lhsm-plugin-s3-badarchive")
+	var cfg2 s3Config
+	err = dmplugin.LoadConfig("./test-fixtures/lhsm-plugin-s3-badarchive", &cfg2)
+	loaded = &cfg2
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

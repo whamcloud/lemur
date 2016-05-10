@@ -2,15 +2,18 @@ package main
 
 import (
 	"os"
+	"path"
 	"reflect"
 	"testing"
 
+	"github.intel.com/hpdd/policy/pdm/dmplugin"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
-	"github.intel.com/hpdd/policy/pkg/client"
 )
 
 func TestLoadConfig(t *testing.T) {
-	loaded, err := loadConfig("./test-fixtures/lhsm-plugin-posix.test")
+	var cfg posixConfig
+	err := dmplugin.LoadConfig("./test-fixtures/lhsm-plugin-posix.test", &cfg)
+	loaded := &cfg
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -36,15 +39,14 @@ func TestMergedConfig(t *testing.T) {
 	os.Setenv(config.PluginMountpointEnvVar, "/foo/bar/baz")
 	os.Setenv(config.ConfigDirEnvVar, "./test-fixtures")
 
-	merged, err := getMergedConfig()
+	plugin := dmplugin.NewTestPlugin(t, path.Base(os.Args[0]))
+	merged, err := getMergedConfig(plugin)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
 	expected := &posixConfig{
-		AgentAddress: "foo://bar:1234",
-		ClientRoot:   "/foo/bar/baz",
-		NumThreads:   42,
+		NumThreads: 42,
 		Archives: archiveSet{
 			&archiveConfig{
 				Name: "1",
@@ -61,7 +63,9 @@ func TestMergedConfig(t *testing.T) {
 }
 
 func TestArchiveValidation(t *testing.T) {
-	loaded, err := loadConfig("./test-fixtures/lhsm-plugin-posix.test")
+	var cfg posixConfig
+	err := dmplugin.LoadConfig("./test-fixtures/lhsm-plugin-posix.test", &cfg)
+	loaded := &cfg
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -71,8 +75,11 @@ func TestArchiveValidation(t *testing.T) {
 			t.Fatalf("err: %s", err)
 		}
 	}
-
-	loaded, err = loadConfig("./test-fixtures/lhsm-plugin-posix-badarchive")
+}
+func TestArchiveValidation2(t *testing.T) {
+	var cfg posixConfig
+	err := dmplugin.LoadConfig("./test-fixtures/lhsm-plugin-posix-badarchive", &cfg)
+	loaded := &cfg
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -85,7 +92,9 @@ func TestArchiveValidation(t *testing.T) {
 }
 
 func TestChecksumConfig(t *testing.T) {
-	loaded, err := loadConfig("./test-fixtures/lhsm-plugin-posix.checksums")
+	var cfg posixConfig
+	err := dmplugin.LoadConfig("./test-fixtures/lhsm-plugin-posix.checksums", &cfg)
+	loaded := &cfg
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -135,7 +144,7 @@ func TestChecksumConfig(t *testing.T) {
 	}
 
 	// Next, ensure that the archive backends are configured correctly
-	movers, err := createMovers(client.Test("/tmp"), loaded)
+	movers, err := createMovers(loaded)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

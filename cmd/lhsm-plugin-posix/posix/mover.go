@@ -17,7 +17,6 @@ import (
 	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
-	"github.intel.com/hpdd/policy/pkg/client"
 )
 
 var rate metrics.Meter
@@ -56,7 +55,6 @@ type (
 	// MoverConfig defines the configuration for a POSIX data mover
 	MoverConfig struct {
 		Name       string
-		Client     client.Client
 		ArchiveDir string
 		Checksums  *ChecksumConfig
 	}
@@ -120,11 +118,6 @@ func (m *Mover) ChecksumConfig() *ChecksumConfig {
 	return m.cfg.Checksums
 }
 
-// Base returns the base path in which the mover is operating
-func (m *Mover) Base() string {
-	return m.cfg.Client.Path()
-}
-
 func (m *Mover) destination(id string) string {
 	dir := path.Join(m.cfg.ArchiveDir,
 		"objects",
@@ -153,7 +146,7 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 
 	fileID := newFileID()
 
-	src, err := os.Open(path.Join(m.Base(), action.PrimaryPath()))
+	src, err := os.Open(action.PrimaryPath())
 	if err != nil {
 		return err
 	}
@@ -236,7 +229,7 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	}
 	defer src.Close()
 
-	dst, err := os.OpenFile(path.Join(m.Base(), action.WritePath()), os.O_WRONLY, 0644)
+	dst, err := os.OpenFile(action.WritePath(), os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}

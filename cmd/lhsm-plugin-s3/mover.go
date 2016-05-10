@@ -14,32 +14,24 @@ import (
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
-	"github.intel.com/hpdd/policy/pkg/client"
 )
 
 // Mover is an S3 data mover
 type Mover struct {
 	name   string
-	client client.Client
 	s3Svc  *s3.S3
 	bucket string
 	prefix string
 }
 
 // S3Mover returns a new *Mover
-func S3Mover(c client.Client, s3Svc *s3.S3, archiveID uint32, bucket string, prefix string) *Mover {
+func S3Mover(s3Svc *s3.S3, archiveID uint32, bucket string, prefix string) *Mover {
 	return &Mover{
 		name:   fmt.Sprintf("s3-%d", archiveID),
-		client: c,
 		s3Svc:  s3Svc,
 		bucket: bucket,
 		prefix: prefix,
 	}
-}
-
-// Base returns the base path in which the mover is operating
-func (m *Mover) Base() string {
-	return m.client.Path()
 }
 
 func newFileID() string {
@@ -73,7 +65,7 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 	rate.Mark(1)
 	start := time.Now()
 
-	src, err := os.Open(path.Join(m.Base(), action.PrimaryPath()))
+	src, err := os.Open(action.PrimaryPath())
 	if err != nil {
 		return err
 	}
@@ -136,7 +128,7 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	debug.Printf("obj %s, size %d", srcObj, *out.ContentLength)
 
 	dstSize := *out.ContentLength
-	dstPath := path.Join(m.Base(), action.WritePath())
+	dstPath := action.WritePath()
 	dst, err := os.OpenFile(dstPath, os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("Couldn't open %s for write: %s", dstPath, err)

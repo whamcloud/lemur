@@ -16,6 +16,7 @@ import (
 type (
 	// DataMoverClient is the data mover client to the HSM agent
 	DataMoverClient struct {
+		plugin    *dmPlugin
 		rpcClient pb.DataMoverClient
 		stop      chan struct{}
 		status    chan *pb.ActionStatus
@@ -27,7 +28,6 @@ type (
 	Config struct {
 		Mover      Mover
 		NumThreads int
-		FsName     string
 		ArchiveID  uint32
 	}
 
@@ -200,8 +200,9 @@ func (a *dmAction) SetActualLength(length uint64) {
 }
 
 // NewMover returns a new *DataMoverClient
-func NewMover(cli pb.DataMoverClient, config *Config) *DataMoverClient {
+func NewMover(plugin *dmPlugin, cli pb.DataMoverClient, config *Config) *DataMoverClient {
 	return &DataMoverClient{
+		plugin:    plugin,
 		rpcClient: cli,
 		mover:     config.Mover,
 		stop:      make(chan struct{}),
@@ -252,7 +253,7 @@ func (dm *DataMoverClient) Stop() {
 func (dm *DataMoverClient) registerEndpoint(ctx context.Context) (*pb.Handle, error) {
 
 	handle, err := dm.rpcClient.Register(ctx, &pb.Endpoint{
-		FsUrl:   dm.config.FsName,
+		FsUrl:   dm.plugin.fsClient.FsName(),
 		Archive: dm.config.ArchiveID,
 	})
 	if err != nil {

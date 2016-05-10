@@ -21,7 +21,7 @@ func testTempDir(t *testing.T) (string, func()) {
 	}
 }
 
-func testChdirTemp(t *testing.T) (string, func()) {
+func testChdirTemp(t *testing.T) func() {
 	tdir, cleanDir := testTempDir(t)
 
 	cwd, err := os.Getwd()
@@ -34,7 +34,7 @@ func testChdirTemp(t *testing.T) (string, func()) {
 		t.Fatal(err)
 	}
 
-	return tdir, func() {
+	return func() {
 		err := os.Chdir(cwd)
 		if err != nil {
 			t.Fatal(err)
