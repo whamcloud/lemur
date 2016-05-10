@@ -23,6 +23,7 @@ type Plugin interface {
 	Stop()
 	Close() error
 	Base() string
+	FsName() string
 	ConfigFile() string
 }
 
@@ -46,6 +47,11 @@ func New(name string) (Plugin, error) {
 		fsClient: fsClient,
 		config:   config,
 	}, nil
+}
+
+// FsName returns the associated Lustre filesystem name
+func (a *dmPlugin) FsName() string {
+	return a.fsClient.FsName()
 }
 
 // Base returns the root directory for plugin.
