@@ -4,6 +4,8 @@ package main
 import (
 	"sync"
 
+	"golang.org/x/net/context"
+
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/lustre/fs"
@@ -13,23 +15,12 @@ import (
 type (
 	// CopyTool for a single filesytem and a collection of backends.
 	CopyTool struct {
-		root     fs.RootDir
-		backends map[uint]Backend
-		actionSource    hsm.ActionSource
-		wg       sync.WaitGroup
+		root         fs.RootDir
+		backends     map[uint]Backend
+		actionSource hsm.ActionSource
+		wg           sync.WaitGroup
 	}
 )
-
-func (ct *CopyTool) Stop() {
-	if ct.actionSource != nil {
-		ct.actionSource.Stop()
-	}
-}
-
-func (ct *CopyTool) initAgent() (err error) {
-	ct.actionSource, err = hsm.Start(ct.root)
-	return
-}
 
 func (ct *CopyTool) initBackends(conf *HSMConfig) error {
 	ct.backends = make(map[uint]Backend, 0)
@@ -88,21 +79,23 @@ func copytool(conf *HSMConfig) {
 		alert.Fatal(err)
 	}
 
-	ct := &CopyTool{root: root}
+	ct := &CopyTool{
+		root:         root,
+		actionSource: hsm.NewActionSource(root),
+	}
 
+	ctx, cancel := context.WithCancel(context.Background())
 	interruptHandler(func() {
-		ct.Stop()
+		cancel()
 	})
+
+	if err := ct.actionSource.Start(ctx); err != nil {
+		alert.Fatal(err)
+	}
 
 	// Start copytool backends in the background
 	go func() {
-
 		ct.initBackends(conf)
-		err := ct.initAgent()
-		if err != nil {
-			alert.Fatal(err)
-		}
-
 		for i := 0; i < conf.Processes; i++ {
 			ct.addHandler()
 		}

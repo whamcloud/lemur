@@ -6,21 +6,26 @@ import (
 	"path"
 
 	"github.intel.com/hpdd/logging/alert"
+	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
+	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
 )
 
 var (
-	archive      uint
-	agentAddress string
+	archive uint
 )
 
 func init() {
 	flag.UintVar(&archive, "archive", 1, "archive id")
-	flag.StringVar(&agentAddress, "agent", ":4242", "Lustre client mountpoint")
 }
 
 // Mover is a NOOP data mover
 type Mover struct {
+}
+
+// Start signals the mover to begin any asynchronous processing (e.g. stats)
+func (m *Mover) Start() {
+	debug.Print("noop mover started")
 }
 
 func noop(agentAddress string) {
@@ -42,7 +47,10 @@ func noop(agentAddress string) {
 }
 
 func main() {
-	flag.Parse()
+	agentAddress := os.Getenv(config.AgentConnEnvVar)
+	if agentAddress == "" {
+		alert.Fatal("This plugin is intended to be launched by the agent.")
+	}
 
 	noop(agentAddress)
 }

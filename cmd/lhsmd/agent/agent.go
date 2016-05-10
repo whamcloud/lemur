@@ -37,28 +37,36 @@ type (
 	HsmAgent struct {
 		config       *Config
 		client       client.Client
+		stats        *ActionStats
 		wg           sync.WaitGroup
 		Endpoints    *Endpoints
 		mu           sync.Mutex // Protect the agent
 		actionSource hsm.ActionSource
 		monitor      *PluginMonitor
+		cancelFunc   context.CancelFunc
 	}
 
 	// Transport for backend plugins
 	Transport interface {
 		Init(*Config, *HsmAgent) error
-		Shutdown() error
+		Shutdown()
 	}
 )
 
 // New accepts a config and returns a *HsmAgent
-func New(cfg *Config, cl client.Client) (*HsmAgent, error) {
+func New(cfg *Config) (*HsmAgent, error) {
+	client, err := client.New(cfg.AgentMountpoint)
+	if err != nil {
+		return nil, err
+	}
 
 	ct := &HsmAgent{
-		config:    cfg,
-		client:    cl,
-		monitor:   NewMonitor(),
-		Endpoints: NewEndpoints(),
+		config:       cfg,
+		client:       client,
+		stats:        NewActionStats(),
+		monitor:      NewMonitor(),
+		actionSource: hsm.NewActionSource(client.Root()),
+		Endpoints:    NewEndpoints(),
 	}
 
 	return ct, nil
@@ -66,6 +74,9 @@ func New(cfg *Config, cl client.Client) (*HsmAgent, error) {
 
 // Start backgrounds the agent and starts backend data movers
 func (ct *HsmAgent) Start(ctx context.Context) error {
+	ctx, ct.cancelFunc = context.WithCancel(ctx)
+	ct.stats.Start(ctx)
+
 	if t, ok := transports[ct.config.Transport.Type]; ok {
 		if err := t.Init(ct.config, ct); err != nil {
 			return err
@@ -74,7 +85,7 @@ func (ct *HsmAgent) Start(ctx context.Context) error {
 		return fmt.Errorf("Unknown transport type in configuration: %s", ct.config.Transport.Type)
 	}
 
-	if err := ct.initAgent(); err != nil {
+	if err := ct.actionSource.Start(ctx); err != nil {
 		return fmt.Errorf("Unable to initialize HSM agent connection: %s", err)
 	}
 
@@ -96,29 +107,13 @@ func (ct *HsmAgent) Start(ctx context.Context) error {
 
 // Stop shuts down all backend data movers and kills the agent
 func (ct *HsmAgent) Stop() {
-	ct.mu.Lock()
-	defer ct.mu.Unlock()
-	if err := transports[ct.config.Transport.Type].Shutdown(); err != nil {
-		alert.Warnf("Error while shutting down transport: %s", err)
-	}
-	if ct.actionSource != nil {
-		ct.actionSource.Stop()
-	}
-	if actionStats != nil {
-		actionStats.Stop()
-	}
+	ct.cancelFunc()
+	transports[ct.config.Transport.Type].Shutdown()
 }
 
 // Root returns a fs.RootDir representing the Lustre filesystem root
 func (ct *HsmAgent) Root() fs.RootDir {
 	return ct.client.Root()
-}
-
-func (ct *HsmAgent) initAgent() (err error) {
-	ct.mu.Lock()
-	defer ct.mu.Unlock()
-	ct.actionSource, err = hsm.Start(ct.client.Root())
-	return
 }
 
 func (ct *HsmAgent) newAction(aih hsm.ActionHandle) *Action {
@@ -145,7 +140,7 @@ func (ct *HsmAgent) handleActions(tag string) {
 			continue
 		}
 		action := ct.newAction(aih)
-		StartAction(action)
+		ct.stats.StartAction(action)
 		if e, ok := ct.Endpoints.Get(uint32(aih.ArchiveID())); ok {
 			debug.Printf("%s: id:%d new %s %x %v", tag, action.id,
 				action.aih.Action(),
@@ -155,7 +150,7 @@ func (ct *HsmAgent) handleActions(tag string) {
 		} else {
 			alert.Warnf("no handler for archive %d", aih.ArchiveID())
 			action.Fail(-1)
-			CompleteAction(action, -1)
+			ct.stats.CompleteAction(action, -1)
 		}
 	}
 }

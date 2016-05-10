@@ -25,7 +25,7 @@ const (
 
 type (
 	rpcTransport struct {
-		done chan struct{}
+		server *grpc.Server
 	}
 
 	dmRPCServer struct {
@@ -47,9 +47,7 @@ type (
 )
 
 func init() {
-	agent.RegisterTransport(TransportType, &rpcTransport{
-		done: make(chan struct{}),
-	})
+	agent.RegisterTransport(TransportType, &rpcTransport{})
 }
 
 func (t *rpcTransport) Init(conf *agent.Config, a *agent.HsmAgent) error {
@@ -63,22 +61,16 @@ func (t *rpcTransport) Init(conf *agent.Config, a *agent.HsmAgent) error {
 		return fmt.Errorf("Failed to listen: %v", err)
 	}
 
-	srv := grpc.NewServer()
-	pb.RegisterDataMoverServer(srv, newServer(a))
-	go func() {
-		go srv.Serve(sock)
-		<-t.done
-		debug.Print("Shutting down grpc transport")
-		srv.Stop()
-	}()
+	t.server = grpc.NewServer()
+	pb.RegisterDataMoverServer(t.server, newServer(a))
+	go t.server.Serve(sock)
 
 	return nil
 }
 
-func (t *rpcTransport) Shutdown() error {
-	t.done <- struct{}{}
-
-	return nil
+func (t *rpcTransport) Shutdown() {
+	t.server.Stop()
+	debug.Print("shut down grpc transport")
 }
 
 // Send delivers an agent action to the backend

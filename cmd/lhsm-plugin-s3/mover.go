@@ -60,6 +60,11 @@ func (m *Mover) newDownloader() *s3manager.Downloader {
 	return s3manager.NewDownloaderWithClient(m.s3Svc)
 }
 
+// Start signals the mover to begin any asynchronous processing (e.g. stats)
+func (m *Mover) Start() {
+	debug.Printf("%s started", m.name)
+}
+
 // Archive fulfills an HSM Archive request
 func (m *Mover) Archive(action dmplugin.Action) error {
 	debug.Printf("%s id:%d archive %s %s", m.name, action.ID(), action.PrimaryPath(), action.FileID())

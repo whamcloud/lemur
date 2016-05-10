@@ -133,6 +133,11 @@ func (m *Mover) Destination(id string) string {
 	return path.Join(dir, id)
 }
 
+// Start signals the mover to begin any asynchronous processing (e.g. stats)
+func (m *Mover) Start() {
+	debug.Printf("%s started", m.cfg.Name)
+}
+
 // Archive fulfills an HSM Archive request
 func (m *Mover) Archive(action dmplugin.Action) error {
 	debug.Printf("%s id:%d archive %s", m.cfg.Name, action.ID(), action.PrimaryPath())

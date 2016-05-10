@@ -16,7 +16,7 @@ import (
 type (
 	// DataMoverClient is the data mover client to the HSM agent
 	DataMoverClient struct {
-		plugin    *dmPlugin
+		plugin    Plugin
 		rpcClient pb.DataMoverClient
 		stop      chan struct{}
 		status    chan *pb.ActionStatus
@@ -24,7 +24,7 @@ type (
 		config    *Config
 	}
 
-	// Configuration for DatamMoverClient
+	// Config defines configuration for a DatamMoverClient
 	Config struct {
 		Mover      Mover
 		NumThreads int
@@ -39,6 +39,7 @@ type (
 		actualLength *uint64
 	}
 
+	// Action defines an interface for dm actions
 	Action interface {
 		// Update sends an action status update
 		Update(offset, length, max uint64) error
@@ -71,6 +72,7 @@ type (
 
 	// Mover defines an interface for data mover implementations
 	Mover interface {
+		Start()
 	}
 
 	// Archiver defines an interface for data movers capable of
@@ -200,7 +202,7 @@ func (a *dmAction) SetActualLength(length uint64) {
 }
 
 // NewMover returns a new *DataMoverClient
-func NewMover(plugin *dmPlugin, cli pb.DataMoverClient, config *Config) *DataMoverClient {
+func NewMover(plugin Plugin, cli pb.DataMoverClient, config *Config) *DataMoverClient {
 	return &DataMoverClient{
 		plugin:    plugin,
 		rpcClient: cli,
@@ -238,6 +240,9 @@ func (dm *DataMoverClient) Run() {
 		dm.processStatus(ctx)
 	}
 
+	// Signal to the mover that it should begin any async processing
+	dm.config.Mover.Start()
+
 	<-dm.stop
 	debug.Printf("Shutting down Data Mover")
 	cancel()
@@ -253,7 +258,7 @@ func (dm *DataMoverClient) Stop() {
 func (dm *DataMoverClient) registerEndpoint(ctx context.Context) (*pb.Handle, error) {
 
 	handle, err := dm.rpcClient.Register(ctx, &pb.Endpoint{
-		FsUrl:   dm.plugin.fsClient.FsName(),
+		FsUrl:   dm.plugin.FsName(),
 		Archive: dm.config.ArchiveID,
 	})
 	if err != nil {
@@ -277,12 +282,14 @@ func (dm *DataMoverClient) processActions(ctx context.Context) chan *pb.ActionIt
 		}
 		for {
 			action, err := stream.Recv()
-			if err == io.EOF {
-				return
-			}
 			if err != nil {
 				close(actions)
-				alert.Fatalf("Failed to receive a message: %v", err)
+				if err == io.EOF {
+					debug.Print("Shutting down dmclient action stream")
+					return
+				}
+				alert.Warnf("Shutting down dmclient action stream due to error on Recv(): %v", err)
+				return
 			}
 			// debug.Printf("Got message id:%d op: %v %v", action.Id, action.Op, action.PrimaryPath)
 
