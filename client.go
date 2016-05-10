@@ -1,8 +1,6 @@
 package client
 
 import (
-	"syscall"
-
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/pkg/mntent"
 )
@@ -34,18 +32,6 @@ func getFsName(mountPath string) (string, error) {
 		return "", err
 	}
 	return entry.Fsname, nil
-}
-
-func getFsID(mountPath string) (*FsID, error) {
-	statfs := &syscall.Statfs_t{}
-
-	if err := syscall.Statfs(mountPath, statfs); err != nil {
-		return nil, err
-	}
-	var id FsID
-	id.val[0] = statfs.Fsid.X__val[0]
-	id.val[1] = statfs.Fsid.X__val[1]
-	return &id, nil
 }
 
 // New returns a new Client
