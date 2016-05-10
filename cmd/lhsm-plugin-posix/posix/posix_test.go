@@ -11,6 +11,7 @@ import (
 
 func TestArchive(t *testing.T) {
 	WithPosixMover(t, func(t *testing.T, mover *posix.Mover) {
+		// trigger two updates (at current interval of 10MB
 		var length uint64 = 20 * 1024 * 1024
 		tfile, cleanFile := testTempFile(t, length)
 		defer cleanFile()
@@ -18,6 +19,9 @@ func TestArchive(t *testing.T) {
 		action := dmplugin.NewTestAction(t, tfile, 0, length, nil, nil)
 		if err := mover.Archive(action); err != nil {
 			t.Fatal(err)
+		}
+		if action.Updates != 2 {
+			t.Fatalf("expected 2 updates, got %d", action.Updates)
 		}
 
 		newFile, cleanFile2 := testTempFile(t, 0)

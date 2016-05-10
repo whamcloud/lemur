@@ -8,6 +8,7 @@ import (
 	"github.intel.com/hpdd/logging/alert"
 )
 
+// TestAction is an Action implementation used for testing Movers.
 type TestAction struct {
 	t            *testing.T
 	id           uint64
@@ -17,6 +18,7 @@ type TestAction struct {
 	data         []byte
 	fileID       []byte
 	ActualLength int
+	Updates      int
 }
 
 // NewTestAction returns a stub action that can be used for testing.
@@ -34,6 +36,7 @@ func NewTestAction(t *testing.T, path string, offset uint64, length uint64, file
 
 // Update sends an action status update
 func (a *TestAction) Update(offset, length, max uint64) error {
+	a.Updates++
 	return nil
 }
 
