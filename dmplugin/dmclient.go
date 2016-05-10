@@ -24,7 +24,7 @@ type (
 		config    *Config
 	}
 
-	// Configuration for DatamMoverClient
+	// Config defines configuration for a DatamMoverClient
 	Config struct {
 		Mover      Mover
 		NumThreads int
@@ -39,6 +39,7 @@ type (
 		actualLength *uint64
 	}
 
+	// Action defines an interface for dm actions
 	Action interface {
 		// Update sends an action status update
 		Update(offset, length, max uint64) error
@@ -71,6 +72,7 @@ type (
 
 	// Mover defines an interface for data mover implementations
 	Mover interface {
+		Start()
 	}
 
 	// Archiver defines an interface for data movers capable of
@@ -237,6 +239,9 @@ func (dm *DataMoverClient) Run() {
 		}(i)
 		dm.processStatus(ctx)
 	}
+
+	// Signal to the mover that it should begin any async processing
+	dm.config.Mover.Start()
 
 	<-dm.stop
 	debug.Printf("Shutting down Data Mover")

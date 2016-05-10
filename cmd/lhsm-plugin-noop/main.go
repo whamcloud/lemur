@@ -6,6 +6,7 @@ import (
 	"path"
 
 	"github.intel.com/hpdd/logging/alert"
+	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
 )
@@ -20,6 +21,11 @@ func init() {
 
 // Mover is a NOOP data mover
 type Mover struct {
+}
+
+// Start signals the mover to begin any asynchronous processing (e.g. stats)
+func (m *Mover) Start() {
+	debug.Print("noop mover started")
 }
 
 func noop(agentAddress string) {
