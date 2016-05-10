@@ -118,7 +118,9 @@ func (m *Mover) ChecksumConfig() *ChecksumConfig {
 	return m.cfg.Checksums
 }
 
-func (m *Mover) destination(id string) string {
+// Destination returns the path to archived file.
+// Exported for testing.
+func (m *Mover) Destination(id string) string {
 	dir := path.Join(m.cfg.ArchiveDir,
 		"objects",
 		fmt.Sprintf("%s", id[0:2]),
@@ -152,7 +154,7 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 	}
 	defer src.Close()
 
-	dst, err := os.Create(m.destination(fileID))
+	dst, err := os.Create(m.Destination(fileID))
 	if err != nil {
 		return err
 	}
@@ -185,14 +187,14 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 	debug.Printf("%s id:%d Archived %d bytes in %v from %s to %s %x", m.cfg.Name, action.ID(), n,
 		time.Since(start),
 		action.PrimaryPath(),
-		m.destination(fileID),
+		m.Destination(fileID),
 		cw.Sum())
 
 	id := &FileID{
 		UUID: fileID,
 		Sum:  fmt.Sprintf("%x", cw.Sum()),
 	}
-	buf, err := json.Marshal(id)
+	buf, err := EncodeFileID(id)
 	if err != nil {
 		return err
 	}
@@ -201,6 +203,18 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 	return nil
 }
 
+// EncodeFileID is converts FileID to a json buffer.
+func EncodeFileID(id *FileID) ([]byte, error) {
+	buf, err := json.Marshal(id)
+	if err != nil {
+		return nil, err
+	}
+	return buf, nil
+
+}
+
+// ParseFileID unmarshalls the FileID struct from
+// json encoded data received from the agent.
 func ParseFileID(buf []byte) (*FileID, error) {
 	var id FileID
 	err := json.Unmarshal(buf, &id)
@@ -223,7 +237,7 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	if err != nil {
 		return err
 	}
-	src, err := os.Open(m.destination(id.UUID))
+	src, err := os.Open(m.Destination(id.UUID))
 	if err != nil {
 		return err
 	}
@@ -286,5 +300,5 @@ func (m *Mover) Remove(action dmplugin.Action) error {
 		return err
 	}
 
-	return os.Remove(m.destination(id.UUID))
+	return os.Remove(m.Destination(id.UUID))
 }

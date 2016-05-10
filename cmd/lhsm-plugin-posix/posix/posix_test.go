@@ -1,6 +1,7 @@
 package posix_test
 
 import (
+	"os"
 	"testing"
 
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
@@ -39,13 +40,35 @@ func TestCorruptArchive(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		fileID, err := posix.ParseFileID(action.FileID())
+		if err != nil {
+			t.Fatal(err)
+		}
+		fp, err := os.OpenFile(mover.Destination(fileID.UUID), os.O_RDWR, 0644)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = fp.Write([]byte("Silent data corruption. :)"))
+		if err != nil {
+			t.Fatal(err)
+
+		}
+		err = fp.Close()
+		if err != nil {
+			t.Fatal(err)
+
+		}
+
 		newFile, cleanFile2 := testTempFile(t, 0)
 		defer cleanFile2()
 
 		restore := dmplugin.NewTestAction(t, newFile, 0, int64(length), []byte(action.FileID()), nil)
-		if err := mover.Restore(restore); err != nil {
-			t.Fatal(err)
+		err = mover.Restore(restore)
+		if err == nil {
+			t.Fatal("Data corruption not detected")
 		}
+		// TODO check for specific CheckSum error
+
 	})
 }
 
