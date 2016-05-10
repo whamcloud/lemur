@@ -41,7 +41,7 @@ type (
 
 	Action interface {
 		// Update sends an action status update
-		Update(offset, length, max int64) error
+		Update(offset, length, max uint64) error
 		// Complete signals that the action has completed
 		Complete() error
 		// Fail signals that the action has failed
@@ -49,9 +49,9 @@ type (
 		// ID returns the action item's ID
 		ID() uint64
 		// Offset returns the current offset of the action item
-		Offset() int64
+		Offset() uint64
 		// Length returns the expected length of the action item's file
-		Length() int64
+		Length() uint64
 		// Data returns a byte slice of the action item's data
 		Data() []byte
 		// PrimaryPath returns the action item's primary file path
@@ -110,11 +110,11 @@ func getHandle(ctx context.Context) (*pb.Handle, bool) {
 }
 
 // Update sends an action status update
-func (a *dmAction) Update(offset, length, max int64) error {
+func (a *dmAction) Update(offset, length, max uint64) error {
 	a.status <- &pb.ActionStatus{
 		Id:     a.item.Id,
-		Offset: uint64(offset),
-		Length: uint64(length),
+		Offset: offset,
+		Length: length,
 	}
 	return nil
 }
@@ -160,13 +160,13 @@ func (a *dmAction) ID() uint64 {
 }
 
 // Offset returns the current offset of the action item
-func (a *dmAction) Offset() int64 {
-	return int64(a.item.Offset)
+func (a *dmAction) Offset() uint64 {
+	return a.item.Offset
 }
 
 // Length returns the expected length of the action item's file
-func (a *dmAction) Length() int64 {
-	return int64(a.item.Length)
+func (a *dmAction) Length() uint64 {
+	return a.item.Length
 }
 
 // Data returns a byte slice of the action item's data

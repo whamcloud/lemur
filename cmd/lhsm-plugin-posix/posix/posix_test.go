@@ -1,6 +1,7 @@
 package posix_test
 
 import (
+	"math"
 	"os"
 	"testing"
 
@@ -10,11 +11,11 @@ import (
 
 func TestArchive(t *testing.T) {
 	WithPosixMover(t, func(t *testing.T, mover *posix.Mover) {
-		length := 1000000
+		var length uint64 = 20 * 1024 * 1024
 		tfile, cleanFile := testTempFile(t, length)
 		defer cleanFile()
 
-		action := dmplugin.NewTestAction(t, tfile, 0, int64(length), nil, nil)
+		action := dmplugin.NewTestAction(t, tfile, 0, length, nil, nil)
 		if err := mover.Archive(action); err != nil {
 			t.Fatal(err)
 		}
@@ -22,7 +23,29 @@ func TestArchive(t *testing.T) {
 		newFile, cleanFile2 := testTempFile(t, 0)
 		defer cleanFile2()
 
-		restore := dmplugin.NewTestAction(t, newFile, 0, int64(length), []byte(action.FileID()), nil)
+		restore := dmplugin.NewTestAction(t, newFile, 0, length, []byte(action.FileID()), nil)
+		if err := mover.Restore(restore); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
+func TestArchiveMaxSize(t *testing.T) {
+	WithPosixMover(t, func(t *testing.T, mover *posix.Mover) {
+		var length uint64 = 1000000
+		tfile, cleanFile := testTempFile(t, length)
+		defer cleanFile()
+
+		// we received maxuint64 from coordinator, so test this as well
+		action := dmplugin.NewTestAction(t, tfile, 0, math.MaxUint64, nil, nil)
+		if err := mover.Archive(action); err != nil {
+			t.Fatal(err)
+		}
+
+		newFile, cleanFile2 := testTempFile(t, 0)
+		defer cleanFile2()
+
+		restore := dmplugin.NewTestAction(t, newFile, 0, math.MaxUint64, []byte(action.FileID()), nil)
 		if err := mover.Restore(restore); err != nil {
 			t.Fatal(err)
 		}
@@ -31,11 +54,11 @@ func TestArchive(t *testing.T) {
 
 func TestCorruptArchive(t *testing.T) {
 	WithPosixMover(t, func(t *testing.T, mover *posix.Mover) {
-		length := 1000000
+		var length uint64 = 1000000
 		tfile, cleanFile := testTempFile(t, length)
 		defer cleanFile()
 
-		action := dmplugin.NewTestAction(t, tfile, 0, int64(length), nil, nil)
+		action := dmplugin.NewTestAction(t, tfile, 0, length, nil, nil)
 		if err := mover.Archive(action); err != nil {
 			t.Fatal(err)
 		}
@@ -62,7 +85,7 @@ func TestCorruptArchive(t *testing.T) {
 		newFile, cleanFile2 := testTempFile(t, 0)
 		defer cleanFile2()
 
-		restore := dmplugin.NewTestAction(t, newFile, 0, int64(length), []byte(action.FileID()), nil)
+		restore := dmplugin.NewTestAction(t, newFile, 0, length, []byte(action.FileID()), nil)
 		err = mover.Restore(restore)
 		if err == nil {
 			t.Fatal("Data corruption not detected")
@@ -74,11 +97,11 @@ func TestCorruptArchive(t *testing.T) {
 
 func TestRemove(t *testing.T) {
 	WithPosixMover(t, func(t *testing.T, mover *posix.Mover) {
-		length := 1000000
+		var length uint64 = 1000000
 		tfile, cleanFile := testTempFile(t, length)
 		defer cleanFile()
 
-		action := dmplugin.NewTestAction(t, tfile, 0, int64(length), nil, nil)
+		action := dmplugin.NewTestAction(t, tfile, 0, length, nil, nil)
 		if err := mover.Archive(action); err != nil {
 			t.Fatal(err)
 		}
@@ -91,7 +114,7 @@ func TestRemove(t *testing.T) {
 		newFile, cleanFile2 := testTempFile(t, 0)
 		defer cleanFile2()
 
-		restore := dmplugin.NewTestAction(t, newFile, 0, int64(length), []byte(action.FileID()), nil)
+		restore := dmplugin.NewTestAction(t, newFile, 0, length, []byte(action.FileID()), nil)
 		if err := mover.Restore(restore); err == nil {
 			t.Fatal("Restore should have failed")
 		}

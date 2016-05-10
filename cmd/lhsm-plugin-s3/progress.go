@@ -14,7 +14,7 @@ import (
 const ckSumSig = 32 * 1024
 
 type (
-	progressFunc func(int64, int64) error
+	progressFunc func(uint64, uint64) error
 
 	// ReaderAtSeeker groups the io.ReaderAt and io.Seeker interfaces
 	ReaderAtSeeker interface {
@@ -25,7 +25,7 @@ type (
 
 	progressUpdater struct {
 		done        chan struct{}
-		bytesCopied int64
+		bytesCopied uint64
 	}
 
 	// ProgressReader wraps an io.ReaderAt and periodically invokes the
@@ -53,12 +53,12 @@ func (p *progressUpdater) startUpdates(updateEvery time.Duration, f progressFunc
 	p.done = make(chan struct{})
 
 	if updateEvery > 0 && f != nil {
-		var lastTotal int64
+		var lastTotal uint64
 		go func() {
 			for {
 				select {
 				case <-time.After(updateEvery):
-					copied := atomic.LoadInt64(&p.bytesCopied)
+					copied := atomic.LoadUint64(&p.bytesCopied)
 					if err := f(lastTotal, copied-lastTotal); err != nil {
 						alert.Warnf("Error received from updater callback: %s", err)
 						// Should we return here?
@@ -99,7 +99,7 @@ func (r *ProgressReader) ReadAt(p []byte, off int64) (int, error) {
 	// Each file is read twice -- once for checksumming, then again
 	// to actually transfer the data.
 	if n != ckSumSig {
-		atomic.AddInt64(&r.bytesCopied, int64(n))
+		atomic.AddUint64(&r.bytesCopied, uint64(n))
 	}
 
 	return n, err
@@ -123,7 +123,7 @@ func NewProgressReader(src ReaderAtSeeker, updateEvery time.Duration, f progress
 func (w *ProgressWriter) WriteAt(p []byte, off int64) (int, error) {
 	n, err := w.dst.WriteAt(p, off)
 
-	atomic.AddInt64(&w.bytesCopied, int64(n))
+	atomic.AddUint64(&w.bytesCopied, uint64(n))
 
 	return n, err
 }

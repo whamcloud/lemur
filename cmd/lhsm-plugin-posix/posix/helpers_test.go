@@ -43,15 +43,15 @@ func testChdirTemp(t *testing.T) func() {
 	}
 }
 
-func testFill(t *testing.T, fp *os.File, size int) {
-	bs := 1024 * 1024
+func testFill(t *testing.T, fp *os.File, size uint64) {
+	var bs uint64 = 1024 * 1024
 	buf := make([]byte, bs)
 
 	for i := 0; i < len(buf); i++ {
 		buf[i] = byte(i)
 	}
 
-	for i := 0; i < size; i += bs {
+	for i := uint64(0); i < size; i += bs {
 		if size < bs {
 			bs = size
 		}
@@ -60,7 +60,7 @@ func testFill(t *testing.T, fp *os.File, size int) {
 	}
 }
 
-func testTempFile(t *testing.T, size int) (string, func()) {
+func testTempFile(t *testing.T, size uint64) (string, func()) {
 	fp, err := ioutil.TempFile(".", testPrefix)
 	if err != nil {
 		t.Fatal(err)

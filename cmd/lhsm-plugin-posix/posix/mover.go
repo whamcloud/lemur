@@ -90,8 +90,8 @@ func newFileID() string {
 }
 
 // CopyWithProgress initiates a movement of data with progress updates
-func CopyWithProgress(dst io.WriterAt, src io.ReaderAt, start int64, length int64, action dmplugin.Action) (int64, error) {
-	var blockSize int64 = 10 * 1024 * 1024 // FIXME: parameterize
+func CopyWithProgress(dst io.WriterAt, src io.ReaderAt, start uint64, length uint64, action dmplugin.Action) (uint64, error) {
+	var blockSize uint64 = 10 * 1024 * 1024 // FIXME: parameterize
 
 	offset := start
 	for offset < start+length {
@@ -105,7 +105,7 @@ func CopyWithProgress(dst io.WriterAt, src io.ReaderAt, start int64, length int6
 			return offset, err
 		}
 
-		err = action.Update(offset-n, n, length)
+		err = action.Update(offset-n, uint64(n), length)
 		if err != nil {
 			return offset, err
 		}
@@ -165,14 +165,14 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 		cw = NewNoopHashWriter(dst)
 	}
 
-	var length int64
-	if uint64(action.Length()) == math.MaxUint64 {
+	var length uint64
+	if action.Length() == math.MaxUint64 {
 		fi, err := src.Stat()
 		if err != nil {
 			return err
 		}
 
-		length = fi.Size() - action.Offset()
+		length = uint64(fi.Size()) - action.Offset()
 	} else {
 		// TODO: Sanity check length + offset with actual file size?
 		length = action.Length()
@@ -199,7 +199,7 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 		return err
 	}
 	action.SetFileID(buf)
-	action.SetActualLength(uint64(n))
+	action.SetActualLength(n)
 	return nil
 }
 
@@ -254,14 +254,14 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 		cw = NewNoopHashWriter(dst)
 	}
 
-	var length int64
-	if uint64(action.Length()) == math.MaxUint64 {
+	var length uint64
+	if action.Length() == math.MaxUint64 {
 		fi, err := src.Stat()
 		if err != nil {
 			return err
 		}
 
-		length = fi.Size() - action.Offset()
+		length = uint64(fi.Size()) - action.Offset()
 	} else {
 		// TODO: Sanity check length + offset with actual file size?
 		length = action.Length()
@@ -284,7 +284,7 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 		time.Since(start),
 		action.PrimaryPath(),
 		cw.Sum())
-	action.SetActualLength(uint64(n))
+	action.SetActualLength(n)
 	return nil
 }
 

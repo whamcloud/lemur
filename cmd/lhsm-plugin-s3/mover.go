@@ -79,8 +79,8 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 
 	fileID := newFileID()
 	size := fi.Size()
-	progressFunc := func(offset, length int64) error {
-		return action.Update(offset, length, size)
+	progressFunc := func(offset, length uint64) error {
+		return action.Update(offset, length, uint64(size))
 	}
 	progressReader := NewProgressReader(src, updateInterval, progressFunc)
 	defer progressReader.StopUpdates()
@@ -136,8 +136,8 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	}
 	defer dst.Close()
 
-	progressFunc := func(offset, length int64) error {
-		return action.Update(offset, length, dstSize)
+	progressFunc := func(offset, length uint64) error {
+		return action.Update(offset, length, uint64(dstSize))
 	}
 	progressWriter := NewProgressWriter(dst, updateInterval, progressFunc)
 	defer progressWriter.StopUpdates()
