@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -113,11 +114,11 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	rate.Mark(1)
 
 	start := time.Now()
-	if action.FileID() == "" {
+	if action.FileID() == nil {
 		return fmt.Errorf("Missing file_id on action %d", action.ID())
 	}
 
-	srcObj := m.destination(action.FileID())
+	srcObj := m.destination(string(action.FileID()))
 	out, err := m.s3Svc.HeadObject(&s3.HeadObjectInput{
 		Bucket: aws.String(m.bucket),
 		Key:    aws.String(srcObj),
@@ -163,10 +164,13 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 func (m *Mover) Remove(action dmplugin.Action) error {
 	debug.Printf("%s id:%d remove %s %s", m.name, action.ID(), action.PrimaryPath(), action.FileID())
 	rate.Mark(1)
+	if action.FileID() == nil {
+		return errors.New("Missing file_id")
+	}
 
 	_, err := m.s3Svc.DeleteObject(&s3.DeleteObjectInput{
 		Bucket: aws.String(m.bucket),
-		Key:    aws.String(m.destination(action.FileID())),
+		Key:    aws.String(m.destination(string(action.FileID()))),
 	})
 	return err
 }

@@ -28,6 +28,27 @@ func TestArchive(t *testing.T) {
 	})
 }
 
+func TestCorruptArchive(t *testing.T) {
+	WithPosixMover(t, func(t *testing.T, mover *posix.Mover) {
+		length := 1000000
+		tfile, cleanFile := testTempFile(t, length)
+		defer cleanFile()
+
+		action := dmplugin.NewTestAction(t, tfile, 0, int64(length), nil, nil)
+		if err := mover.Archive(action); err != nil {
+			t.Fatal(err)
+		}
+
+		newFile, cleanFile2 := testTempFile(t, 0)
+		defer cleanFile2()
+
+		restore := dmplugin.NewTestAction(t, newFile, 0, int64(length), []byte(action.FileID()), nil)
+		if err := mover.Restore(restore); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
 func TestRemove(t *testing.T) {
 	WithPosixMover(t, func(t *testing.T, mover *posix.Mover) {
 		length := 1000000

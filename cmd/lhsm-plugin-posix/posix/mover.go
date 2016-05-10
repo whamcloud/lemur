@@ -201,7 +201,7 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 	return nil
 }
 
-func parseFileID(buf []byte) (*FileID, error) {
+func ParseFileID(buf []byte) (*FileID, error) {
 	var id FileID
 	err := json.Unmarshal(buf, &id)
 	if err != nil {
@@ -216,10 +216,10 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	rate.Mark(1)
 	start := time.Now()
 
-	if action.FileID() == "" {
+	if action.FileID() == nil {
 		return errors.New("Missing file_id")
 	}
-	id, err := parseFileID([]byte(action.FileID()))
+	id, err := ParseFileID(action.FileID())
 	if err != nil {
 		return err
 	}
@@ -278,10 +278,10 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 func (m *Mover) Remove(action dmplugin.Action) error {
 	debug.Printf("%s: remove %s %s", m.cfg.Name, action.PrimaryPath(), action.FileID())
 	rate.Mark(1)
-	if action.FileID() == "" {
+	if action.FileID() == nil {
 		return errors.New("Missing file_id")
 	}
-	id, err := parseFileID([]byte(action.FileID()))
+	id, err := ParseFileID(action.FileID())
 	if err != nil {
 		return err
 	}

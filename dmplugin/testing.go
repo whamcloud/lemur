@@ -77,8 +77,8 @@ func (a *TestAction) WritePath() string {
 }
 
 // FileID returns the action item's file id
-func (a *TestAction) FileID() string {
-	return string(a.fileID)
+func (a *TestAction) FileID() []byte {
+	return a.fileID
 }
 
 // SetFileID sets the action's file id

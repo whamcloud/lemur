@@ -60,7 +60,7 @@ type (
 		// WritePath returns the action item's write path (e.g. for restores)
 		WritePath() string
 		// FileID returns the action item's file id
-		FileID() string
+		FileID() []byte
 
 		// SetFileID sets the action's file id
 		SetFileID(id []byte)
@@ -185,8 +185,8 @@ func (a *dmAction) WritePath() string {
 }
 
 // FileID returns the action item's file id
-func (a *dmAction) FileID() string {
-	return string(a.item.FileId)
+func (a *dmAction) FileID() []byte {
+	return a.item.FileId
 }
 
 // SetFileID sets the action's file id
