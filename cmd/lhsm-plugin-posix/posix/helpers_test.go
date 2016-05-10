@@ -60,6 +60,23 @@ func testFill(t *testing.T, fp *os.File, size uint64) {
 	}
 }
 
+func testCorruptFile(t *testing.T, path string) {
+	fp, err := os.OpenFile(path, os.O_RDWR, 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = fp.Write([]byte("Silent data corruption. :)"))
+	if err != nil {
+		t.Fatal(err)
+
+	}
+	err = fp.Close()
+	if err != nil {
+		t.Fatal(err)
+
+	}
+}
+
 func testTempFile(t *testing.T, size uint64) (string, func()) {
 	fp, err := ioutil.TempFile(".", testPrefix)
 	if err != nil {

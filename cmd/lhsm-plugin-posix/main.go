@@ -111,7 +111,7 @@ func createMovers(cfg *posixConfig) (map[uint32]*posix.Mover, error) {
 		mover, err := posix.NewMover(&posix.MoverConfig{
 			Name:       fmt.Sprintf("posix-%d", a.ID),
 			ArchiveDir: a.Root,
-			Checksums:  csc.ToPosix(),
+			Checksums:  *csc.ToPosix(),
 		})
 		if err != nil {
 			return nil, fmt.Errorf("Unable to create new POSIX mover: %s", err)

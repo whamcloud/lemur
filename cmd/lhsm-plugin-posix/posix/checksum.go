@@ -61,5 +61,5 @@ func (hw *NoopHashWriter) WriteAt(b []byte, off int64) (int, error) {
 
 // Sum returns a dummy checksum
 func (hw *NoopHashWriter) Sum() []byte {
-	return []byte{222, 173, 190, 239}
+	return []byte{}
 }

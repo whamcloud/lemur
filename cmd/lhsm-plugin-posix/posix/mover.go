@@ -56,7 +56,7 @@ type (
 	MoverConfig struct {
 		Name       string
 		ArchiveDir string
-		Checksums  *ChecksumConfig
+		Checksums  ChecksumConfig
 	}
 
 	// Mover is a POSIX data mover
@@ -77,9 +77,6 @@ func NewMover(cfg *MoverConfig) (*Mover, error) {
 		return nil, fmt.Errorf("Invalid mover config: ArchiveDir is unset")
 	}
 
-	if cfg.Checksums == nil {
-		cfg.Checksums = &ChecksumConfig{}
-	}
 	return &Mover{
 		cfg: cfg,
 	}, nil
@@ -114,8 +111,9 @@ func CopyWithProgress(dst io.WriterAt, src io.ReaderAt, start uint64, length uin
 }
 
 // ChecksumConfig returns the mover's checksum configuration
+// Returns a pointer so the caller can modify the config.
 func (m *Mover) ChecksumConfig() *ChecksumConfig {
-	return m.cfg.Checksums
+	return &m.cfg.Checksums
 }
 
 // Destination returns the path to archived file.
