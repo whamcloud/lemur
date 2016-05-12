@@ -208,7 +208,7 @@ func NewMover(plugin Plugin, cli pb.DataMoverClient, config *Config) *DataMoverC
 		rpcClient: cli,
 		mover:     config.Mover,
 		stop:      make(chan struct{}),
-		status:    make(chan *pb.ActionStatus, 2),
+		status:    make(chan *pb.ActionStatus, config.NumThreads),
 		config:    config,
 	}
 }
@@ -237,7 +237,6 @@ func (dm *DataMoverClient) Run() {
 			dm.handler(fmt.Sprintf("handler-%d", i), actions)
 			wg.Done()
 		}(i)
-		dm.processStatus(ctx)
 	}
 
 	// Signal to the mover that it should begin any async processing
@@ -350,10 +349,9 @@ func (dm *DataMoverClient) handler(name string, actions chan *pb.ActionItem) {
 		case pb.Command_CANCEL:
 			// TODO: Cancel in-progress action using a context
 		default:
-			ret = errors.New("Unknown cmmand")
+			ret = errors.New("Unknown command")
 		}
 
-		//		rate.Mark(1)
 		// debug.Printf("completed (action: %v) %v ", action, ret)
 		if ret != nil {
 			action.Fail(ret)
