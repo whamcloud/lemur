@@ -8,6 +8,7 @@ import (
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
+	"github.intel.com/hpdd/policy/pdm/lhsmd/agent/fileid"
 	pb "github.intel.com/hpdd/policy/pdm/pdm"
 
 	"github.intel.com/hpdd/lustre/fs"
@@ -79,12 +80,12 @@ func (action *Action) AsMessage() *pb.ActionItem {
 	switch action.aih.Action() {
 	case llapi.HsmActionRestore, llapi.HsmActionRemove:
 		var err error
-		msg.FileId, err = getFileID(action.agent.Root(), action.aih.Fid())
+		msg.FileId, err = fileid.Get(action.agent.Root(), action.aih.Fid())
 		if err != nil {
 			debug.Printf("Error reading fileid: %v (%v) will retry", err, action)
 			// WTF, let's try again
 			time.Sleep(1 * time.Second)
-			msg.FileId, err = getFileID(action.agent.Root(), action.aih.Fid())
+			msg.FileId, err = fileid.Get(action.agent.Root(), action.aih.Fid())
 
 		}
 		if err != nil {
@@ -120,7 +121,7 @@ func (action *Action) Update(status *pb.ActionStatus) (bool, error) {
 		debug.Printf("id:%d completed status: %v in %v", status.Id, status.Error, duration)
 
 		if status.FileId != nil {
-			updateFileID(action.agent.Root(), action.aih.Fid(), status.FileId)
+			fileid.Update(action.agent.Root(), action.aih.Fid(), status.FileId)
 		}
 		action.agent.stats.CompleteAction(action, int(status.Error))
 		err := action.aih.End(status.Offset, status.Length, 0, int(status.Error))

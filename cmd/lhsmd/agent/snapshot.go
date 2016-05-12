@@ -13,6 +13,7 @@ import (
 	"github.intel.com/hpdd/lustre/hsm"
 	"github.intel.com/hpdd/lustre/llapi"
 	"github.intel.com/hpdd/lustre/status"
+	"github.intel.com/hpdd/policy/pdm/lhsmd/agent/fileid"
 )
 
 func createSnapDir(p string) (string, error) {
@@ -67,7 +68,7 @@ func createSnapshots(mnt fs.RootDir, archive uint, fileID []byte, names []string
 			if err != nil {
 				return err
 			}
-			err = setFileID(f, fileID)
+			err = fileid.Set(f, fileID)
 			firstPath = f
 			first = false
 		} else {

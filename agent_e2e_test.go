@@ -16,6 +16,7 @@ import (
 	"github.intel.com/hpdd/lustre/llapi"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/agent"
+	"github.intel.com/hpdd/policy/pdm/lhsmd/agent/fileid"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
 	_ "github.intel.com/hpdd/policy/pdm/lhsmd/transport/grpc"
 )
@@ -37,6 +38,9 @@ func init() {
 	if enableDebug {
 		debug.Enable()
 	}
+
+	// swap in the dummy implementation
+	fileid.EnableTestMode()
 }
 
 type (
@@ -205,6 +209,7 @@ func TestRestoreEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error generating test fid: %s", err)
 	}
+	fileid.Set(fs.FidRelativePath(testFid), []byte("moo"))
 	// Inject an action
 	tr := hsm.NewTestRequest(uint(testArchiveID), llapi.HsmActionRestore, testFid)
 	ta.AddAction(tr)
@@ -254,6 +259,7 @@ func TestRemoveEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error generating test fid: %s", err)
 	}
+	fileid.Set(fs.FidRelativePath(testFid), []byte("moo"))
 	// Inject an action
 	tr := hsm.NewTestRequest(uint(testArchiveID), llapi.HsmActionRemove, testFid)
 	ta.AddAction(tr)
