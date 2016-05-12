@@ -43,30 +43,34 @@ type (
 	signalChan chan struct{}
 
 	testMover struct {
-		started         signalChan
-		messageReceived signalChan
-		receivedAction  dmplugin.Action
+		started        signalChan
+		receivedAction chan dmplugin.Action
 	}
 )
 
 func (t *testMover) Archive(a dmplugin.Action) error {
 	debug.Printf("testMover received Archive action: %s", a)
-	t.receivedAction = a
-	close(t.messageReceived)
+	t.receivedAction <- a
+	close(t.receivedAction)
+
+	a.Update(0, 1, 2)
 	return nil
 }
 
 func (t *testMover) Restore(a dmplugin.Action) error {
 	debug.Printf("testMover received Restore action: %s", a)
-	t.receivedAction = a
-	close(t.messageReceived)
+	t.receivedAction <- a
+	close(t.receivedAction)
+
+	a.Update(0, 0, 0)
 	return nil
 }
 
 func (t *testMover) Remove(a dmplugin.Action) error {
 	debug.Printf("testMover received Remove action: %s", a)
-	t.receivedAction = a
-	close(t.messageReceived)
+	t.receivedAction <- a
+	close(t.receivedAction)
+
 	return nil
 }
 
@@ -78,14 +82,14 @@ func (t *testMover) Start() {
 	close(t.started)
 }
 
-func (t *testMover) ReceivedAction() signalChan {
-	return t.messageReceived
+func (t *testMover) ReceivedAction() chan dmplugin.Action {
+	return t.receivedAction
 }
 
 func newTestMover() *testMover {
 	return &testMover{
-		started:         make(signalChan),
-		messageReceived: make(signalChan),
+		started:        make(signalChan),
+		receivedAction: make(chan dmplugin.Action),
 	}
 }
 
@@ -153,17 +157,25 @@ func TestArchiveEndToEnd(t *testing.T) {
 		t.Fatalf("error generating test fid: %s", err)
 	}
 	// Inject an action
-	ta.AddAction(hsm.NewTestRequest(uint(testArchiveID), llapi.HsmActionArchive, testFid))
+	tr := hsm.NewTestRequest(uint(testArchiveID), llapi.HsmActionArchive, testFid)
+	ta.AddAction(tr)
 
 	// Wait for the mover to signal that it has received the action
 	// on the other side of the RPC interface
-	<-tm.ReceivedAction()
+	action := <-tm.ReceivedAction()
 
-	actionPath := tm.receivedAction.PrimaryPath()
+	actionPath := action.PrimaryPath()
 	fidPath := fs.FidRelativePath(testFid)
 	if actionPath != fidPath {
 		t.Fatalf("expected path %s, got %s", fidPath, actionPath)
 	}
+
+	// Wait for the mover to send a progress update on the action
+	update := <-tr.ProgressUpdates()
+	debug.Printf("Update: %s", update)
+
+	// Wait for the mover to end the request
+	<-tr.Finished()
 }
 
 func TestRestoreEndToEnd(t *testing.T) {
@@ -194,17 +206,25 @@ func TestRestoreEndToEnd(t *testing.T) {
 		t.Fatalf("error generating test fid: %s", err)
 	}
 	// Inject an action
-	ta.AddAction(hsm.NewTestRequest(uint(testArchiveID), llapi.HsmActionRestore, testFid))
+	tr := hsm.NewTestRequest(uint(testArchiveID), llapi.HsmActionRestore, testFid)
+	ta.AddAction(tr)
 
 	// Wait for the mover to signal that it has received the action
 	// on the other side of the RPC interface
-	<-tm.ReceivedAction()
+	action := <-tm.ReceivedAction()
 
-	actionPath := tm.receivedAction.PrimaryPath()
+	actionPath := action.PrimaryPath()
 	fidPath := fs.FidRelativePath(testFid)
 	if actionPath != fidPath {
 		t.Fatalf("expected path %s, got %s", fidPath, actionPath)
 	}
+
+	// Wait for the mover to send a progress update on the action
+	update := <-tr.ProgressUpdates()
+	debug.Printf("Update: %s", update)
+
+	// Wait for the mover to end the request
+	<-tr.Finished()
 }
 
 func TestRemoveEndToEnd(t *testing.T) {
@@ -235,15 +255,19 @@ func TestRemoveEndToEnd(t *testing.T) {
 		t.Fatalf("error generating test fid: %s", err)
 	}
 	// Inject an action
-	ta.AddAction(hsm.NewTestRequest(uint(testArchiveID), llapi.HsmActionRemove, testFid))
+	tr := hsm.NewTestRequest(uint(testArchiveID), llapi.HsmActionRemove, testFid)
+	ta.AddAction(tr)
 
 	// Wait for the mover to signal that it has received the action
 	// on the other side of the RPC interface
-	<-tm.ReceivedAction()
+	action := <-tm.ReceivedAction()
 
-	actionPath := tm.receivedAction.PrimaryPath()
+	actionPath := action.PrimaryPath()
 	fidPath := fs.FidRelativePath(testFid)
 	if actionPath != fidPath {
 		t.Fatalf("expected path %s, got %s", fidPath, actionPath)
 	}
+
+	// Wait for the mover to end the request
+	<-tr.Finished()
 }

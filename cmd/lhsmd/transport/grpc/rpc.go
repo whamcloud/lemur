@@ -161,7 +161,7 @@ func (s *dmRPCServer) GetActions(h *pb.Handle, stream pb.DataMover_GetActionsSer
 			ep.mu.Unlock()
 
 			if err := stream.Send(action.AsMessage()); err != nil {
-				debug.Print(err)
+				debug.Printf("error while sending action: %s", err)
 				action.Fail(-1)
 
 				ep.mu.Lock()

@@ -107,11 +107,7 @@ func (ta *TestAgent) Stop() {
 }
 
 // NewTestAgent returns a wrapped *HsmAgent configured for testing
-func NewTestAgent(t *testing.T, cfg *Config, mon *PluginMonitor, as hsm.ActionSource, ep *Endpoints) *TestAgent {
-	tas, ok := as.(*hsm.TestSource)
-	if !ok {
-		t.Fatalf("Supplied actionsource must be an instance of hsm.TestSource")
-	}
+func NewTestAgent(t *testing.T, cfg *Config, mon *PluginMonitor, as *hsm.TestSource, ep *Endpoints) *TestAgent {
 	return &TestAgent{
 		HsmAgent: HsmAgent{
 			stats:        NewActionStats(),
@@ -121,7 +117,7 @@ func NewTestAgent(t *testing.T, cfg *Config, mon *PluginMonitor, as hsm.ActionSo
 			actionSource: as,
 			Endpoints:    ep,
 		},
-		as:         tas,
+		as:         as, // expose the test implementation
 		t:          t,
 		startError: make(chan error),
 		started:    make(chan struct{}),
