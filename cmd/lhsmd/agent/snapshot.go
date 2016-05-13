@@ -58,7 +58,7 @@ func createSnapshots(mnt fs.RootDir, archive uint, fileID []byte, names []string
 		}
 		f := path.Join(snapDir, snapName(fi))
 		if first {
-			var layout *DataLayout
+			var layout *llapi.DataLayout
 			layout, err = llapi.FileDataLayout(absPath)
 			if err != nil {
 				alert.Warnf("%s: unable to get layout: %v", f, err)
