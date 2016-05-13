@@ -21,6 +21,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"
 
@@ -79,14 +81,14 @@ func (ct *HsmAgent) Start(ctx context.Context) error {
 
 	if t, ok := transports[ct.config.Transport.Type]; ok {
 		if err := t.Init(ct.config, ct); err != nil {
-			return err
+			return errors.Wrapf(err, "transport %q initialize failed", ct.config.Transport.Type)
 		}
 	} else {
-		return fmt.Errorf("Unknown transport type in configuration: %s", ct.config.Transport.Type)
+		return errors.Errorf("unknown transport type in configuration: %s", ct.config.Transport.Type)
 	}
 
 	if err := ct.actionSource.Start(ctx); err != nil {
-		return fmt.Errorf("Unable to initialize HSM agent connection: %s", err)
+		return errors.Wrap(err, "initializing HSM agent connection")
 	}
 
 	for i := 0; i < ct.config.Processes; i++ {
@@ -97,7 +99,7 @@ func (ct *HsmAgent) Start(ctx context.Context) error {
 	for _, pluginConf := range ct.config.Plugins() {
 		err := ct.monitor.StartPlugin(pluginConf)
 		if err != nil {
-			return fmt.Errorf("Error while creating plugin: %s", err)
+			return errors.Wrapf(err, "creating plugin %q", pluginConf.Name)
 		}
 	}
 

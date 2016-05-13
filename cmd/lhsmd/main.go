@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
 	"github.com/vrischmann/go-metrics-influxdb"
 
@@ -60,7 +61,7 @@ func main() {
 
 	debug.Printf("current configuration:\n%v", conf.String())
 	if err := agent.ConfigureMounts(conf); err != nil {
-		alert.Fatalf("Error while creating Lustre mountpoints: %s", err)
+		alert.Abort(errors.Wrap(err, "Error while creating Lustre mountpoints"))
 	}
 
 	if conf.InfluxDB != nil && conf.InfluxDB.URL != "" {
@@ -77,7 +78,7 @@ func main() {
 
 	ct, err := agent.New(conf)
 	if err != nil {
-		alert.Fatalf("Error creating agent: %s", err)
+		alert.Abort(errors.Wrap(err, "Error creating agent"))
 	}
 
 	interruptHandler(func() {
@@ -85,10 +86,10 @@ func main() {
 	})
 
 	if err := ct.Start(context.Background()); err != nil {
-		alert.Fatalf("Error in HsmAgent.Start(): %s", err)
+		alert.Abort(errors.Wrap(err, "Error in HsmAgent.Start()"))
 	}
 
 	if err := agent.CleanupMounts(conf); err != nil {
-		alert.Warnf("Error while cleaning up Lustre mountpoints: %s", err)
+		alert.Abort(errors.Wrap(err, "Error while cleaning up Lustre mountpoints"))
 	}
 }

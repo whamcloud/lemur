@@ -13,6 +13,7 @@ import (
 
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
+	"github.com/pkg/errors"
 
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
@@ -156,7 +157,7 @@ func init() {
 func (c *Config) String() string {
 	data, err := json.Marshal(c)
 	if err != nil {
-		alert.Fatal(err)
+		alert.Abort(errors.Wrap(err, "marshal failed"))
 	}
 
 	var out bytes.Buffer
@@ -267,41 +268,41 @@ func NewConfig() *Config {
 func LoadConfig(configPath string) (*Config, error) {
 	data, err := ioutil.ReadFile(configPath)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "read failed")
 	}
 
 	obj, err := hcl.Parse(string(data))
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "parse config failed")
 	}
 
 	defaults := DefaultConfig()
 	cfg := NewConfig()
 	if err := hcl.DecodeObject(cfg, obj); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "decode config faile")
 	}
 	cfg = defaults.Merge(cfg)
 
 	list, ok := obj.Node.(*ast.ObjectList)
 	if !ok {
-		return nil, fmt.Errorf("Malformed config file")
+		return nil, errors.Errorf("Malformed config file")
 	}
 
 	f := list.Filter("client_device")
 	if len(f.Items) == 0 {
-		return nil, fmt.Errorf("No client_device specified")
+		return nil, errors.Errorf("No client_device specified")
 	}
 	if len(f.Items) > 1 {
-		return nil, fmt.Errorf("Line %d: More than 1 client_device specified", f.Items[1].Assign.Line)
+		return nil, errors.Errorf("Line %d: More than 1 client_device specified", f.Items[1].Assign.Line)
 	}
 
 	var devStr string
 	if err := hcl.DecodeObject(&devStr, f.Elem().Items[0].Val); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "decode device failed")
 	}
 	cfg.ClientDevice, err = spec.ClientDeviceFromString(devStr)
 	if err != nil {
-		return nil, fmt.Errorf("Line %d: Invalid client_device %q: %s", f.Items[0].Assign.Line, devStr, err)
+		return nil, errors.Wrapf(err, "Line %d: Invalid client_device %q", f.Items[0].Assign.Line, devStr)
 	}
 
 	return cfg, nil
@@ -315,26 +316,26 @@ func ConfigInitMust() *Config {
 	cfg, err := LoadConfig(optConfigPath)
 	if err != nil {
 		if !(optConfigPath == config.DefaultConfigPath && os.IsNotExist(err)) {
-			alert.Fatalf("Failed to load config: %s", err)
+			alert.Abort(errors.Wrap(err, "Failed to load config"))
 		}
 	}
 
 	if cfg.Transport == nil {
-		alert.Fatal("Invalid configuration: No transports configured")
+		alert.Abort(errors.New("Invalid configuration: No transports configured"))
 	}
 
 	if _, err := os.Stat(cfg.PluginDir); os.IsNotExist(err) {
-		alert.Fatalf("Invalid configuration: plugin_dir %q does not exist", cfg.PluginDir)
+		alert.Abort(errors.Errorf("Invalid configuration: plugin_dir %q does not exist", cfg.PluginDir))
 	}
 
 	if len(cfg.EnabledPlugins) == 0 {
-		alert.Fatal("Invalid configuration: No data mover plugins configured")
+		alert.Abort(errors.New("Invalid configuration: No data mover plugins configured"))
 	}
 
 	for _, plugin := range cfg.EnabledPlugins {
 		pluginPath := path.Join(cfg.PluginDir, plugin)
 		if _, err := os.Stat(pluginPath); os.IsNotExist(err) {
-			alert.Fatalf("Invalid configuration: Plugin %q not found in %s", plugin, cfg.PluginDir)
+			alert.Abort(errors.Errorf("Invalid configuration: Plugin %q not found in %s", plugin, cfg.PluginDir))
 		}
 	}
 

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/pkg/errors"
+
 	"golang.org/x/sys/unix"
 
 	"github.intel.com/hpdd/logging/alert"
@@ -27,7 +29,7 @@ func (mc *mountConfig) String() string {
 
 func mountClient(cfg *mountConfig) error {
 	if err := os.MkdirAll(cfg.Directory, 0700); err != nil {
-		return err
+		return errors.Wrap(err, "mkdir failed")
 	}
 
 	return unix.Mount(cfg.Device, cfg.Directory, cfg.Type, cfg.Flags, cfg.Options.String())
@@ -71,7 +73,7 @@ func createMountConfigs(cfg *Config) []*mountConfig {
 func ConfigureMounts(cfg *Config) error {
 	entries, err := mntent.GetMounted()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "get mount entries failed")
 	}
 
 	for _, mc := range createMountConfigs(cfg) {
@@ -81,7 +83,7 @@ func ConfigureMounts(cfg *Config) error {
 
 		debug.Printf("Mounting client at %s", mc.Directory)
 		if err := mountClient(mc); err != nil {
-			return err
+			return errors.Wrap(err, "mount client failed")
 		}
 	}
 
