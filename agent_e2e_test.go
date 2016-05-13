@@ -25,19 +25,12 @@ var (
 	testRpcPort    = 12345
 	testArchiveID  = 1
 	enableLeakTest = false
-	enableDebug    = false
 )
 
 func init() {
 	flag.BoolVar(&enableLeakTest, "leak", false, "enable leak check")
-	flag.BoolVar(&enableDebug, "debug", false, "enable debug output")
+	flag.Var(debug.FlagVar())
 	flag.Parse()
-
-	// TODO: Figure out how we can always enable debug but only
-	// display it on test failure.
-	if enableDebug {
-		debug.Enable()
-	}
 
 	// swap in the dummy implementation
 	fileid.EnableTestMode()

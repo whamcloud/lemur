@@ -73,7 +73,7 @@ func createMountConfigs(cfg *Config) []*mountConfig {
 func ConfigureMounts(cfg *Config) error {
 	entries, err := mntent.GetMounted()
 	if err != nil {
-		return errors.Wrap(err, "get mount entries failed")
+		return errors.Wrap(err, "failed to get list of mounted filesystems")
 	}
 
 	for _, mc := range createMountConfigs(cfg) {
@@ -95,7 +95,7 @@ func ConfigureMounts(cfg *Config) error {
 func CleanupMounts(cfg *Config) error {
 	entries, err := mntent.GetMounted()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to get list of mounted filesystems")
 	}
 
 	for _, mc := range createMountConfigs(cfg) {
@@ -105,8 +105,8 @@ func CleanupMounts(cfg *Config) error {
 
 		debug.Printf("Cleaning up %s", mc.Directory)
 		if err := unix.Unmount(mc.Directory, 0); err != nil {
-			alert.Warnf("Error while cleaning up %s: %s", mc.Directory, err)
-			return err
+			// Non-fatal error; just log it.
+			alert.Warnf("Failed to unmount %s in cleanup: %s", mc.Directory, err)
 		}
 	}
 
