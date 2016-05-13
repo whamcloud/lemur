@@ -106,7 +106,7 @@ func CleanupMounts(cfg *Config) error {
 		debug.Printf("Cleaning up %s", mc.Directory)
 		if err := unix.Unmount(mc.Directory, 0); err != nil {
 			// Non-fatal error; just log it.
-			alert.Warnf("Error while cleaning up Lustre mountpoints: %s", err)
+			alert.Warnf("Failed to unmount %s in cleanup: %s", mc.Directory, err)
 		}
 	}
 
