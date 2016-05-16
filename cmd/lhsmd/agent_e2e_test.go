@@ -1,4 +1,4 @@
-package agent_e2e_test
+package main_test
 
 import (
 	"flag"
@@ -29,7 +29,6 @@ var (
 
 func init() {
 	flag.BoolVar(&enableLeakTest, "leak", false, "enable leak check")
-	flag.Var(debug.FlagVar())
 	flag.Parse()
 
 	// swap in the dummy implementation
