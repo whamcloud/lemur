@@ -18,7 +18,6 @@ type (
 	DataMoverClient struct {
 		plugin    Plugin
 		rpcClient pb.DataMoverClient
-		stop      chan struct{}
 		status    chan *pb.ActionStatus
 		mover     Mover
 		config    *Config
@@ -207,16 +206,14 @@ func NewMover(plugin Plugin, cli pb.DataMoverClient, config *Config) *DataMoverC
 		plugin:    plugin,
 		rpcClient: cli,
 		mover:     config.Mover,
-		stop:      make(chan struct{}),
 		status:    make(chan *pb.ActionStatus, config.NumThreads),
 		config:    config,
 	}
 }
 
 // Run begins listening for and processing incoming action items
-func (dm *DataMoverClient) Run() {
+func (dm *DataMoverClient) Run(ctx context.Context) {
 	var wg sync.WaitGroup
-	ctx, cancel := context.WithCancel(context.Background())
 
 	handle, err := dm.registerEndpoint(ctx)
 	if err != nil {
@@ -242,16 +239,10 @@ func (dm *DataMoverClient) Run() {
 	// Signal to the mover that it should begin any async processing
 	dm.config.Mover.Start()
 
-	<-dm.stop
+	<-ctx.Done()
 	debug.Printf("Shutting down Data Mover")
-	cancel()
 	wg.Wait()
 	close(dm.status)
-}
-
-// Stop signals to the client that it should stop processing and shut down
-func (dm *DataMoverClient) Stop() {
-	close(dm.stop)
 }
 
 func (dm *DataMoverClient) registerEndpoint(ctx context.Context) (*pb.Handle, error) {

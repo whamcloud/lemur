@@ -5,6 +5,8 @@ import (
 	"path"
 	"testing"
 
+	"golang.org/x/net/context"
+
 	"google.golang.org/grpc"
 
 	"github.intel.com/hpdd/logging/alert"
@@ -104,19 +106,25 @@ func (a *TestAction) SetActualLength(length uint64) {
 }
 
 type testPlugin struct {
-	name    string
-	config  *pluginConfig
-	t       *testing.T
-	movers  []*DataMoverClient
-	rpcConn *grpc.ClientConn
+	name          string
+	config        *pluginConfig
+	t             *testing.T
+	movers        []*DataMoverClient
+	rpcConn       *grpc.ClientConn
+	ctx           context.Context
+	cancelContext context.CancelFunc
 }
 
 // NewTestPlugin returns a test plugin
 func NewTestPlugin(t *testing.T, name string) Plugin {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	return &testPlugin{
-		config: mustInitConfig(),
-		name:   name,
-		t:      t,
+		config:        mustInitConfig(),
+		name:          name,
+		t:             t,
+		ctx:           ctx,
+		cancelContext: cancel,
 	}
 }
 
@@ -147,7 +155,7 @@ func (a *testPlugin) AddMover(config *Config) {
 	}
 	a.rpcConn = conn
 	dm := NewMover(a, pb.NewDataMoverClient(conn), config)
-	go dm.Run()
+	go dm.Run(a.ctx)
 	a.movers = append(a.movers, dm)
 }
 
@@ -155,9 +163,7 @@ func (a *testPlugin) AddMover(config *Config) {
 // and shut down
 func (a *testPlugin) Stop() {
 	debug.Print("Shutting down all data movers")
-	for _, dm := range a.movers {
-		dm.Stop()
-	}
+	a.cancelContext()
 }
 
 // Close closes the connection to the agent
