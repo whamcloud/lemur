@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync/atomic"
 	"time"
@@ -16,22 +17,32 @@ import (
 	"github.intel.com/hpdd/lustre/llapi"
 )
 
-// ActionID is a unique (per agent instance) ID for HSM actions
-type ActionID uint64
+type (
+	// ActionID is a unique (per agent instance) ID for HSM actions
+	ActionID uint64
+
+	// Action represents an HSM action
+	Action struct {
+		id     ActionID
+		aih    hsm.ActionHandle
+		agent  *HsmAgent
+		start  time.Time
+		FileID []byte
+		Data   []byte
+	}
+
+	// ActionData is extra data passed to the Agent by policy engine
+	ActionData struct {
+		FileID    []byte `json:"file_id"`
+		MoverData []byte `json:"mover_data"`
+	}
+)
 
 var actionIDCounter ActionID
 
 // NextActionID returns monotonically-increasing ActionIDs
 func NextActionID() ActionID {
 	return ActionID(atomic.AddUint64((*uint64)(&actionIDCounter), 1))
-}
-
-// Action represents an HSM action
-type Action struct {
-	id    ActionID
-	aih   hsm.ActionHandle
-	agent *HsmAgent
-	start time.Time
 }
 
 func (action *Action) String() string {
@@ -66,6 +77,44 @@ func (action *Action) ID() ActionID {
 	return action.id
 }
 
+// Prepare ensure action is ready to be sent.
+// Complete any actions that may require accessing the filesystem.
+func (action *Action) Prepare() error {
+	var data ActionData
+	if len(action.aih.Data()) > 0 {
+		err := json.Unmarshal(action.aih.Data(), &data)
+		if err != nil {
+			alert.Warnf("unrecognized data passed to agent: %v: %v", action.aih.Data(), err)
+		}
+	}
+
+	if len(data.MoverData) > 0 {
+		action.Data = data.MoverData
+	}
+
+	if len(data.FileID) > 0 {
+		debug.Printf("found fileID from user: %v %d", data.FileID, len(data.FileID))
+		action.FileID = data.FileID
+	} else {
+		switch action.aih.Action() {
+		case llapi.HsmActionRestore, llapi.HsmActionRemove:
+			var err error
+			action.FileID, err = fileid.Get(action.agent.Root(), action.aih.Fid())
+			if err != nil {
+				debug.Printf("Error reading fileid: %v (%v) will retry", err, action)
+				// WTF, let's try again
+				time.Sleep(1 * time.Second)
+				action.FileID, err = fileid.Get(action.agent.Root(), action.aih.Fid())
+
+			}
+			if err != nil {
+				alert.Warnf("Error reading fileid: %v (%v)", err, action) // hmm, can't restore if there is no file id
+			}
+		}
+	}
+	return nil
+}
+
 // AsMessage returns the protobuf version of an Action.
 func (action *Action) AsMessage() *pb.ActionItem {
 	msg := &pb.ActionItem{
@@ -74,23 +123,8 @@ func (action *Action) AsMessage() *pb.ActionItem {
 		PrimaryPath: fs.FidRelativePath(action.aih.Fid()),
 		Offset:      action.aih.Offset(),
 		Length:      action.aih.Length(),
-		Data:        action.aih.Data(),
-	}
-
-	switch action.aih.Action() {
-	case llapi.HsmActionRestore, llapi.HsmActionRemove:
-		var err error
-		msg.FileId, err = fileid.Get(action.agent.Root(), action.aih.Fid())
-		if err != nil {
-			debug.Printf("Error reading fileid: %v (%v) will retry", err, action)
-			// WTF, let's try again
-			time.Sleep(1 * time.Second)
-			msg.FileId, err = fileid.Get(action.agent.Root(), action.aih.Fid())
-
-		}
-		if err != nil {
-			alert.Warnf("Error reading fileid: %v (%v)", err, action) // hmm, can't restore if there is no file id
-		}
+		FileId:      action.FileID,
+		Data:        action.Data,
 	}
 
 	dfid, err := action.aih.DataFid()

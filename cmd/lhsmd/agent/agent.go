@@ -143,6 +143,7 @@ func (ct *HsmAgent) handleActions(tag string) {
 		}
 		action := ct.newAction(aih)
 		ct.stats.StartAction(action)
+		action.Prepare()
 		if e, ok := ct.Endpoints.Get(uint32(aih.ArchiveID())); ok {
 			debug.Printf("%s: id:%d new %s %x %v", tag, action.id,
 				action.aih.Action(),
