@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
+	"github.intel.com/hpdd/policy/pdm/lhsm-plugin-posix/posix"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
 )
 
@@ -54,7 +55,7 @@ func TestMergedConfig(t *testing.T) {
 				Root: "/tmp/archives/1",
 			},
 		},
-		Checksums: &checksumConfig{},
+		Checksums: &posix.ChecksumConfig{},
 	}
 
 	if !reflect.DeepEqual(merged, expected) {
@@ -99,16 +100,16 @@ func TestChecksumConfig(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	checksumConfigs := map[int]*checksumConfig{
-		0: &checksumConfig{
+	checksumConfigs := map[int]*posix.ChecksumConfig{
+		0: &posix.ChecksumConfig{
 			Disabled:                true,
 			DisableCompareOnRestore: false,
 		},
-		1: &checksumConfig{
+		1: &posix.ChecksumConfig{
 			Disabled:                false,
 			DisableCompareOnRestore: false,
 		},
-		2: &checksumConfig{
+		2: &posix.ChecksumConfig{
 			Disabled:                false,
 			DisableCompareOnRestore: true,
 		},
@@ -140,15 +141,11 @@ func TestChecksumConfig(t *testing.T) {
 
 	// First, ensure that the config was loaded as expected
 	if !reflect.DeepEqual(loaded, expected) {
-		t.Fatalf("\nexpected: \n\n%#v\ngot: \n\n%#v\n\n", expected, loaded)
+		t.Fatalf("\nexpected: \n\n%s\ngot: \n\n%s\n\n", expected, loaded)
 	}
 
+	posix.DefaultChecksums = *loaded.Checksums
 	// Next, ensure that the archive backends are configured correctly
-	movers, err := createMovers(loaded)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
 	var tests = []struct {
 		archiveID   uint32
 		expectedNum int
@@ -158,15 +155,22 @@ func TestChecksumConfig(t *testing.T) {
 		{3, 0}, // should have the global config
 	}
 
-	for _, tc := range tests {
-		mover, ok := movers[tc.archiveID]
-		if !ok {
-			t.Fatalf("err: mover for archive %d wasn't created", tc.archiveID)
+	getExpectedChecksum := func(id uint32) *posix.ChecksumConfig {
+		for _, tc := range tests {
+			if tc.archiveID == id {
+				return checksumConfigs[tc.expectedNum]
+			}
 		}
+		return nil
+	}
 
+	for _, a := range loaded.Archives {
+		mover, err := posix.NewMover(a.Name, a.Root, a.Checksums)
+		if err != nil {
+			t.Fatalf("err: %s", err)
+		}
 		got := mover.ChecksumConfig()
-		expected := checksumConfigs[tc.expectedNum].ToPosix()
-
+		expected := getExpectedChecksum(uint32(a.ID))
 		if !reflect.DeepEqual(expected, got) {
 			t.Fatalf("\nexpected: \n\n%#v\ngot: \n\n%#v\n\n", expected, got)
 		}

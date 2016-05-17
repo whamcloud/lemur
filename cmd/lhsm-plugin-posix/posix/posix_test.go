@@ -83,10 +83,24 @@ func TestArchiveMaxSize(t *testing.T) {
 	})
 }
 
+func TestArchiveDefaultChecksum(t *testing.T) {
+	defaultChecksum := func(cfg *posix.ChecksumConfig) *posix.ChecksumConfig {
+		return cfg.Merge(nil)
+	}
+	WithPosixMover(t, defaultChecksum, func(t *testing.T, mover *posix.Mover) {
+		var length uint64 = 1000000
+		tfile, cleanFile := testTempFile(t, length)
+		defer cleanFile()
+
+		// we received maxuint64 from coordinator, so test this as well
+		action := testArchive(t, mover, tfile, 0, math.MaxUint64, nil, nil)
+		testRestore(t, mover, 0, math.MaxUint64, action.FileID(), nil)
+	})
+}
+
 func TestArchiveNoChecksum(t *testing.T) {
-	disableChecksum := func(cfg *posix.MoverConfig) *posix.MoverConfig {
-		cfg.Checksums.Disabled = true
-		return cfg
+	disableChecksum := func(cfg *posix.ChecksumConfig) *posix.ChecksumConfig {
+		return cfg.Merge(&posix.ChecksumConfig{Disabled: true})
 	}
 
 	WithPosixMover(t, disableChecksum, func(t *testing.T, mover *posix.Mover) {
@@ -110,9 +124,8 @@ func TestArchiveNoChecksum(t *testing.T) {
 }
 
 func TestArchiveNoChecksumRestore(t *testing.T) {
-	disableChecksum := func(cfg *posix.MoverConfig) *posix.MoverConfig {
-		cfg.Checksums.DisableCompareOnRestore = true
-		return cfg
+	disableChecksum := func(cfg *posix.ChecksumConfig) *posix.ChecksumConfig {
+		return cfg.Merge(&posix.ChecksumConfig{DisableCompareOnRestore: true})
 	}
 
 	WithPosixMover(t, disableChecksum, func(t *testing.T, mover *posix.Mover) {
@@ -195,23 +208,19 @@ func TestRemove(t *testing.T) {
 	})
 }
 
-func WithPosixMover(t *testing.T, updateConfig func(*posix.MoverConfig) *posix.MoverConfig,
+func WithPosixMover(t *testing.T, updateConfig func(*posix.ChecksumConfig) *posix.ChecksumConfig,
 	tester func(t *testing.T, mover *posix.Mover)) {
 
 	defer testChdirTemp(t)()
 	archiveDir, cleanArchive := testTempDir(t)
 	defer cleanArchive()
 
-	config := &posix.MoverConfig{
-		Name:       "posix-test",
-		ArchiveDir: archiveDir,
-	}
-
+	var config *posix.ChecksumConfig
 	if updateConfig != nil {
-		config = updateConfig(config)
+		config = updateConfig(nil)
 	}
 
-	mover, err := posix.NewMover(config)
+	mover, err := posix.NewMover("posix-test", archiveDir, config)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -48,20 +48,15 @@ type (
 	// ChecksumConfig defines the configured behavior for file
 	// checksumming in the POSIX data mover
 	ChecksumConfig struct {
-		Disabled                bool
-		DisableCompareOnRestore bool
-	}
-
-	// MoverConfig defines the configuration for a POSIX data mover
-	MoverConfig struct {
-		Name       string
-		ArchiveDir string
-		Checksums  ChecksumConfig
+		Disabled                bool `hcl:"disabled"`
+		DisableCompareOnRestore bool `hcl:"disable_compare_on_restore"`
 	}
 
 	// Mover is a POSIX data mover
 	Mover struct {
-		cfg *MoverConfig
+		Name       string
+		ArchiveDir string
+		Checksums  ChecksumConfig
 	}
 
 	// FileID is used to identify a file in the backend
@@ -71,14 +66,37 @@ type (
 	}
 )
 
+var (
+	// DefaultChecksums are enabled
+	DefaultChecksums ChecksumConfig
+)
+
+// Merge the two configurations. Returns a copy of
+// other if it is not nil, otherwise retuns a copy of c.
+func (c *ChecksumConfig) Merge(other *ChecksumConfig) *ChecksumConfig {
+	var result ChecksumConfig
+	if other != nil {
+		result = *other
+
+	} else if c != nil {
+		result = *c
+	} else {
+		return nil
+	}
+
+	return &result
+}
+
 // NewMover returns a new *Mover
-func NewMover(cfg *MoverConfig) (*Mover, error) {
-	if cfg.ArchiveDir == "" {
+func NewMover(name string, dir string, checksums *ChecksumConfig) (*Mover, error) {
+	if dir == "" {
 		return nil, fmt.Errorf("Invalid mover config: ArchiveDir is unset")
 	}
 
 	return &Mover{
-		cfg: cfg,
+		Name:       name,
+		ArchiveDir: dir,
+		Checksums:  *DefaultChecksums.Merge(checksums),
 	}, nil
 }
 
@@ -113,13 +131,13 @@ func CopyWithProgress(dst io.WriterAt, src io.ReaderAt, start uint64, length uin
 // ChecksumConfig returns the mover's checksum configuration
 // Returns a pointer so the caller can modify the config.
 func (m *Mover) ChecksumConfig() *ChecksumConfig {
-	return &m.cfg.Checksums
+	return &m.Checksums
 }
 
 // Destination returns the path to archived file.
 // Exported for testing.
 func (m *Mover) Destination(id string) string {
-	dir := path.Join(m.cfg.ArchiveDir,
+	dir := path.Join(m.ArchiveDir,
 		"objects",
 		fmt.Sprintf("%s", id[0:2]),
 		fmt.Sprintf("%s", id[2:4]))
@@ -133,12 +151,12 @@ func (m *Mover) Destination(id string) string {
 
 // Start signals the mover to begin any asynchronous processing (e.g. stats)
 func (m *Mover) Start() {
-	debug.Printf("%s started", m.cfg.Name)
+	debug.Printf("%s started", m.Name)
 }
 
 // Archive fulfills an HSM Archive request
 func (m *Mover) Archive(action dmplugin.Action) error {
-	debug.Printf("%s id:%d archive %s", m.cfg.Name, action.ID(), action.PrimaryPath())
+	debug.Printf("%s id:%d archive %s", m.Name, action.ID(), action.PrimaryPath())
 	rate.Mark(1)
 	start := time.Now()
 
@@ -157,7 +175,7 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 	defer dst.Close()
 
 	var cw ChecksumWriter
-	if !m.cfg.Checksums.Disabled {
+	if !m.Checksums.Disabled {
 		cw = NewSha1HashWriter(dst)
 	} else {
 		cw = NewNoopHashWriter(dst)
@@ -182,7 +200,7 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 		return err
 	}
 
-	debug.Printf("%s id:%d Archived %d bytes in %v from %s to %s %x", m.cfg.Name, action.ID(), n,
+	debug.Printf("%s id:%d Archived %d bytes in %v from %s to %s %x", m.Name, action.ID(), n,
 		time.Since(start),
 		action.PrimaryPath(),
 		m.Destination(fileID),
@@ -225,7 +243,7 @@ func ParseFileID(buf []byte) (*FileID, error) {
 
 // Restore fulfills an HSM Restore request
 func (m *Mover) Restore(action dmplugin.Action) error {
-	debug.Printf("%s id:%d restore %s %s", m.cfg.Name, action.ID(), action.PrimaryPath(), action.FileID())
+	debug.Printf("%s id:%d restore %s %s", m.Name, action.ID(), action.PrimaryPath(), action.FileID())
 	rate.Mark(1)
 	start := time.Now()
 
@@ -249,7 +267,7 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	defer dst.Close()
 
 	var cw ChecksumWriter
-	if id.Sum != "" && !m.cfg.Checksums.DisableCompareOnRestore {
+	if id.Sum != "" && !m.Checksums.DisableCompareOnRestore {
 		cw = NewSha1HashWriter(dst)
 	} else {
 		cw = NewNoopHashWriter(dst)
@@ -274,14 +292,14 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 		return err
 	}
 
-	if id.Sum != "" && !m.cfg.Checksums.DisableCompareOnRestore {
+	if id.Sum != "" && !m.Checksums.DisableCompareOnRestore {
 		if id.Sum != fmt.Sprintf("%x", cw.Sum()) {
 			alert.Warnf("original checksum doesn't match new:  %s != %x", id.Sum, cw.Sum())
 			return errors.New("Checksum mismatch!")
 		}
 	}
 
-	debug.Printf("%s id:%d Restored %d bytes in %v to %s %x", m.cfg.Name, action.ID(), n,
+	debug.Printf("%s id:%d Restored %d bytes in %v to %s %x", m.Name, action.ID(), n,
 		time.Since(start),
 		action.PrimaryPath(),
 		cw.Sum())
@@ -291,7 +309,7 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 
 // Remove fulfills an HSM Remove request
 func (m *Mover) Remove(action dmplugin.Action) error {
-	debug.Printf("%s: remove %s %s", m.cfg.Name, action.PrimaryPath(), action.FileID())
+	debug.Printf("%s: remove %s %s", m.Name, action.PrimaryPath(), action.FileID())
 	rate.Mark(1)
 	if action.FileID() == nil {
 		return errors.New("Missing file_id")
