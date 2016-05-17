@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/dustin/go-humanize"
+	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
 
 	"github.intel.com/hpdd/logging/alert"
@@ -115,13 +116,6 @@ func init() {
 	// }
 }
 
-func getAgentEnvSetting(name string) (value string) {
-	if value = os.Getenv(name); value == "" {
-		alert.Fatal("This plugin is intended to be launched by the agent.")
-	}
-	return
-}
-
 func s3Svc(region string) *s3.S3 {
 	// TODO: Allow more per-archive configuration options?
 	return s3.New(session.New(aws.NewConfig().WithRegion(region)))
@@ -145,32 +139,32 @@ func getMergedConfig(plugin dmplugin.Plugin) (*s3Config, error) {
 func main() {
 	plugin, err := dmplugin.New(path.Base(os.Args[0]))
 	if err != nil {
-		alert.Fatalf("failed to initialize plugin: %s", err)
+		alert.Abort(errors.Wrap(err, "failed to initialize plugin"))
 	}
 	defer plugin.Close()
 
 	cfg, err := getMergedConfig(plugin)
 	if err != nil {
-		alert.Fatalf("Unable to determine plugin configuration: %s", err)
+		alert.Abort(errors.Wrap(err, "Unable to determine plugin configuration"))
 	}
 
 	debug.Printf("S3Mover configuration:\n%v", cfg)
 
 	if len(cfg.Archives) == 0 {
-		alert.Fatalf("Invalid configuration: No archives defined")
+		alert.Abort(errors.New("Invalid configuration: No archives defined"))
 	}
 
 	for _, archive := range cfg.Archives {
 		debug.Print(archive)
 		if err := archive.checkValid(); err != nil {
-			alert.Fatalf("Invalid configuration: %s", err)
+			alert.Abort(errors.Wrap(err, "Invalid configuration"))
 		}
 	}
 
 	// All base filesystem operations will be relative to current directory
 	err = os.Chdir(plugin.Base())
 	if err != nil {
-		alert.Fatal(err)
+		alert.Abort(errors.Wrap(err, "chdir failed"))
 	}
 
 	done := make(chan struct{})

@@ -3,6 +3,8 @@ package dmplugin
 import (
 	"path"
 
+	"github.com/pkg/errors"
+
 	"golang.org/x/net/context"
 
 	pb "github.intel.com/hpdd/policy/pdm/pdm"
@@ -37,13 +39,13 @@ func New(name string) (Plugin, error) {
 
 	fsClient, err := client.New(config.ClientRoot)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "client new failed")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	conn, err := grpc.Dial(config.AgentAddress, grpc.WithInsecure())
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "dial gprc server failed")
 	}
 	return &dmPlugin{
 		name:          name,
@@ -86,5 +88,5 @@ func (a *dmPlugin) Stop() {
 
 // Close closes the connection to the agent
 func (a *dmPlugin) Close() error {
-	return a.rpcConn.Close()
+	return errors.Wrap(a.rpcConn.Close(), "closed failed")
 }

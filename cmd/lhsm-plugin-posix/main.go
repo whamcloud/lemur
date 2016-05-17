@@ -42,18 +42,18 @@ func (a *archiveConfig) String() string {
 }
 
 func (a *archiveConfig) checkValid() error {
-	var errors []string
+	var errs []string
 
 	if a.Root == "" {
-		errors = append(errors, fmt.Sprintf("Archive %s: archive root not set", a.Name))
+		errs = append(errs, fmt.Sprintf("Archive %s: archive root not set", a.Name))
 	}
 
 	if a.ID < 1 {
-		errors = append(errors, fmt.Sprintf("Archive %s: archive id not set", a.Name))
+		errs = append(errs, fmt.Sprintf("Archive %s: archive id not set", a.Name))
 	}
 
-	if len(errors) > 0 {
-		return fmt.Errorf("Errors: %s", strings.Join(errors, ", "))
+	if len(errs) > 0 {
+		return errors.Errorf("Errors: %s", strings.Join(errs, ", "))
 	}
 
 	return nil
@@ -84,7 +84,7 @@ func start(plugin dmplugin.Plugin, cfg *posixConfig) {
 	// All base filesystem operations will be relative to current directory
 	err := os.Chdir(plugin.Base())
 	if err != nil {
-		alert.Fatal(err)
+		alert.Abort(errors.Wrap(err, "chdir failed"))
 	}
 
 	done := make(chan struct{})
@@ -117,7 +117,7 @@ func getMergedConfig(plugin dmplugin.Plugin) (*posixConfig, error) {
 	var cfg posixConfig
 	err := dmplugin.LoadConfig(plugin.ConfigFile(), &cfg)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to load config: %s", err)
+		return nil, errors.Errorf("Failed to load config: %s", err)
 	}
 
 	return baseCfg.Merge(&cfg), nil
@@ -126,25 +126,25 @@ func getMergedConfig(plugin dmplugin.Plugin) (*posixConfig, error) {
 func main() {
 	plugin, err := dmplugin.New(path.Base(os.Args[0]))
 	if err != nil {
-		alert.Fatalf("failed to initialize plugin: %s", err)
+		alert.Abort(errors.Wrap(err, "failed to initialize plugin"))
 	}
 	defer plugin.Close()
 
 	cfg, err := getMergedConfig(plugin)
 	if err != nil {
-		alert.Fatalf("Unable to determine plugin configuration: %s", err)
+		alert.Abort(errors.Wrap(err, "Unable to determine plugin configuration"))
 	}
 
 	debug.Printf("PosixMover configuration:\n%v", cfg)
 
 	if len(cfg.Archives) == 0 {
-		alert.Fatalf("Invalid configuration: No archives defined")
+		alert.Abort(errors.New("Invalid configuration: No archives defined"))
 	}
 
 	for _, archive := range cfg.Archives {
 		debug.Print(archive)
 		if err := archive.checkValid(); err != nil {
-			alert.Fatalf("Invalid configuration: %s", err)
+			alert.Abort(errors.Wrap(err, "Invalid configuration"))
 		}
 	}
 

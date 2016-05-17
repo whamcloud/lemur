@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -10,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/pkg/errors"
 
 	"github.com/pborman/uuid"
 	"github.intel.com/hpdd/logging/alert"
@@ -73,13 +73,13 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 
 	src, err := os.Open(action.PrimaryPath())
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "%s: open failed", action.PrimaryPath())
 	}
 	defer src.Close()
 
 	fi, err := src.Stat()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "stat failed")
 	}
 
 	fileID := newFileID()
@@ -101,7 +101,7 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 		if multierr, ok := err.(s3manager.MultiUploadFailure); ok {
 			alert.Warn("Upload error:", multierr.Code(), multierr.Message(), multierr.UploadID())
 		}
-		return err
+		return errors.Wrap(err, "upload failed")
 	}
 
 	debug.Printf("%s id:%d Archived %d bytes in %v from %s to %s", m.name, action.ID(), fi.Size(),
@@ -120,7 +120,7 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 
 	start := time.Now()
 	if action.FileID() == nil {
-		return fmt.Errorf("Missing file_id on action %d", action.ID())
+		return errors.Errorf("Missing file_id on action %d", action.ID())
 	}
 
 	srcObj := m.destination(string(action.FileID()))
@@ -129,7 +129,7 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 		Key:    aws.String(srcObj),
 	})
 	if err != nil {
-		return fmt.Errorf("s3.HeadObject() on %s failed: %s", srcObj, err)
+		return errors.Errorf("s3.HeadObject() on %s failed: %s", srcObj, err)
 	}
 	debug.Printf("obj %s, size %d", srcObj, *out.ContentLength)
 
@@ -137,7 +137,7 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	dstPath := action.WritePath()
 	dst, err := os.OpenFile(dstPath, os.O_WRONLY, 0644)
 	if err != nil {
-		return fmt.Errorf("Couldn't open %s for write: %s", dstPath, err)
+		return errors.Errorf("Couldn't open %s for write: %s", dstPath, err)
 	}
 	defer dst.Close()
 
@@ -154,7 +154,7 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 			Key:    aws.String(srcObj),
 		})
 	if err != nil {
-		return fmt.Errorf("s3.Download() of %s failed: %s", srcObj, err)
+		return errors.Errorf("s3.Download() of %s failed: %s", srcObj, err)
 	}
 
 	debug.Printf("%s id:%d Restored %d bytes in %v from %s to %s", m.name, action.ID(), n,
@@ -177,5 +177,5 @@ func (m *Mover) Remove(action dmplugin.Action) error {
 		Bucket: aws.String(m.bucket),
 		Key:    aws.String(m.destination(string(action.FileID()))),
 	})
-	return err
+	return errors.Wrap(err, "delete object failed")
 }

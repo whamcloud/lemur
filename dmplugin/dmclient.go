@@ -1,11 +1,12 @@
 package dmplugin
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"sync"
 	"syscall"
+
+	"github.com/pkg/errors"
 
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
@@ -217,7 +218,7 @@ func (dm *DataMoverClient) Run(ctx context.Context) {
 
 	handle, err := dm.registerEndpoint(ctx)
 	if err != nil {
-		alert.Fatal(err)
+		alert.Abort(errors.Wrap(err, "register endpoint failed"))
 	}
 	ctx = withHandle(ctx, handle)
 	actions := dm.processActions(ctx)
@@ -264,11 +265,11 @@ func (dm *DataMoverClient) processActions(ctx context.Context) chan *pb.ActionIt
 	go func() {
 		handle, ok := getHandle(ctx)
 		if !ok {
-			alert.Fatal("No context")
+			alert.Abort(errors.New("No context"))
 		}
 		stream, err := dm.rpcClient.GetActions(ctx, handle)
 		if err != nil {
-			alert.Fatalf("GetActions() failed: %v", err)
+			alert.Abort(errors.Wrap(err, "GetActions() failed"))
 		}
 		for {
 			action, err := stream.Recv()
@@ -295,19 +296,19 @@ func (dm *DataMoverClient) processStatus(ctx context.Context) {
 	go func() {
 		handle, ok := getHandle(ctx)
 		if !ok {
-			alert.Fatal("No context")
+			alert.Abort(errors.New("No context"))
 		}
 
 		acks, err := dm.rpcClient.StatusStream(ctx)
 		if err != nil {
-			alert.Fatalf("StatusStream() failed: %v", err)
+			alert.Abort(errors.Wrap(err, "StatusStream() failed"))
 		}
 		for reply := range dm.status {
 			reply.Handle = handle
 			// debug.Printf("Sent reply  %x error: %#v", reply.Id, reply.Error)
 			err := acks.Send(reply)
 			if err != nil {
-				alert.Fatalf("Failed to ack message %x: %v", reply.Id, err)
+				alert.Abort(errors.Wrapf(err, "Failed to ack message %x", reply.Id))
 			}
 		}
 	}()

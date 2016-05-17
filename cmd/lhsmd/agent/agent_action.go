@@ -6,6 +6,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
@@ -60,7 +62,7 @@ func hsm2Command(a llapi.HsmAction) (c pb.Command) {
 	case llapi.HsmActionCancel:
 		c = pb.Command_CANCEL
 	default:
-		alert.Fatalf("unknown command: %v", a)
+		alert.Abort(errors.Errorf("unknown command: %v", a))
 	}
 
 	return
@@ -191,6 +193,6 @@ func (action *Action) Fail(rc int) error {
 	if err != nil {
 		audit.Logf("id:%d fail after fail %x: %v", action.id, action.aih.Cookie, err)
 	}
-	return err
+	return errors.Wrap(err, "end action failed")
 
 }

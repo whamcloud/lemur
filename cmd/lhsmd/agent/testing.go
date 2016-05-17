@@ -1,9 +1,10 @@
 package agent
 
 import (
-	"fmt"
 	"testing"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"golang.org/x/net/context"
 
@@ -77,12 +78,12 @@ func (ta *TestAgent) Start(ctx context.Context) error {
 	for {
 		select {
 		case err := <-ta.startError:
-			return err
+			return errors.Wrap(err, "start error")
 		case <-tsStarted:
 			close(ta.started)
 			return nil
 		case <-time.After(agentStartTimeout * time.Second):
-			return fmt.Errorf("Agent startup timed out after %d seconds", agentStartTimeout)
+			return errors.Errorf("Agent startup timed out after %d seconds", agentStartTimeout)
 		}
 	}
 }

@@ -5,10 +5,11 @@ import (
 	"os"
 	"path"
 
+	"github.com/pkg/errors"
+
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
-	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
 )
 
 var (
@@ -28,12 +29,12 @@ func (m *Mover) Start() {
 	debug.Print("noop mover started")
 }
 
-func noop(agentAddress string) {
+func noop() {
 	done := make(chan struct{})
 
 	plugin, err := dmplugin.New(path.Base(os.Args[0]))
 	if err != nil {
-		alert.Fatal(err)
+		alert.Abort(errors.Wrap(err, "create plugin failed"))
 	}
 
 	mover := Mover{}
@@ -47,10 +48,5 @@ func noop(agentAddress string) {
 }
 
 func main() {
-	agentAddress := os.Getenv(config.AgentConnEnvVar)
-	if agentAddress == "" {
-		alert.Fatal("This plugin is intended to be launched by the agent.")
-	}
-
-	noop(agentAddress)
+	noop()
 }

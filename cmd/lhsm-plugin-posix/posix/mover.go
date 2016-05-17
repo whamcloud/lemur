@@ -2,7 +2,6 @@ package posix
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/pborman/uuid"
+	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/audit"
@@ -90,7 +90,7 @@ func (c *ChecksumConfig) Merge(other *ChecksumConfig) *ChecksumConfig {
 // NewMover returns a new *Mover
 func NewMover(name string, dir string, checksums *ChecksumConfig) (*Mover, error) {
 	if dir == "" {
-		return nil, fmt.Errorf("Invalid mover config: ArchiveDir is unset")
+		return nil, errors.Errorf("Invalid mover config: ArchiveDir is unset")
 	}
 
 	return &Mover{
@@ -144,7 +144,7 @@ func (m *Mover) Destination(id string) string {
 
 	err := os.MkdirAll(dir, 0700)
 	if err != nil {
-		alert.Fatal(err)
+		alert.Abort(errors.Wrap(err, "mkdirall failed"))
 	}
 	return path.Join(dir, id)
 }
@@ -164,13 +164,13 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 
 	src, err := os.Open(action.PrimaryPath())
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "%s: open failed", action.PrimaryPath())
 	}
 	defer src.Close()
 
 	dst, err := os.Create(m.Destination(fileID))
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "%s: create failed", m.Destination(fileID))
 	}
 	defer dst.Close()
 
@@ -185,7 +185,7 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 	if action.Length() == math.MaxUint64 {
 		fi, err := src.Stat()
 		if err != nil {
-			return err
+			return errors.Wrap(err, "stat failed")
 		}
 
 		length = uint64(fi.Size()) - action.Offset()
@@ -197,7 +197,7 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 	n, err := CopyWithProgress(cw, src, action.Offset(), length, action)
 	if err != nil {
 		debug.Printf("copy error %v read %d expected %d", err, n, length)
-		return err
+		return errors.Wrap(err, "copy failed")
 	}
 
 	debug.Printf("%s id:%d Archived %d bytes in %v from %s to %s %x", m.Name, action.ID(), n,
@@ -213,7 +213,7 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 
 	buf, err := EncodeFileID(id)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "encode file id failed")
 	}
 	action.SetFileID(buf)
 	action.SetActualLength(n)
@@ -224,7 +224,7 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 func EncodeFileID(id *FileID) ([]byte, error) {
 	buf, err := json.Marshal(id)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "marshal failed")
 	}
 	return buf, nil
 
@@ -236,7 +236,7 @@ func ParseFileID(buf []byte) (*FileID, error) {
 	var id FileID
 	err := json.Unmarshal(buf, &id)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "unmarshal failed")
 	}
 	return &id, nil
 }
@@ -252,17 +252,17 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	}
 	id, err := ParseFileID(action.FileID())
 	if err != nil {
-		return err
+		return errors.Wrap(err, "parse file id")
 	}
 	src, err := os.Open(m.Destination(id.UUID))
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "%s: open failed", m.Destination(id.UUID))
 	}
 	defer src.Close()
 
 	dst, err := os.OpenFile(action.WritePath(), os.O_WRONLY, 0644)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "%s open write failed", action.WritePath())
 	}
 	defer dst.Close()
 
@@ -277,7 +277,7 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	if action.Length() == math.MaxUint64 {
 		fi, err := src.Stat()
 		if err != nil {
-			return err
+			return errors.Wrap(err, "stat failed")
 		}
 
 		length = uint64(fi.Size()) - action.Offset()
@@ -289,7 +289,7 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	n, err := CopyWithProgress(cw, src, action.Offset(), length, action)
 	if err != nil {
 		debug.Printf("copy error %v read %d expected %d", err, n, length)
-		return err
+		return errors.Wrap(err, "copy failed")
 	}
 
 	if id.Sum != "" && !m.Checksums.DisableCompareOnRestore {
@@ -316,7 +316,7 @@ func (m *Mover) Remove(action dmplugin.Action) error {
 	}
 	id, err := ParseFileID(action.FileID())
 	if err != nil {
-		return err
+		return errors.Wrap(err, "parse file id failed")
 	}
 
 	return os.Remove(m.Destination(id.UUID))

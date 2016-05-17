@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"path"
 
+	"github.com/pkg/errors"
+
 	"golang.org/x/net/context"
 
 	"github.intel.com/hpdd/logging/alert"
@@ -50,7 +52,7 @@ type (
 func (p *PluginConfig) String() string {
 	data, err := json.Marshal(p)
 	if err != nil {
-		alert.Fatal(err)
+		alert.Abort(errors.Wrap(err, "marshal failed"))
 	}
 
 	var out bytes.Buffer
@@ -151,7 +153,7 @@ func (m *PluginMonitor) StartPlugin(cfg *PluginConfig) error {
 	cmd.Env = append(cmd.Env, config.PluginMountpointEnvVar+"="+cfg.ClientMount)
 
 	if err := cmd.Start(); err != nil {
-		return err
+		return errors.Wrapf(err, "cmd failed %q", cmd)
 	}
 
 	audit.Logf("Started %s (PID: %d)", cmd.Path, cmd.Process.Pid)

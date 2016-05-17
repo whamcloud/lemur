@@ -6,6 +6,8 @@ import (
 	"path"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre"
@@ -19,12 +21,12 @@ import (
 func createSnapDir(p string) (string, error) {
 	fi, err := os.Lstat(p)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "lstat failed")
 	}
 	snapDir := path.Join(p, ".hsmsnap")
 	err = os.MkdirAll(snapDir, fi.Mode())
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "mkdir all failed")
 	}
 	return snapDir, nil
 }
@@ -32,9 +34,8 @@ func createSnapDir(p string) (string, error) {
 func createStubFile(f string, fi os.FileInfo, archive uint, layout *llapi.DataLayout) error {
 	_, err := hsm.Import(f, archive, fi, layout)
 	if err != nil {
-		alert.Warnf("Import failed: %v", err)
 		os.Remove(f)
-		return err
+		return errors.Wrapf(err, "%s: import failed", f)
 	}
 	return nil
 }
@@ -50,11 +51,11 @@ func createSnapshots(mnt fs.RootDir, archive uint, fileID []byte, names []string
 		absPath := mnt.Join(p)
 		snapDir, err := createSnapDir(path.Dir(absPath))
 		if err != nil {
-			return err
+			return errors.Wrap(err, "create snapdir failed")
 		}
 		fi, err := os.Lstat(absPath)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "lstat failed")
 		}
 		f := path.Join(snapDir, snapName(fi))
 		if first {
@@ -62,23 +63,26 @@ func createSnapshots(mnt fs.RootDir, archive uint, fileID []byte, names []string
 			layout, err = llapi.FileDataLayout(absPath)
 			if err != nil {
 				alert.Warnf("%s: unable to get layout: %v", f, err)
-				return err
+				return errors.Wrap(err, "get layout")
 			}
 			debug.Printf("%s: layout: %#v", absPath, layout)
 			err = createStubFile(f, fi, archive, layout)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "create stub file")
 			}
 			err = fileid.Set(f, fileID)
+			if err != nil {
+				return errors.Wrapf(err, "%s: set fileid", f)
+			}
 			firstPath = f
 			first = false
 		} else {
 			err = os.Link(firstPath, f)
+			if err != nil {
+				return errors.Wrapf(err, "%s: link to %s failed", f, firstPath)
+			}
 		}
 
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -86,7 +90,7 @@ func createSnapshots(mnt fs.RootDir, archive uint, fileID []byte, names []string
 func createSnapshot(mnt fs.RootDir, archive uint, fid *lustre.Fid, fileID []byte) error {
 	names, err := status.FidPathnames(mnt, fid)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "%s: fidpathname failed", fid)
 	}
 
 	return createSnapshots(mnt, archive, fileID, names)

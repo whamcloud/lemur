@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/hashicorp/hcl"
+	"github.com/pkg/errors"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
 )
@@ -22,11 +23,11 @@ type pluginConfig struct {
 func LoadConfig(cfgFile string, cfg interface{}) error {
 	data, err := ioutil.ReadFile(cfgFile)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "read config file failed")
 	}
 
 	if err := hcl.Decode(cfg, string(data)); err != nil {
-		return err
+		return errors.Wrap(err, "decode config file failed")
 	}
 
 	return nil
@@ -38,7 +39,7 @@ func LoadConfig(cfgFile string, cfg interface{}) error {
 func DisplayConfig(cfg interface{}) string {
 	data, err := json.Marshal(cfg)
 	if err != nil {
-		alert.Fatal(err)
+		alert.Abort(errors.Wrap(err, "marshal config failed"))
 	}
 
 	var out bytes.Buffer
