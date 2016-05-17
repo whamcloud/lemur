@@ -153,7 +153,7 @@ func TestArchiveEndToEnd(t *testing.T) {
 		t.Fatalf("error generating test fid: %s", err)
 	}
 	// Inject an action
-	tr := hsm.NewTestRequest(uint(testArchiveID), llapi.HsmActionArchive, testFid)
+	tr := hsm.NewTestRequest(uint(testArchiveID), llapi.HsmActionArchive, testFid, nil)
 	ta.AddAction(tr)
 
 	// Wait for the mover to signal that it has received the action
@@ -203,7 +203,7 @@ func TestRestoreEndToEnd(t *testing.T) {
 	}
 	fileid.Set(fs.FidRelativePath(testFid), []byte("moo"))
 	// Inject an action
-	tr := hsm.NewTestRequest(uint(testArchiveID), llapi.HsmActionRestore, testFid)
+	tr := hsm.NewTestRequest(uint(testArchiveID), llapi.HsmActionRestore, testFid, nil)
 	ta.AddAction(tr)
 
 	// Wait for the mover to signal that it has received the action
@@ -253,7 +253,7 @@ func TestRemoveEndToEnd(t *testing.T) {
 	}
 	fileid.Set(fs.FidRelativePath(testFid), []byte("moo"))
 	// Inject an action
-	tr := hsm.NewTestRequest(uint(testArchiveID), llapi.HsmActionRemove, testFid)
+	tr := hsm.NewTestRequest(uint(testArchiveID), llapi.HsmActionRemove, testFid, nil)
 	ta.AddAction(tr)
 
 	// Wait for the mover to signal that it has received the action
