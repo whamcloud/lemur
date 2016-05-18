@@ -256,10 +256,11 @@ func DefaultConfig() *Config {
 // NewConfig initializes a new Config struct with zero values
 func NewConfig() *Config {
 	return &Config{
-		InfluxDB:       &influxConfig{},
-		Snapshots:      &snapshotConfig{},
-		Transport:      &transportConfig{},
-		EnabledPlugins: []string{},
+		InfluxDB:           &influxConfig{},
+		Snapshots:          &snapshotConfig{},
+		Transport:          &transportConfig{},
+		EnabledPlugins:     []string{},
+		ClientMountOptions: clientMountOptions{},
 	}
 }
 
