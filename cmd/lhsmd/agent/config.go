@@ -47,20 +47,19 @@ type (
 
 	// Config represents HSM Agent configuration
 	Config struct {
-		MountRoot          string `hcl:"mount_root"`
-		AgentMountpoint    string `hcl:"agent_mountpoint"`
-		ClientDevice       *spec.ClientDevice
-		ClientMountOptions clientMountOptions `hcl:"client_mount_options"`
+		MountRoot          string             `hcl:"mount_root" json:"mount_root"`
+		ClientDevice       *spec.ClientDevice `json:"client_device"`
+		ClientMountOptions clientMountOptions `hcl:"client_mount_options" json:"client_mount_options"`
 
-		Processes int `hcl:"handler_count"`
+		Processes int `hcl:"handler_count" json:"handler_count"`
 
-		InfluxDB *influxConfig `hcl:"influxdb"`
+		InfluxDB *influxConfig `hcl:"influxdb" json:"influxdb"`
 
-		EnabledPlugins []string `hcl:"enabled_plugins"`
-		PluginDir      string   `hcl:"plugin_dir"`
+		EnabledPlugins []string `hcl:"enabled_plugins" json:"enabled_plugins"`
+		PluginDir      string   `hcl:"plugin_dir" json:"plugin_dir"`
 
-		Snapshots *snapshotConfig  `hcl:"snapshots"`
-		Transport *transportConfig `hcl:"transport"`
+		Snapshots *snapshotConfig  `hcl:"snapshots" json:"snapshots"`
+		Transport *transportConfig `hcl:"transport" json:"transport"`
 	}
 )
 
@@ -179,6 +178,12 @@ func (c *Config) Plugins() []*PluginConfig {
 	return plugins
 }
 
+// AgentMountpoint returns the calculated agent mountpoint under the
+// agent mount root.
+func (c *Config) AgentMountpoint() string {
+	return path.Join(c.MountRoot, "agent")
+}
+
 // Merge combines the supplied configuration's values with this one's
 func (c *Config) Merge(other *Config) *Config {
 	result := new(Config)
@@ -186,10 +191,6 @@ func (c *Config) Merge(other *Config) *Config {
 	result.MountRoot = c.MountRoot
 	if other.MountRoot != "" {
 		result.MountRoot = other.MountRoot
-	}
-	result.AgentMountpoint = c.AgentMountpoint
-	if other.AgentMountpoint != "" {
-		result.AgentMountpoint = other.AgentMountpoint
 	}
 
 	result.ClientDevice = c.ClientDevice
@@ -240,27 +241,25 @@ func (c *Config) Merge(other *Config) *Config {
 
 // DefaultConfig initializes a new Config struct with default values
 func DefaultConfig() *Config {
-	return &Config{
-		MountRoot:          config.DefaultAgentMountRoot,
-		AgentMountpoint:    config.DefaultAgentMountRoot + "/agent",
-		ClientMountOptions: config.DefaultClientMountOptions,
-		PluginDir:          config.DefaultPluginDir,
-		Processes:          runtime.NumCPU(),
-		InfluxDB:           &influxConfig{},
-		Snapshots:          &snapshotConfig{},
-		Transport: &transportConfig{
-			Type: config.DefaultTransport,
-			Port: config.DefaultTransportPort,
-		},
+	cfg := NewConfig()
+	cfg.MountRoot = config.DefaultAgentMountRoot
+	cfg.ClientMountOptions = config.DefaultClientMountOptions
+	cfg.PluginDir = config.DefaultPluginDir
+	cfg.Processes = runtime.NumCPU()
+	cfg.Transport = &transportConfig{
+		Type: config.DefaultTransport,
+		Port: config.DefaultTransportPort,
 	}
+	return cfg
 }
 
 // NewConfig initializes a new Config struct with zero values
 func NewConfig() *Config {
 	return &Config{
-		InfluxDB:  &influxConfig{},
-		Snapshots: &snapshotConfig{},
-		Transport: &transportConfig{},
+		InfluxDB:       &influxConfig{},
+		Snapshots:      &snapshotConfig{},
+		Transport:      &transportConfig{},
+		EnabledPlugins: []string{},
 	}
 }
 
@@ -279,7 +278,7 @@ func LoadConfig(configPath string) (*Config, error) {
 	defaults := DefaultConfig()
 	cfg := NewConfig()
 	if err := hcl.DecodeObject(cfg, obj); err != nil {
-		return nil, errors.Wrap(err, "decode config faile")
+		return nil, errors.Wrap(err, "decode config failed")
 	}
 	cfg = defaults.Merge(cfg)
 

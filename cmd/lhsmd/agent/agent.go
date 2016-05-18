@@ -57,7 +57,7 @@ type (
 
 // New accepts a config and returns a *HsmAgent
 func New(cfg *Config) (*HsmAgent, error) {
-	client, err := client.New(cfg.AgentMountpoint)
+	client, err := client.New(cfg.AgentMountpoint())
 	if err != nil {
 		return nil, err
 	}

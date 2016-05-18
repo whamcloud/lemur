@@ -48,7 +48,7 @@ func createMountConfigs(cfg *Config) []*mountConfig {
 	configs := []*mountConfig{
 		&mountConfig{
 			Device:    device,
-			Directory: cfg.AgentMountpoint,
+			Directory: cfg.AgentMountpoint(),
 			Type:      "lustre",
 			Options:   opts,
 			Flags:     flags,

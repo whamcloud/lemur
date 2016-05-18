@@ -1,0 +1,23 @@
+{
+	"MountRoot": "",
+	"AgentMountpoint": "",
+	"client_device": "10.211.55.37@tcp0:/testFs",
+	"ClientMountOptions": null,
+	"Processes": 0,
+	"InfluxDB": {
+		"URL": "",
+		"DB": "",
+		"User": "",
+		"Password": ""
+	},
+	"EnabledPlugins": null,
+	"PluginDir": "",
+	"Snapshots": {
+		"Enabled": false
+	},
+	"Transport": {
+		"Type": "",
+		"Server": "",
+		"Port": 0
+	}
+}

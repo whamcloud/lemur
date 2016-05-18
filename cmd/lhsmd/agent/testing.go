@@ -112,7 +112,7 @@ func NewTestAgent(t *testing.T, cfg *Config, mon *PluginMonitor, as *hsm.TestSou
 	return &TestAgent{
 		HsmAgent: HsmAgent{
 			stats:        NewActionStats(),
-			client:       client.Test(cfg.AgentMountpoint),
+			client:       client.Test(cfg.AgentMountpoint()),
 			config:       cfg,
 			monitor:      mon,
 			actionSource: as,
