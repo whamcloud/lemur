@@ -110,6 +110,7 @@ func doTimedUnmount(dir string) error {
 			select {
 			case <-ctx.Done():
 				lastError <- err
+				return
 			default:
 				err = unix.Unmount(dir, 0)
 				if err == nil {
