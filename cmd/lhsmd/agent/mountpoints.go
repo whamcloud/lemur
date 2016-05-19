@@ -3,15 +3,20 @@ package agent
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/pkg/errors"
 
+	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"
 
-	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre/pkg/mntent"
 )
+
+// UnmountTimeout is the time, in seconds, that an unmount will be retried
+// before failing with an error.
+const UnmountTimeout = 10
 
 type (
 	mountConfig struct {
@@ -90,6 +95,44 @@ func ConfigureMounts(cfg *Config) error {
 	return nil
 }
 
+func doTimedUnmount(dir string) error {
+	done := make(chan struct{})
+	lastError := make(chan error)
+
+	// This feels a little baroque, but it accomplishes two goals:
+	// 1) Don't leak this goroutine if we time out
+	// 2) Make sure that we safely get an error from unix.Unmount
+	//    back out to the caller
+	ctx, cancel := context.WithCancel(context.Background())
+	go func(ctx context.Context) {
+		var err error
+		for {
+			select {
+			case <-ctx.Done():
+				lastError <- err
+			default:
+				err = unix.Unmount(dir, 0)
+				if err == nil {
+					close(done)
+					lastError <- err
+					return
+				}
+				time.Sleep(1 * time.Second)
+			}
+		}
+	}(ctx)
+
+	for {
+		select {
+		case <-done:
+			return <-lastError
+		case <-time.After(time.Duration(UnmountTimeout) * time.Second):
+			cancel()
+			return errors.Wrapf(<-lastError, "Unmount of %s timed out", dir)
+		}
+	}
+}
+
 // CleanupMounts unmounts the Lustre client mounts configured by
 // ConfigureMounts().
 func CleanupMounts(cfg *Config) error {
@@ -98,15 +141,22 @@ func CleanupMounts(cfg *Config) error {
 		return errors.Wrap(err, "failed to get list of mounted filesystems")
 	}
 
-	for _, mc := range createMountConfigs(cfg) {
+	// Reverse the generated slice to perform mover unmounts first,
+	// finishing with the agent unmount.
+	mcList := createMountConfigs(cfg)
+	revList := make([]*mountConfig, len(mcList))
+	for i := range mcList {
+		revList[i] = mcList[len(mcList)-1-i]
+	}
+
+	for _, mc := range revList {
 		if _, err := entries.ByDir(mc.Directory); err != nil {
 			continue
 		}
 
 		debug.Printf("Cleaning up %s", mc.Directory)
-		if err := unix.Unmount(mc.Directory, 0); err != nil {
-			// Non-fatal error; just log it.
-			alert.Warnf("Failed to unmount %s in cleanup: %s", mc.Directory, err)
+		if err := doTimedUnmount(mc.Directory); err != nil {
+			return errors.Wrapf(err, "Failed to unmount %s", mc.Directory)
 		}
 	}
 
