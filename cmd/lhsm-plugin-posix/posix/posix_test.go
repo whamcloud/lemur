@@ -1,9 +1,13 @@
 package posix_test
 
 import (
+	"bytes"
 	"math"
 	"os"
 	"testing"
+
+	"github.com/pborman/uuid"
+	"github.com/pkg/errors"
 
 	"github.intel.com/hpdd/policy/pdm/dmplugin"
 	"github.intel.com/hpdd/policy/pdm/lhsm-plugin-posix/posix"
@@ -35,12 +39,16 @@ func testRestore(t *testing.T, mover *posix.Mover, offset uint64, length uint64,
 	return action
 }
 
-func testRestoreFail(t *testing.T, mover *posix.Mover, offset uint64, length uint64, fileID []byte, data []byte) *dmplugin.TestAction {
+func testRestoreFail(t *testing.T, mover *posix.Mover, offset uint64, length uint64, fileID []byte, data []byte, outer error) *dmplugin.TestAction {
 	tfile, cleanFile := testTempFile(t, 0)
 	defer cleanFile()
 	action := dmplugin.NewTestAction(t, tfile, offset, length, fileID, data)
 	if err := mover.Restore(action); err == nil {
-		t.Fatal("Expected restore to fail")
+		var buf bytes.Buffer
+		errors.Fprint(&buf, outer)
+		t.Fatalf("expected restore failure at: %s", buf.String())
+	} else {
+		t.Logf("got expected error: %v", err)
 	}
 	return action
 }
@@ -88,13 +96,78 @@ func TestArchiveDefaultChecksum(t *testing.T) {
 		return cfg.Merge(nil)
 	}
 	WithPosixMover(t, defaultChecksum, func(t *testing.T, mover *posix.Mover) {
-		var length uint64 = 1000000
+		var length uint64 = 100
+		tfile, cleanFile := testTempFile(t, length)
+		defer cleanFile()
+
+		action := testArchive(t, mover, tfile, 0, length, nil, nil)
+		testRestore(t, mover, 0, length, action.FileID(), nil)
+	})
+}
+
+func TestArchiveRestoreBrokenFileID(t *testing.T) {
+	defaultChecksum := func(cfg *posix.ChecksumConfig) *posix.ChecksumConfig {
+		return cfg.Merge(nil)
+	}
+	WithPosixMover(t, defaultChecksum, func(t *testing.T, mover *posix.Mover) {
+		var length uint64 = 100
+		tfile, cleanFile := testTempFile(t, length)
+		defer cleanFile()
+
+		action := testArchive(t, mover, tfile, 0, length, nil, nil)
+		fileID, err := posix.ParseFileID(action.FileID())
+		if err != nil {
+			t.Fatal(err)
+		}
+		fileID.UUID = uuid.New()
+		buf, err := posix.EncodeFileID(fileID)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Wrong UUID
+		action.SetFileID(buf)
+		testRestoreFail(t, mover, 0, length, action.FileID(), nil, errors.New(""))
+
+		// Missing FileID
+		action.SetFileID(nil)
+		testRestoreFail(t, mover, 0, length, action.FileID(), nil, errors.New(""))
+
+		// Garbage FildID
+		action.SetFileID([]byte(`{"Not a FileID"}`))
+		testRestoreFail(t, mover, 0, length, action.FileID(), nil, errors.New(""))
+	})
+}
+
+func TestArchiveRestoreError(t *testing.T) {
+	defaultChecksum := func(cfg *posix.ChecksumConfig) *posix.ChecksumConfig {
+		return cfg.Merge(nil)
+	}
+	WithPosixMover(t, defaultChecksum, func(t *testing.T, mover *posix.Mover) {
+		var length uint64 = 100
 		tfile, cleanFile := testTempFile(t, length)
 		defer cleanFile()
 
 		// we received maxuint64 from coordinator, so test this as well
-		action := testArchive(t, mover, tfile, 0, math.MaxUint64, nil, nil)
-		testRestore(t, mover, 0, math.MaxUint64, action.FileID(), nil)
+		action := testArchive(t, mover, tfile, 0, length, nil, nil)
+
+		failRestore := func(t *testing.T, mover *posix.Mover, offset uint64, length uint64, fileID []byte, data []byte) *dmplugin.TestAction {
+			tfile, cleanFile := testTempFile(t, 0)
+			defer cleanFile()
+			os.Chmod(tfile, 0444)
+			action := dmplugin.NewTestAction(t, tfile, offset, length, fileID, data)
+			if err := mover.Restore(action); err != nil {
+				if !os.IsPermission(errors.Cause(err)) {
+					t.Fatalf("Unexpected failure: %v", err)
+				}
+			} else {
+				t.Fatal("Expected failure")
+			}
+
+			return action
+		}
+
+		failRestore(t, mover, 0, length, action.FileID(), nil)
 	})
 }
 
@@ -159,7 +232,7 @@ func TestArchiveChecksumAfter(t *testing.T) {
 		mover.ChecksumConfig().Disabled = true
 		testCorruptFile(t, testDestinationFile(t, mover, action.FileID()))
 		// Don't  restore corrupt data
-		testRestoreFail(t, mover, 0, math.MaxUint64, action.FileID(), nil)
+		testRestoreFail(t, mover, 0, math.MaxUint64, action.FileID(), nil, errors.New(""))
 	})
 }
 
@@ -179,7 +252,7 @@ func TestCorruptArchive(t *testing.T) {
 		testCorruptFile(t, path)
 
 		// TODO check for specific CheckSum error
-		testRestoreFail(t, mover, 0, length, action.FileID(), nil)
+		testRestoreFail(t, mover, 0, length, action.FileID(), nil, errors.New(""))
 
 	})
 }
@@ -204,7 +277,7 @@ func TestRemove(t *testing.T) {
 			t.Fatalf("Unexpected or missing error: %v", err)
 		}
 
-		testRestoreFail(t, mover, 0, length, action.FileID(), nil)
+		testRestoreFail(t, mover, 0, length, action.FileID(), nil, errors.New(""))
 	})
 }
 
