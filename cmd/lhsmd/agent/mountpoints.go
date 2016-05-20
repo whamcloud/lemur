@@ -10,6 +10,7 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"
 
+	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre/pkg/mntent"
 )
@@ -118,6 +119,7 @@ func doTimedUnmount(dir string) error {
 					lastError <- err
 					return
 				}
+				audit.Logf("Waiting for %s to be unmounted", dir)
 				time.Sleep(1 * time.Second)
 			}
 		}
@@ -129,7 +131,7 @@ func doTimedUnmount(dir string) error {
 			return <-lastError
 		case <-time.After(time.Duration(UnmountTimeout) * time.Second):
 			cancel()
-			return errors.Wrapf(<-lastError, "Unmount of %s timed out", dir)
+			return errors.Wrapf(<-lastError, "Unmount of %s timed out after %d seconds", dir, UnmountTimeout)
 		}
 	}
 }
