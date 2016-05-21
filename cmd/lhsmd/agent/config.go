@@ -147,10 +147,6 @@ func init() {
 			optConfigPath = path.Join(cfgDir, config.AgentConfigFile)
 		}
 	}
-
-	// Ensure that it's set in our env so that plugins can use it to
-	// find their own configs
-	os.Setenv(config.ConfigDirEnvVar, path.Dir(optConfigPath))
 }
 
 func (c *Config) String() string {
@@ -167,6 +163,10 @@ func (c *Config) String() string {
 // Plugins returns a slice of *PluginConfig instances for enabled plugins
 func (c *Config) Plugins() []*PluginConfig {
 	var plugins []*PluginConfig
+
+	// Ensure that this is set in our env so that plugins can use it to
+	// find their own configs
+	os.Setenv(config.ConfigDirEnvVar, path.Dir(optConfigPath))
 
 	connectAt := c.Transport.ConnectionString()
 	for _, name := range c.EnabledPlugins {
@@ -310,8 +310,6 @@ func LoadConfig(configPath string) (*Config, error) {
 
 // ConfigInitMust returns a valid *Config or fails trying
 func ConfigInitMust() *Config {
-	flag.Parse()
-
 	debug.Printf("loading config from %s", optConfigPath)
 	cfg, err := LoadConfig(optConfigPath)
 	if err != nil {
