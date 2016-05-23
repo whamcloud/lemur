@@ -1,12 +1,12 @@
 package uat
 
 import (
-	"os"
-
 	"github.com/DATA-DOG/godog"
 	"github.com/pkg/errors"
+	"gopkg.in/cucumber/gherkin-go.v3"
 
 	"github.intel.com/hpdd/logging/alert"
+	"github.intel.com/hpdd/policy/pdm/uat/harness"
 	"github.intel.com/hpdd/policy/pdm/uat/steps"
 	"github.intel.com/hpdd/policy/pdm/uat/suite"
 )
@@ -42,31 +42,49 @@ func configureSuite(s *godog.Suite) {
 	if err != nil {
 		alert.Abort(errors.Wrap(err, "Failed to load test config"))
 	}
-	steps.Context.AddSuiteConfig(cfg)
 
-	// FIXME: This needs work -- it should reset state but not need to
-	// reload the suite config.
-	//s.BeforeScenario(steps.Context.Reset)
-	s.AfterScenario(func(i interface{}, err error) {
+	// This is a pretty awkward solution, but it should keep us
+	// moving forward. We need some place to stash state during
+	// a scenario execution. The godog examples hang the step
+	// implementations off of a single *suiteContext which gets
+	// reset on every scenario, but then we'd lose the ability to
+	// define step implementations independently.
+	var ctx *harness.ScenarioContext
+
+	// Reset the scenario context before each scenario.
+	s.BeforeScenario(func(interface{}) {
+		ctx = harness.NewScenarioContext(cfg)
+		steps.RegisterContext(ctx)
+	})
+
+	// If a step fails, we need to mark the context as failed so
+	// that cleanup does the right thing.
+	s.AfterStep(func(step *gherkin.Step, err error) {
 		if err != nil {
-			errors.Fprint(os.Stderr, errors.Wrap(err, "Scenario failed"))
+			ctx.Fail()
 		}
 	})
-	// FIXME: This isn't working reliably. Can't tell if it's problems
-	// in the agent shutdown or races in the harness.
-	s.AfterScenario(func(interface{}, error) {
-		if err := steps.Context.StopHsmAgent(); err != nil {
-			alert.Warnf("failed to stop agent: %s", err)
-		}
-	})
-	// FIXME: This cleanup needs to happen selectively. When failures
-	// occur, the test dir should be left behind.
-	/*s.AfterScenario(func(interface{}, error) {
-		if err := steps.Context.Cleanup(); err != nil {
-			errors.Fprint(os.Stderr, errors.Wrap(err, "Cleanup failed"))
-		}
-	})*/
 
+	// Clean up after the scenario. Anything which needs to be cleaned up
+	// should have been registered as a cleanup handler.
+	s.AfterScenario(func(i interface{}, err error) {
+		// The agent should always be stopped.
+		if err := harness.StopAgent(ctx); err != nil {
+			alert.Warnf("Failed to stop agent after scenario: %s", err)
+			ctx.Fail()
+		}
+
+		if ctx.Failed() && !cfg.CleanupOnFailure {
+			alert.Warnf("Scenario failed and CleanupOnFailure is not set. Not cleaning up %s and other temporary files.", ctx.Workdir())
+			return
+		}
+
+		if err := ctx.Cleanup(); err != nil {
+			alert.Warnf("Error during post-scenario cleanup: %s", err)
+		}
+	})
+
+	// Register steps with the suite runner.
 	for matcher, step := range steps.WithMatchers {
 		s.Step(matcher, step)
 	}

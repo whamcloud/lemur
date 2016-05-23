@@ -1,17 +1,21 @@
 package steps
 
-import "time"
+import (
+	"time"
+
+	"github.intel.com/hpdd/policy/pdm/uat/harness"
+)
 
 func init() {
-	addStep(`^I configure the (posix|s3) data mover$`, Context.iConfigureADataMover)
-	addStep(`^the (posix|s3) data mover should be (running|stopped)$`, Context.theDataMoverShouldBe)
+	addStep(`^I configure the (posix|s3) data mover$`, iConfigureADataMover)
+	addStep(`^the (posix|s3) data mover should be (running|stopped)$`, theDataMoverShouldBe)
 }
 
-func (sc *stepContext) iConfigureADataMover(dmType string) error {
-	return sc.AgentDriver.AddConfiguredMover(HsmPluginPrefix + dmType)
+func iConfigureADataMover(dmType string) error {
+	return harness.AddConfiguredMover(ctx, harness.HsmPluginPrefix+dmType)
 }
 
-func (sc *stepContext) theDataMoverShouldBe(dmType, state string) error {
+func theDataMoverShouldBe(dmType, state string) error {
 	// Ick. I /detest/ sleeps in test code, as they are typically
 	// a really crappy way to work around races. In this case,
 	// however, we really need to wait for the plugin to start
@@ -23,7 +27,7 @@ func (sc *stepContext) theDataMoverShouldBe(dmType, state string) error {
 	time.Sleep(1 * time.Second)
 
 	dmStatus := func() error {
-		return checkProcessState(HsmPluginPrefix+dmType, state)
+		return checkProcessState(harness.HsmPluginPrefix+dmType, state)
 	}
 	return waitFor(dmStatus, DefaultTimeout)
 }

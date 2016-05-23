@@ -8,10 +8,10 @@ import (
 )
 
 func init() {
-	addStep(`^I am the (\w+) user$`, Context.iAmTheSpecifiedUser)
+	addStep(`^I am the (\w+) user$`, iAmTheSpecifiedUser)
 }
 
-func (sc *stepContext) iAmTheSpecifiedUser(specified string) error {
+func iAmTheSpecifiedUser(specified string) error {
 	current, err := user.Current()
 	if err != nil {
 		return errors.Wrap(err, "Could not get current user")

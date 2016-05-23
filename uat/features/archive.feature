@@ -6,7 +6,8 @@ Feature: POSIX data mover
 Background:
 	Given I am the root user
 	And I have a Lustre filesystem
-	When I configure the posix data mover
+	When I configure the HSM Agent
+	And I configure the posix data mover
 	And I start the HSM Agent
 	Then the HSM Agent should be running
 	And the posix data mover should be running

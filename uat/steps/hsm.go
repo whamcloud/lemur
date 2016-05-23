@@ -14,9 +14,9 @@ import (
 )
 
 func init() {
-	addStep(`^I (archive|restore|remove|release) (a test file|[\w\.\-/]+)$`, Context.performHSMAction)
-	addStep(`^(the test file|[\w\.\-/]+) should be marked as (archived|released)$`, Context.checkFileStatus)
-	addStep(`^the data for (the test file|[\w\.\-/]+) should exist in the backend$`, Context.checkArchivedFileData)
+	addStep(`^I (archive|restore|remove|release) (a test file|[\w\.\-/]+)$`, performHSMAction)
+	addStep(`^(the test file|[\w\.\-/]+) should be marked as (archived|released)$`, checkFileStatus)
+	addStep(`^the data for (the test file|[\w\.\-/]+) should exist in the backend$`, checkArchivedFileData)
 }
 
 func getFilePath(cfg *suite.Config, name string) (string, error) {
@@ -27,7 +27,7 @@ func getFilePath(cfg *suite.Config, name string) (string, error) {
 	}
 
 	if curTestFileRe.MatchString(name) {
-		return cfg.Get(HSMTestFileKey)
+		return ctx.GetKey(HSMTestFileKey)
 	}
 
 	// If we're not working with a specific file, then we'll need to
@@ -55,46 +55,46 @@ func getFilePath(cfg *suite.Config, name string) (string, error) {
 		return "", errors.Wrap(err, "Failed to write data to HSM test file")
 	}
 
-	cfg.Set(HSMTestFileKey, out.Name())
+	ctx.SetKey(HSMTestFileKey, out.Name())
 	debug.Printf("Created HSM test file: %s", out.Name())
 	return out.Name(), out.Close()
 }
 
-func (sc *stepContext) performHSMAction(action, filename string) error {
-	filePath, err := getFilePath(sc.SuiteConfig, filename)
+func performHSMAction(action, filename string) error {
+	filePath, err := getFilePath(ctx.Config, filename)
 	if err != nil {
 		return errors.Wrapf(err, "Unable to get path for %s", filename)
 	}
 
 	switch action {
 	case "archive":
-		return sc.HsmDriver.Archive(filePath)
+		return ctx.HsmDriver.Archive(filePath)
 	case "restore":
-		return sc.HsmDriver.Restore(filePath)
+		return ctx.HsmDriver.Restore(filePath)
 	case "remove":
-		return sc.HsmDriver.Remove(filePath)
+		return ctx.HsmDriver.Remove(filePath)
 	case "release":
-		return sc.HsmDriver.Release(filePath)
+		return ctx.HsmDriver.Release(filePath)
 	default:
 		return fmt.Errorf("Unknown HSM action %q", action)
 	}
 }
 
-func (sc *stepContext) checkArchivedFileData(filename string) error {
+func checkArchivedFileData(filename string) error {
 	// TODO: Compare md5sum of testfile and archived file?
 	// How does this work for s3?
 	return nil
 }
 
-func (sc *stepContext) checkFileStatus(filename, status string) error {
+func checkFileStatus(filename, status string) error {
 	debug.Printf("filename: %s, status: %s", filename, status)
-	filePath, err := getFilePath(sc.SuiteConfig, filename)
+	filePath, err := getFilePath(ctx.Config, filename)
 	if err != nil {
 		return errors.Wrapf(err, "Unable to get path for %s", filename)
 	}
 
 	fileInDesiredState := func() error {
-		hsmState, err := sc.HsmDriver.GetState(filePath)
+		hsmState, err := ctx.HsmDriver.GetState(filePath)
 		debug.Printf("state: %s, err: %s", hsmState, err)
 		if err != nil {
 			return err

@@ -1,4 +1,4 @@
-package drivers
+package harness
 
 import (
 	"fmt"
@@ -35,23 +35,23 @@ func (lfs *lfsDriver) run(args ...string) ([]byte, error) {
 func (lfs *lfsDriver) GetState(filePath string) (HsmState, error) {
 	out, err := lfs.run("hsm_state", filePath)
 	if err != nil {
-		return Unknown, errors.Wrapf(err, "Failed to get hsm_state: %s", err.(*exec.ExitError).Stderr)
+		return HsmUnknown, errors.Wrapf(err, "Failed to get hsm_state: %s", err.(*exec.ExitError).Stderr)
 	}
 
 	stateRe := regexp.MustCompile(`^([^:]+):\s+\(\w+\)\s([\w\s]+),.*`)
 	matches := stateRe.FindSubmatch(out)
 	debug.Printf("matches (%d): %s", len(matches), matches)
 	if len(matches) != 3 {
-		return Unknown, fmt.Errorf("Unable to parse status from %s", out)
+		return HsmUnknown, fmt.Errorf("Unable to parse status from %s", out)
 	}
 
 	switch string(matches[2]) {
 	case "exists":
-		return Unarchived, nil
+		return HsmUnarchived, nil
 	case "exists archived":
-		return Archived, nil
+		return HsmArchived, nil
 	default:
-		return Unknown, fmt.Errorf("Unknown state: %s", matches[2])
+		return HsmUnknown, fmt.Errorf("Unknown state: %s", matches[2])
 	}
 }
 

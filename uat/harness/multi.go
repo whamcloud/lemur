@@ -1,4 +1,4 @@
-package drivers
+package harness
 
 import (
 	"fmt"
@@ -7,9 +7,9 @@ import (
 
 type driverConstructor func() HsmDriver
 
-// PreferredHsmDrivers is a map of HSM driver names to their
+// HsmDrivers is a map of HSM driver names to their
 // driver constructor functions.
-var PreferredHsmDrivers = map[string]driverConstructor{"lfs": LfsDriver}
+var HsmDrivers = map[string]driverConstructor{"lfs": LfsDriver}
 
 // NewMultiHsmDriver returns an implementation of HsmDriver which
 // finds an available HSM driver according to the preferred order.
@@ -20,7 +20,8 @@ func NewMultiHsmDriver() HsmDriver {
 }
 
 func findDelegate() HsmDriver {
-	for name, constructor := range PreferredHsmDrivers {
+	// TODO: Weight these somehow...
+	for name, constructor := range HsmDrivers {
 		if _, err := exec.LookPath(name); err == nil {
 			return constructor()
 		}
@@ -52,7 +53,7 @@ func (f *failedDelegate) Remove(filePath string) error {
 }
 
 func (f *failedDelegate) GetState(filePath string) (HsmState, error) {
-	return Unknown, f.fail("get file state")
+	return HsmUnknown, f.fail("get file state")
 }
 
 type multiHsmDriver struct {

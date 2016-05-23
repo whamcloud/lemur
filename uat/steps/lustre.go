@@ -9,12 +9,12 @@ import (
 )
 
 func init() {
-	addStep(`^I have a Lustre filesystem$`, Context.iHaveALustreFilesystem)
+	addStep(`^I have a Lustre filesystem$`, iHaveALustreFilesystem)
 }
 
-func (sc *stepContext) iHaveALustreFilesystem() error {
-	if sc.SuiteConfig.LustrePath != "" {
-		if _, err := fs.MountRoot(sc.SuiteConfig.LustrePath); err != nil {
+func iHaveALustreFilesystem() error {
+	if ctx.Config.LustrePath != "" {
+		if _, err := fs.MountRoot(ctx.Config.LustrePath); err != nil {
 			return fmt.Errorf("Configured Lustre path is invalid: %s", err)
 		}
 		return nil
@@ -27,7 +27,7 @@ func (sc *stepContext) iHaveALustreFilesystem() error {
 
 	for _, entry := range entries {
 		if _, err := fs.MountRoot(entry.Dir); err == nil {
-			sc.SuiteConfig.LustrePath = entry.Dir
+			ctx.Config.LustrePath = entry.Dir
 			return nil
 		}
 	}

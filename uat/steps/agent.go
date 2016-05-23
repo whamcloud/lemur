@@ -1,30 +1,32 @@
 package steps
 
 import (
-	"github.intel.com/hpdd/logging/debug"
-	"github.intel.com/hpdd/policy/pdm/uat/drivers"
+	"fmt"
 
-	"github.com/pkg/errors"
+	"github.intel.com/hpdd/policy/pdm/uat/harness"
 )
 
 func init() {
-	addStep(`^I start the HSM Agent$`, Context.iStartTheHSMAgent)
-	addStep(`^the HSM Agent should be (running|stopped)$`, Context.theHSMAgentShouldBe)
+	addStep(`^I (configure|start|stop) the HSM Agent$`, iControlTheHSMAgent)
+	addStep(`^the HSM Agent should be (running|stopped)$`, theHSMAgentShouldBe)
 }
 
-func (sc *stepContext) iStartTheHSMAgent() error {
-	cfgPath, err := sc.AgentDriver.WriteAgentConfig()
-	if err != nil {
-		return errors.Wrap(err, "Failed to write test agent config")
+func iControlTheHSMAgent(action string) error {
+	switch action {
+	case "configure":
+		return harness.ConfigureAgent(ctx)
+	case "start":
+		return harness.StartAgent(ctx)
+	case "stop":
+		return harness.StopAgent(ctx)
+	default:
+		return fmt.Errorf("Unknown agent action %q", action)
 	}
-	debug.Printf("Wrote agent config to %s", cfgPath)
-
-	return sc.AgentDriver.StartAgent(cfgPath)
 }
 
-func (sc *stepContext) theHSMAgentShouldBe(state string) error {
-	agentStatus := func() error {
-		return checkProcessState(drivers.HsmAgentBinary, state)
+func theHSMAgentShouldBe(state string) error {
+	agentInDesiredState := func() error {
+		return checkProcessState(harness.HsmAgentBinary, state)
 	}
-	return waitFor(agentStatus, DefaultTimeout)
+	return waitFor(agentInDesiredState, DefaultTimeout)
 }
