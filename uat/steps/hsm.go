@@ -55,6 +55,9 @@ func getFilePath(cfg *suite.Config, name string) (string, error) {
 		return "", errors.Wrap(err, "Failed to write data to HSM test file")
 	}
 
+	ctx.AddCleanup(func() error {
+		return os.Remove(out.Name())
+	})
 	ctx.SetKey(HSMTestFileKey, out.Name())
 	debug.Printf("Created HSM test file: %s", out.Name())
 	return out.Name(), out.Close()
