@@ -167,9 +167,8 @@ func main() {
 		alert.Abort(errors.Wrap(err, "chdir failed"))
 	}
 
-	done := make(chan struct{})
 	interruptHandler(func() {
-		close(done)
+		plugin.Stop()
 	})
 
 	for _, a := range cfg.Archives {
@@ -187,8 +186,7 @@ func main() {
 		})
 	}
 
-	<-done
-	plugin.Stop()
+	plugin.Run()
 }
 
 func interruptHandler(once func()) {

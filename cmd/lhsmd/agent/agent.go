@@ -76,7 +76,9 @@ func New(cfg *Config) (*HsmAgent, error) {
 
 // Start backgrounds the agent and starts backend data movers
 func (ct *HsmAgent) Start(ctx context.Context) error {
+	ct.mu.Lock()
 	ctx, ct.cancelFunc = context.WithCancel(ctx)
+	ct.mu.Unlock()
 	ct.stats.Start(ctx)
 
 	if t, ok := transports[ct.config.Transport.Type]; ok {
@@ -109,7 +111,9 @@ func (ct *HsmAgent) Start(ctx context.Context) error {
 
 // Stop shuts down all backend data movers and kills the agent
 func (ct *HsmAgent) Stop() {
+	ct.mu.Lock()
 	ct.cancelFunc()
+	ct.mu.Unlock()
 	transports[ct.config.Transport.Type].Shutdown()
 }
 

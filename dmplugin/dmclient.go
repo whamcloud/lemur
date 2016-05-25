@@ -15,6 +15,9 @@ import (
 )
 
 type (
+	// ActionHandler is function that implements one of the commands
+	ActionHandler func(Action) error
+
 	// DataMoverClient is the data mover client to the HSM agent
 	DataMoverClient struct {
 		plugin    Plugin
@@ -22,6 +25,7 @@ type (
 		status    chan *pb.ActionStatus
 		mover     Mover
 		config    *Config
+		actions   map[pb.Command]ActionHandler
 	}
 
 	// Config defines configuration for a DatamMoverClient
@@ -43,10 +47,6 @@ type (
 	Action interface {
 		// Update sends an action status update
 		Update(offset, length, max uint64) error
-		// Complete signals that the action has completed
-		Complete() error
-		// Fail signals that the action has failed
-		Fail(err error) error
 		// ID returns the action item's ID
 		ID() uint64
 		// Offset returns the current offset of the action item
@@ -121,8 +121,17 @@ func (a *dmAction) Update(offset, length, max uint64) error {
 	return nil
 }
 
+// Finish finalizes the action.
+func (a *dmAction) Finish(err error) {
+	if err != nil {
+		a.fail(err)
+	} else {
+		a.complete()
+	}
+}
+
 // Complete signals that the action has completed
-func (a *dmAction) Complete() error {
+func (a *dmAction) complete() error {
 	status := &pb.ActionStatus{
 		Id:        a.item.Id,
 		Completed: true,
@@ -145,7 +154,7 @@ func getErrno(err error) int32 {
 }
 
 // Fail signals that the action has failed
-func (a *dmAction) Fail(err error) error {
+func (a *dmAction) fail(err error) error {
 	alert.Warnf("fail: id:%d %v", a.item.Id, err)
 	a.status <- &pb.ActionStatus{
 		Id:        a.item.Id,
@@ -203,12 +212,25 @@ func (a *dmAction) SetActualLength(length uint64) {
 
 // NewMover returns a new *DataMoverClient
 func NewMover(plugin Plugin, cli pb.DataMoverClient, config *Config) *DataMoverClient {
+	actions := make(map[pb.Command]ActionHandler)
+
+	if archiver, ok := config.Mover.(Archiver); ok {
+		actions[pb.Command_ARCHIVE] = archiver.Archive
+	}
+	if restorer, ok := config.Mover.(Restorer); ok {
+		actions[pb.Command_RESTORE] = restorer.Restore
+	}
+	if remover, ok := config.Mover.(Remover); ok {
+		actions[pb.Command_REMOVE] = remover.Remove
+	}
+
 	return &DataMoverClient{
 		plugin:    plugin,
 		rpcClient: cli,
 		mover:     config.Mover,
 		status:    make(chan *pb.ActionStatus, config.NumThreads),
 		config:    config,
+		actions:   actions,
 	}
 }
 
@@ -240,9 +262,8 @@ func (dm *DataMoverClient) Run(ctx context.Context) {
 	// Signal to the mover that it should begin any async processing
 	dm.config.Mover.Start()
 
-	<-ctx.Done()
-	debug.Printf("Shutting down Data Mover")
 	wg.Wait()
+	debug.Printf("Shutting down Data Mover")
 	close(dm.status)
 }
 
@@ -286,6 +307,7 @@ func (dm *DataMoverClient) processActions(ctx context.Context) chan *pb.ActionIt
 
 			actions <- action
 		}
+
 	}()
 
 	return actions
@@ -298,7 +320,6 @@ func (dm *DataMoverClient) processStatus(ctx context.Context) {
 		if !ok {
 			alert.Abort(errors.New("No context"))
 		}
-
 		acks, err := dm.rpcClient.StatusStream(ctx)
 		if err != nil {
 			alert.Abort(errors.Wrap(err, "StatusStream() failed"))
@@ -315,41 +336,29 @@ func (dm *DataMoverClient) processStatus(ctx context.Context) {
 	return
 }
 
+// getActionHandler returns the mover's action function for the comamnd, or err
+// if there is no handler for that command.
+func (dm *DataMoverClient) getActionHandler(op pb.Command) (ActionHandler, error) {
+	fn, ok := dm.actions[op]
+	if !ok {
+		return nil, errors.New("Command not supported")
+	}
+	return fn, nil
+}
+
 func (dm *DataMoverClient) handler(name string, actions chan *pb.ActionItem) {
 	for item := range actions {
-		var ret error
 		action := &dmAction{
 			status: dm.status,
 			item:   item,
 		}
 
-		ret = errors.New("Command not supported")
-
-		switch item.Op {
-		case pb.Command_ARCHIVE:
-			if archiver, ok := dm.mover.(Archiver); ok {
-				ret = archiver.Archive(action)
-			}
-		case pb.Command_RESTORE:
-			if restorer, ok := dm.mover.(Restorer); ok {
-				ret = restorer.Restore(action)
-			}
-		case pb.Command_REMOVE:
-			if remover, ok := dm.mover.(Remover); ok {
-				ret = remover.Remove(action)
-			}
-		case pb.Command_CANCEL:
-			// TODO: Cancel in-progress action using a context
-		default:
-			ret = errors.New("Unknown command")
+		actionFn, err := dm.getActionHandler(item.Op)
+		if err == nil {
+			err = actionFn(action)
 		}
-
 		// debug.Printf("completed (action: %v) %v ", action, ret)
-		if ret != nil {
-			action.Fail(ret)
-		} else {
-			action.Complete()
-		}
+		action.Finish(err)
 	}
 	debug.Printf("%s: stopping", name)
 }

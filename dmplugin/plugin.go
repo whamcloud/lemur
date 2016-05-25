@@ -2,6 +2,7 @@ package dmplugin
 
 import (
 	"path"
+	"sync"
 
 	"github.com/pkg/errors"
 
@@ -26,6 +27,7 @@ type dmPlugin struct {
 // Plugin represents a data mover plugin
 type Plugin interface {
 	AddMover(*Config)
+	Run()
 	Stop()
 	Close() error
 	Base() string
@@ -76,8 +78,19 @@ func (a *dmPlugin) ConfigFile() string {
 // AddMover registers a new data mover with the plugin
 func (a *dmPlugin) AddMover(config *Config) {
 	dm := NewMover(a, a.cli, config)
-	go dm.Run(a.ctx)
 	a.movers = append(a.movers, dm)
+}
+
+func (a *dmPlugin) Run() {
+	var wg sync.WaitGroup
+	for _, dm := range a.movers {
+		wg.Add(1)
+		go func(dm *DataMoverClient) {
+			dm.Run(a.ctx)
+			wg.Done()
+		}(dm)
+	}
+	wg.Wait()
 }
 
 // Stop signals to all registered data movers that they should stop processing

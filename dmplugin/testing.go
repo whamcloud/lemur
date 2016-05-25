@@ -159,6 +159,10 @@ func (a *testPlugin) AddMover(config *Config) {
 	a.movers = append(a.movers, dm)
 }
 
+func (a *testPlugin) Run() {
+
+}
+
 // Stop signals to all registered data movers that they should stop processing
 // and shut down
 func (a *testPlugin) Stop() {

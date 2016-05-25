@@ -26,6 +26,7 @@ const (
 
 type (
 	rpcTransport struct {
+		mu     sync.Mutex
 		server *grpc.Server
 	}
 
@@ -62,7 +63,9 @@ func (t *rpcTransport) Init(conf *agent.Config, a *agent.HsmAgent) error {
 		return errors.Errorf("Failed to listen: %v", err)
 	}
 
+	t.mu.Lock()
 	t.server = grpc.NewServer()
+	t.mu.Unlock()
 	pb.RegisterDataMoverServer(t.server, newServer(a))
 	go t.server.Serve(sock)
 
@@ -70,7 +73,9 @@ func (t *rpcTransport) Init(conf *agent.Config, a *agent.HsmAgent) error {
 }
 
 func (t *rpcTransport) Shutdown() {
+	t.mu.Lock()
 	t.server.Stop()
+	t.mu.Unlock()
 	debug.Print("shut down grpc transport")
 }
 
@@ -204,7 +209,7 @@ func (s *dmRPCServer) StatusStream(stream pb.DataMover_StatusStreamServer) error
 		ep.mu.Unlock()
 		if ok {
 			completed, err := action.Update(status)
-			if completed && err == nil {
+			if completed {
 				ep.mu.Lock()
 				delete(ep.actions, agent.ActionID(status.Id))
 				ep.mu.Unlock()

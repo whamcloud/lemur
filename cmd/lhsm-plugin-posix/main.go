@@ -87,9 +87,8 @@ func start(plugin dmplugin.Plugin, cfg *posixConfig) {
 		alert.Abort(errors.Wrap(err, "chdir failed"))
 	}
 
-	done := make(chan struct{})
 	interruptHandler(func() {
-		close(done)
+		plugin.Stop()
 	})
 
 	for _, a := range cfg.Archives {
@@ -105,8 +104,7 @@ func start(plugin dmplugin.Plugin, cfg *posixConfig) {
 		})
 	}
 
-	<-done
-	plugin.Stop()
+	plugin.Run()
 }
 
 func getMergedConfig(plugin dmplugin.Plugin) (*posixConfig, error) {
