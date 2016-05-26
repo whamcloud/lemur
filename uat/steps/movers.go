@@ -27,7 +27,7 @@ func theDataMoverShouldBe(dmType, state string) error {
 	time.Sleep(1 * time.Second)
 
 	dmStatus := func() error {
-		return checkProcessState(harness.HsmPluginPrefix+dmType, state)
+		return checkProcessState(harness.HsmPluginPrefix+dmType, state, -1)
 	}
 	return waitFor(dmStatus, DefaultTimeout)
 }

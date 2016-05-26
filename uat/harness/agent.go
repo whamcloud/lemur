@@ -17,13 +17,6 @@ import (
 	defaults "github.intel.com/hpdd/policy/pdm/lhsmd/config"
 )
 
-// AgentDriver allows the harness to drive an HSM agent
-type AgentDriver struct {
-	ac      *agent.Config
-	cmd     *exec.Cmd
-	started bool
-}
-
 const (
 	// HsmAgentCfgKey refers to this context's agent config file
 	HsmAgentCfgKey = "agent_config_key"
@@ -34,6 +27,22 @@ const (
 	// HsmPluginPrefix is the base name of data mover plugins
 	HsmPluginPrefix = "lhsm-plugin-"
 )
+
+// AgentDriver allows the harness to drive an HSM agent
+type AgentDriver struct {
+	ac      *agent.Config
+	cmd     *exec.Cmd
+	started bool
+}
+
+// AgentPid returns the pid of the running agent, if available
+func (ad *AgentDriver) AgentPid() (int, error) {
+	if ad.cmd == nil {
+		return -1, fmt.Errorf("AgentPid() called with nil cmd")
+	}
+
+	return ad.cmd.Process.Pid, nil
+}
 
 // ConfigureAgent creates or updates the Context's agent config
 func ConfigureAgent(ctx *ScenarioContext) error {

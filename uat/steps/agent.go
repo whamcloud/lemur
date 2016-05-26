@@ -26,7 +26,11 @@ func iControlTheHSMAgent(action string) error {
 
 func theHSMAgentShouldBe(state string) error {
 	agentInDesiredState := func() error {
-		return checkProcessState(harness.HsmAgentBinary, state)
+		pid, err := ctx.AgentDriver.AgentPid()
+		if err != nil {
+			return err
+		}
+		return checkProcessState(harness.HsmAgentBinary, state, pid)
 	}
 	return waitFor(agentInDesiredState, DefaultTimeout)
 }
