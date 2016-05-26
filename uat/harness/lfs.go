@@ -38,7 +38,7 @@ func (lfs *lfsDriver) GetState(filePath string) (HsmState, error) {
 		return HsmUnknown, errors.Wrapf(err, "Failed to get hsm_state: %s", err.(*exec.ExitError).Stderr)
 	}
 
-	stateRe := regexp.MustCompile(`^([^:]+):\s+\(\w+\)\s([\w\s]+),.*`)
+	stateRe := regexp.MustCompile(`^([^:]+):\s+\(\w+\)(?:\s([\w\s]+))?,.*`)
 	matches := stateRe.FindSubmatch(out)
 	debug.Printf("matches (%d): %s", len(matches), matches)
 	if len(matches) != 3 {
@@ -46,10 +46,14 @@ func (lfs *lfsDriver) GetState(filePath string) (HsmState, error) {
 	}
 
 	switch string(matches[2]) {
+	case "":
+		return HsmUnmanaged, nil
 	case "exists":
 		return HsmUnarchived, nil
 	case "exists archived":
 		return HsmArchived, nil
+	case "released exists archived":
+		return HsmReleased, nil
 	default:
 		return HsmUnknown, fmt.Errorf("Unknown state: %s", matches[2])
 	}
@@ -61,13 +65,16 @@ func (lfs *lfsDriver) Archive(filePath string) error {
 }
 
 func (lfs *lfsDriver) Restore(filePath string) error {
-	return nil
+	_, err := lfs.run("hsm_restore", filePath)
+	return err
 }
 
 func (lfs *lfsDriver) Remove(filePath string) error {
-	return nil
+	_, err := lfs.run("hsm_remove", filePath)
+	return err
 }
 
 func (lfs *lfsDriver) Release(filePath string) error {
-	return nil
+	_, err := lfs.run("hsm_release", filePath)
+	return err
 }

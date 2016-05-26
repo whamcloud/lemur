@@ -28,7 +28,10 @@ const (
 	// HsmUnknown indicates that the file state is unknown
 	HsmUnknown HsmState = "unknown"
 
-	// HsmUnarchived indicates that the file exists but is unarchived
+	// HsmUnmanaged indicates that the file is not managed by HSM
+	HsmUnmanaged HsmState = "unmanaged"
+
+	// HsmUnarchived indicates that the file is managed but unarchived
 	HsmUnarchived HsmState = "unarchived"
 
 	// HsmArchived indicates that the file is archived

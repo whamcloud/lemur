@@ -24,6 +24,7 @@ type (
 		HsmDriver   HsmDriver
 		AgentDriver *AgentDriver
 		Config      *suite.Config
+		TestFiles   map[string]*TestFile
 
 		cleanupFunctions []cleanupFn
 		workdir          string
@@ -149,6 +150,7 @@ func NewScenarioContext(cfg *suite.Config) *ScenarioContext {
 	return &ScenarioContext{
 		Config:    cfg,
 		HsmDriver: hsmDriver,
+		TestFiles: make(map[string]*TestFile),
 
 		kv:    make(kvmap),
 		setup: &sync.Once{},
