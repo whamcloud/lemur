@@ -45,6 +45,25 @@ func (ad *AgentDriver) AgentPid() (int, error) {
 	return ad.cmd.Process.Pid, nil
 }
 
+type harnessConfigProvider struct {
+	ctx *ScenarioContext
+}
+
+func (p *harnessConfigProvider) Retrieve() (credentials.Value, error) {
+	if p.ctx.Config.AWSAccessKeyID == "" && p.ctx.Config.AWSSecretKey == "" {
+		return credentials.Value{}, fmt.Errorf("No AWS credentials set in harness config")
+	}
+	return credentials.Value{
+		AccessKeyID:     p.ctx.Config.AWSAccessKeyID,
+		SecretAccessKey: p.ctx.Config.AWSSecretKey,
+		ProviderName:    "HarnessConfig",
+	}, nil
+}
+
+func (p *harnessConfigProvider) IsExpired() bool {
+	return false
+}
+
 // ConfigureAgent creates or updates the Context's agent config
 func ConfigureAgent(ctx *ScenarioContext) error {
 	cd, err := getClientDeviceForMount(ctx.Config.LustrePath)
@@ -191,20 +210,20 @@ func writeS3MoverConfig(ctx *ScenarioContext) error {
 	var awsKey string
 	var awsSecret string
 
-	// First, try to leverage the SDK to get credentials from the
-	// environment.
-	envCredentials := &credentials.EnvProvider{}
-	if val, err := envCredentials.Retrieve(); err == nil {
+	// Get AWS credentials from the environment or via explicit
+	// harness configuration.
+	chainProvider := &credentials.ChainProvider{
+		Providers: []credentials.Provider{
+			&credentials.EnvProvider{},
+			&credentials.SharedCredentialsProvider{},
+			&harnessConfigProvider{
+				ctx: ctx,
+			},
+		},
+	}
+	if val, err := chainProvider.Retrieve(); err == nil {
 		awsKey = val.AccessKeyID
 		awsSecret = val.SecretAccessKey
-	}
-
-	// Next, load/override from the harness configuration.
-	if ctx.Config.AWSAccessKeyID != "" {
-		awsKey = ctx.Config.AWSAccessKeyID
-	}
-	if ctx.Config.AWSSecretKey != "" {
-		awsSecret = ctx.Config.AWSSecretKey
 	}
 
 	if awsKey == "" || awsSecret == "" {
@@ -214,6 +233,8 @@ func writeS3MoverConfig(ctx *ScenarioContext) error {
 	if ctx.Config.S3Region == "" || ctx.Config.S3Bucket == "" {
 		return fmt.Errorf("Unable to configure s3 mover: no user config")
 	}
+
+	// TODO: Make configuration of credentials optional.
 	cfg := fmt.Sprintf(`region = "%s"
 aws_access_key_id = "%s"
 aws_secret_key = "%s"
