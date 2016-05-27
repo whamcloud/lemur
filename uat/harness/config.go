@@ -133,6 +133,7 @@ func loadConfigFile(cfgPath string) (*Config, error) {
 	}
 
 	if err := hcl.Decode(cfg, string(data)); err != nil {
+		alert.Warnf("config file error %s:%s", cfgPath, err)
 		return nil, err
 	}
 
