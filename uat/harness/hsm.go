@@ -2,8 +2,6 @@ package harness
 
 import (
 	"fmt"
-
-	"github.intel.com/hpdd/policy/pdm/uat/suite"
 )
 
 // HsmDriver defines an interface to be implemented by a HSM tool driver
@@ -45,7 +43,7 @@ func (h HsmState) String() string {
 	return string(h)
 }
 
-func getHsmDriver(cfg *suite.Config) (HsmDriver, error) {
+func getHsmDriver(cfg *Config) (HsmDriver, error) {
 	if cfg.HsmDriver == "" {
 		return NewMultiHsmDriver(), nil
 	}

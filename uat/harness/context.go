@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.intel.com/hpdd/logging/debug"
-	"github.intel.com/hpdd/policy/pdm/uat/suite"
 )
 
 type (
@@ -23,7 +22,7 @@ type (
 
 		HsmDriver   HsmDriver
 		AgentDriver *AgentDriver
-		Config      *suite.Config
+		Config      *Config
 		TestFiles   map[string]*TestFile
 
 		cleanupFunctions []cleanupFn
@@ -141,7 +140,7 @@ func (s *ScenarioContext) AddCleanup(fn cleanupFn) {
 }
 
 // NewScenarioContext returns a freshly-initialized *ScenarioContext
-func NewScenarioContext(cfg *suite.Config) *ScenarioContext {
+func NewScenarioContext(cfg *Config) *ScenarioContext {
 	hsmDriver, err := getHsmDriver(cfg)
 	if err != nil {
 		panic("Unable to find a suitable HSM driver")

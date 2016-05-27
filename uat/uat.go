@@ -8,7 +8,6 @@ import (
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/policy/pdm/uat/harness"
 	"github.intel.com/hpdd/policy/pdm/uat/steps"
-	"github.intel.com/hpdd/policy/pdm/uat/suite"
 )
 
 // This is the entry point for godog tests. The godog CLI cmd automatically
@@ -38,7 +37,7 @@ import (
 // complicated very quickly when there is a rat's nest of step
 // interdependencies.
 func configureSuite(s *godog.Suite) {
-	cfg, err := suite.LoadConfig()
+	cfg, err := harness.LoadConfig()
 	if err != nil {
 		alert.Abort(errors.Wrap(err, "Failed to load test config"))
 	}

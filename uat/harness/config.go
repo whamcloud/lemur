@@ -1,6 +1,6 @@
-package suite
+package harness
 
-// Config holds configuration for the test suite
+// Config holds configuration for the test harness
 type Config struct {
 	HsmDriver        string `hcl:"hsm_driver" json:"hsm_driver"`
 	LustrePath       string `hcl:"lustre_path" json:"lustre_path"`
