@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/defaults"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/dustin/go-humanize"
@@ -138,6 +139,24 @@ func getMergedConfig(plugin dmplugin.Plugin) (*s3Config, error) {
 	return baseCfg.Merge(&cfg), nil
 }
 
+func checkS3Configuration(cfg *s3Config) error {
+	// Check to make sure that the SDK can find some credentials
+	// before continuing; otherwise there will be long timeouts and
+	// mysterious failures on HSM actions.
+	// Hopefully this will work for non-AWS S3 implementations as well.
+	s3Creds := defaults.CredChain(aws.NewConfig().WithRegion(cfg.Region), defaults.Handlers())
+	if _, err := s3Creds.Get(); err != nil {
+		return errors.Wrap(err, "No S3 credentials found; cannot initialize data mover")
+	}
+
+	svc := s3Svc(cfg.Region)
+	if _, err := svc.ListBuckets(&s3.ListBucketsInput{}); err != nil {
+		return errors.Wrap(err, "Unable to list S3 buckets")
+	}
+
+	return nil
+}
+
 func main() {
 	plugin, err := dmplugin.New(path.Base(os.Args[0]))
 	if err != nil {
@@ -164,7 +183,9 @@ func main() {
 	}
 
 	// Set the configured AWS credentials in the environment for use
-	// by the SDK.
+	// by the SDK. If there are no explicitly configured credentials,
+	// then the SDK will look for them in other ways
+	// (e.g. ~/.aws/credentials, ec2 role, etc.).
 	if cfg.AWSAccessKeyID != "" {
 		os.Setenv("AWS_ACCESS_KEY_ID", cfg.AWSAccessKeyID)
 	}
@@ -172,8 +193,9 @@ func main() {
 		os.Setenv("AWS_SECRET_KEY", cfg.AWSSecretKey)
 	}
 
-	// TODO: Check to make sure that the SDK can find some credentials
-	// before continuing; otherwise there will be long timeouts.
+	if err := checkS3Configuration(cfg); err != nil {
+		alert.Abort(errors.Wrap(err, "S3 config check failed"))
+	}
 
 	// All base filesystem operations will be relative to current directory
 	err = os.Chdir(plugin.Base())
