@@ -16,7 +16,7 @@ const (
 	DefaultTimeout = 10
 
 	// StatusUpdateTimeout is the timeout for a file status update
-	StatusUpdateTimeout = DefaultTimeout * 3
+	StatusUpdateTimeout = DefaultTimeout * 6
 )
 
 func findProcess(psName string) (ps.Process, error) {
