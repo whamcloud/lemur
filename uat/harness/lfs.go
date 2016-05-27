@@ -1,7 +1,6 @@
 package harness
 
 import (
-	"fmt"
 	"os/exec"
 	"regexp"
 
@@ -38,11 +37,11 @@ func (lfs *lfsDriver) GetState(filePath string) (HsmState, error) {
 		return HsmUnknown, errors.Wrapf(err, "Failed to get hsm_state: %s", err.(*exec.ExitError).Stderr)
 	}
 
-	stateRe := regexp.MustCompile(`^([^:]+):\s+\(\w+\)(?:\s([\w\s]+))?,.*`)
+	stateRe := regexp.MustCompile(`^([^:]+):\s+\(\w+\)(?:\s([\w\s]+))?,?.*`)
 	matches := stateRe.FindSubmatch(out)
 	debug.Printf("matches (%d): %s", len(matches), matches)
 	if len(matches) != 3 {
-		return HsmUnknown, fmt.Errorf("Unable to parse status from %s", out)
+		return HsmUnknown, errors.Errorf("Unable to parse status from %q", out)
 	}
 
 	switch string(matches[2]) {
@@ -55,7 +54,7 @@ func (lfs *lfsDriver) GetState(filePath string) (HsmState, error) {
 	case "released exists archived":
 		return HsmReleased, nil
 	default:
-		return HsmUnknown, fmt.Errorf("Unknown state: %s", matches[2])
+		return HsmUnknown, errors.Errorf("Unknown state: %s", matches[2])
 	}
 }
 

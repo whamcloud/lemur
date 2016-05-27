@@ -1,7 +1,6 @@
 package steps
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/pkg/errors"
@@ -52,7 +51,7 @@ func performHSMAction(action, filename string) error {
 	case "release", "released":
 		return ctx.HsmDriver.Release(filePath)
 	default:
-		return fmt.Errorf("Unknown HSM action %q", action)
+		return errors.Errorf("Unknown HSM action %q", action)
 	}
 }
 
@@ -70,7 +69,7 @@ func performAndCheckHSMAction(action, filename string) error {
 func getHsmTestFile() (*harness.TestFile, error) {
 	tf, ok := ctx.TestFiles[HSMTestFileKey]
 	if !ok {
-		return nil, fmt.Errorf("No HSM test file was registered with context")
+		return nil, errors.Errorf("No HSM test file was registered with context")
 	}
 
 	return tf, nil
@@ -93,7 +92,7 @@ func checkFileData(filename, state string) error {
 
 		debug.Printf("original: %x, restored: %x", tf.Checksum, newSum)
 		if newSum != tf.Checksum {
-			return fmt.Errorf("Restored checksum does not match original checksum (%x != %x)", newSum, tf.Checksum)
+			return errors.Errorf("Restored checksum does not match original checksum (%x != %x)", newSum, tf.Checksum)
 		}
 	}
 
@@ -109,12 +108,12 @@ func checkFileStatus(filename, status string) error {
 
 	fileInDesiredState := func() error {
 		hsmState, err := ctx.HsmDriver.GetState(filePath)
-		debug.Printf("desired: %s, actual: %s (%s)", status, hsmState, err)
+		debug.Printf("desired: %s, actual: %s (%v)", status, hsmState, err)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "GetState failed")
 		}
 		if hsmState.String() != status {
-			return fmt.Errorf("wanted %s, got %s", status, hsmState)
+			return errors.Errorf("wanted %s, got %s", status, hsmState)
 		}
 
 		return nil

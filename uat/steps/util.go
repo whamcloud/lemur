@@ -1,7 +1,6 @@
 package steps
 
 import (
-	"fmt"
 	"path"
 	"time"
 
@@ -16,7 +15,7 @@ const (
 	DefaultTimeout = 10
 
 	// StatusUpdateTimeout is the timeout for a file status update
-	StatusUpdateTimeout = DefaultTimeout * 3
+	StatusUpdateTimeout = DefaultTimeout * 6
 )
 
 func findProcess(psName string) (ps.Process, error) {
@@ -31,7 +30,7 @@ func findProcess(psName string) (ps.Process, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("Failed to find %s in running process list", psName)
+	return nil, errors.Errorf("Failed to find %s in running process list", psName)
 }
 
 func checkProcessState(psName, state string, pid int) error {
@@ -47,27 +46,52 @@ func checkProcessState(psName, state string, pid int) error {
 		debug.Printf("Checking pid %d of %s", pid, psName)
 		if pid > 0 {
 			if p.Pid() != pid {
-				return fmt.Errorf("Found %s, but pid %d does not match expected pid %d!", psName, p.Pid(), pid)
+				return errors.Errorf("Found %s, but pid %d does not match expected pid %d!", psName, p.Pid(), pid)
 			}
 		}
 		return nil
 	case "stopped":
 		if err == nil {
-			return fmt.Errorf("%s is still running", psName)
+			return errors.Errorf("%s is still running", psName)
 		}
 		return nil
 	default:
-		return fmt.Errorf("Unknown state: %s", state)
+		return errors.Errorf("Unknown state: %s", state)
 	}
 }
 
 func waitFor(waitFn func() error, timeout int) error {
 	success := make(chan struct{})
 	go func() {
+		// This will poll with an increasing intervals
+		// and then decreasing intervals as the timeout approaches
+		duration := time.Duration(100 * time.Millisecond)
+		started := time.Now()
 		for {
+			// prevent this goroutine from running forever
+			if time.Since(started) > time.Duration(timeout)*time.Second {
+				debug.Printf("waitFor hit timeout: %v > %v", time.Since(started), time.Duration(timeout)*time.Second)
+				close(success)
+				return
+			}
+
 			if err := waitFn(); err == nil {
 				close(success)
 				return
+			}
+			// Reduce pause duration if timeout is imminent
+			if duration > time.Duration(timeout)*time.Second-time.Since(started) {
+				debug.Printf("timeout: %v elapsed: %v reduce timeout from %v to %v",
+					time.Duration(time.Duration(timeout)*time.Second),
+					time.Since(started),
+					duration,
+					(time.Duration(timeout)*time.Second-time.Since(started))/2)
+				duration = (time.Duration(timeout)*time.Second - time.Since(started)) / 2
+			}
+			time.Sleep(duration)
+			// Allow sleep duration to increase 7-14s, depending on start time
+			if duration < 7*time.Second {
+				duration *= 2
 			}
 		}
 	}()
@@ -77,7 +101,7 @@ func waitFor(waitFn func() error, timeout int) error {
 		case <-success:
 			return nil
 		case <-time.After(time.Duration(timeout) * time.Second):
-			return fmt.Errorf("Timed out waiting for result")
+			return errors.Errorf("Timed out waiting for result")
 		}
 	}
 }
