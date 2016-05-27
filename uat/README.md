@@ -13,3 +13,19 @@ Should be able to run anywhere the product is intended to run. Do not require co
 Keep it simple. Spend time and effort on the UAT code infrastructure so that adding new tests isn't a chore. 
 
 When failures occur, there should be copious amounts of developer-relevant logs so that finding and reproducing the failure isn't a chore.
+
+# Configuration
+In order to test the s3 mover, the following requirements must be met:
+
+  1. Have a valid AWS account, and an access key/secret
+  1. Have an existing s3 bucket suitable for testing
+
+## Example config
+~/.lhsmd-test:
+
+    aws_access_key_id = "your aws access key"
+    aws_secret_key = "your aws secret key"
+    s3_region = "us-east-1"
+    s3_bucket = "your s3 bucket name"
+
+Check harness/config.go for other configuration options.
