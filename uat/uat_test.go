@@ -2,8 +2,8 @@ package uat
 
 import (
 	"github.com/DATA-DOG/godog"
+	"github.com/DATA-DOG/godog/gherkin"
 	"github.com/pkg/errors"
-	"gopkg.in/cucumber/gherkin-go.v3"
 
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/policy/pdm/uat/harness"
