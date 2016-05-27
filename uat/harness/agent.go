@@ -8,10 +8,14 @@ import (
 	"path"
 	"syscall"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/pkg/errors"
 
 	"github.intel.com/hpdd/logging/alert"
+	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre/fs/spec"
 	"github.intel.com/hpdd/lustre/pkg/mntent"
 	"github.intel.com/hpdd/policy/pdm/lhsmd/agent"
@@ -230,8 +234,22 @@ func writeS3MoverConfig(ctx *ScenarioContext) error {
 		return fmt.Errorf("Unable to get AWS credentials from environment or harness config")
 	}
 
-	if ctx.Config.S3Region == "" || ctx.Config.S3Bucket == "" {
-		return fmt.Errorf("Unable to configure s3 mover: no user config")
+	// Start with configured defaults
+	ctx.S3Bucket = ctx.Config.S3Bucket
+	ctx.S3Prefix = ctx.Config.S3Prefix
+
+	if ctx.Config.S3Bucket == "" {
+		var err error
+		ctx.S3Bucket, err = createS3Bucket(ctx)
+		if err != nil {
+			return errors.Wrap(err, "Unable to create test bucket")
+		}
+		debug.Printf("Created S3 bucket: %s", ctx.S3Bucket)
+		ctx.AddCleanup(cleanupS3Bucket(ctx))
+	} else if ctx.Config.S3Prefix == "" {
+		ctx.S3Prefix = path.Base(ctx.Workdir())
+		debug.Printf("Using %s for S3 prefix", ctx.S3Prefix)
+		ctx.AddCleanup(cleanupS3Prefix(ctx))
 	}
 
 	// TODO: Make configuration of credentials optional.
@@ -242,8 +260,8 @@ aws_secret_key = "%s"
 archive "one" {
 	id = 1
 	bucket = "%s"
-	prefix = "hsm"
-}`, ctx.Config.S3Region, awsKey, awsSecret, ctx.Config.S3Bucket)
+	prefix = "%s"
+}`, ctx.Config.S3Region, awsKey, awsSecret, ctx.S3Bucket, ctx.S3Prefix)
 
 	cfgFile := ctx.Workdir() + "/etc/lhsmd/lhsm-plugin-s3"
 	cfgDir := path.Dir(cfgFile)
@@ -252,6 +270,79 @@ archive "one" {
 	}
 
 	return ioutil.WriteFile(cfgFile, []byte(cfg), 0644)
+}
+
+func createS3Bucket(ctx *ScenarioContext) (string, error) {
+	svc := s3.New(session.New(aws.NewConfig().WithRegion(ctx.Config.S3Region)))
+	bucket, err := svc.CreateBucket(&s3.CreateBucketInput{
+		Bucket: aws.String(path.Base(ctx.Workdir())),
+	})
+	return path.Base(*bucket.Location), errors.Wrap(err, "Failed to create test bucket")
+}
+
+func cleanupS3Prefix(ctx *ScenarioContext) cleanupFn {
+	svc := s3.New(session.New(aws.NewConfig().WithRegion(ctx.Config.S3Region)))
+	doi := &s3.DeleteObjectInput{
+		Bucket: aws.String(ctx.S3Bucket),
+		Key:    aws.String(ctx.S3Prefix),
+	}
+	return func() error {
+		debug.Printf("Cleaning up %s/%s...", ctx.S3Bucket, ctx.S3Prefix)
+		if err := deleteObjects(ctx); err != nil {
+			return errors.Wrap(err, "Failed to delete test prefix objects in cleanup")
+		}
+
+		_, err := svc.DeleteObject(doi)
+		return errors.Wrap(err, "Failed to delete test prefix in cleanup")
+	}
+
+}
+
+func deleteObjects(ctx *ScenarioContext) error {
+	svc := s3.New(session.New(aws.NewConfig().WithRegion(ctx.Config.S3Region)))
+	loi := &s3.ListObjectsInput{
+		Bucket: aws.String(ctx.S3Bucket),
+		Prefix: aws.String(ctx.S3Prefix),
+	}
+
+	out, err := svc.ListObjects(loi)
+	if err != nil {
+		return errors.Wrap(err, "Failed to list bucket objects")
+	}
+
+	if len(out.Contents) == 0 {
+		return nil
+	}
+
+	deleteInput := &s3.Delete{}
+	for _, obj := range out.Contents {
+		deleteInput.Objects = append(deleteInput.Objects, &s3.ObjectIdentifier{Key: obj.Key})
+	}
+	doi := &s3.DeleteObjectsInput{
+		Bucket: aws.String(ctx.S3Bucket),
+		Delete: deleteInput,
+	}
+	_, err = svc.DeleteObjects(doi)
+
+	return errors.Wrap(err, "Failed to delete objects")
+}
+
+func cleanupS3Bucket(ctx *ScenarioContext) cleanupFn {
+	svc := s3.New(session.New(aws.NewConfig().WithRegion(ctx.Config.S3Region)))
+
+	dbi := &s3.DeleteBucketInput{
+		Bucket: aws.String(ctx.S3Bucket),
+	}
+	return func() error {
+		debug.Printf("Cleaning up %s...", ctx.S3Bucket)
+
+		if err := deleteObjects(ctx); err != nil {
+			return errors.Wrap(err, "Failed to delete test bucket objects in cleanup")
+		}
+
+		_, err := svc.DeleteBucket(dbi)
+		return errors.Wrap(err, "Failed to delete test bucket in cleanup")
+	}
 }
 
 func writeMoverConfig(ctx *ScenarioContext, name string) error {

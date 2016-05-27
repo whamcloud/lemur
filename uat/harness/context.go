@@ -25,6 +25,10 @@ type (
 		Config      *Config
 		TestFiles   map[string]*TestFile
 
+		// These are per-scenario, unless otherwise configured
+		S3Bucket string
+		S3Prefix string
+
 		cleanupFunctions []cleanupFn
 		workdir          string
 		kv               kvmap
@@ -35,10 +39,6 @@ type (
 
 	multiError []error
 )
-
-func (m multiError) Add(e error) {
-	m = append(m, e)
-}
 
 func (m multiError) Error() string {
 	var buf bytes.Buffer
@@ -124,7 +124,7 @@ func (s *ScenarioContext) Cleanup() error {
 
 	for _, fn := range s.cleanupFunctions {
 		if err := fn(); err != nil {
-			errors.Add(err)
+			errors = append(errors, err)
 		}
 	}
 
