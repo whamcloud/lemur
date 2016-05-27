@@ -34,9 +34,11 @@ type (
 	archiveSet []*archiveConfig
 
 	s3Config struct {
-		NumThreads int        `hcl:"num_threads"`
-		Region     string     `hcl:"region"`
-		Archives   archiveSet `hcl:"archive"`
+		NumThreads     int        `hcl:"num_threads"`
+		Region         string     `hcl:"region"`
+		AWSAccessKeyID string     `hcl:"aws_access_key_id"`
+		AWSSecretKey   string     `hcl:"aws_secret_key"`
+		Archives       archiveSet `hcl:"archive"`
 	}
 )
 
@@ -160,6 +162,18 @@ func main() {
 			alert.Abort(errors.Wrap(err, "Invalid configuration"))
 		}
 	}
+
+	// Set the configured AWS credentials in the environment for use
+	// by the SDK.
+	if cfg.AWSAccessKeyID != "" {
+		os.Setenv("AWS_ACCESS_KEY_ID", cfg.AWSAccessKeyID)
+	}
+	if cfg.AWSSecretKey != "" {
+		os.Setenv("AWS_SECRET_KEY", cfg.AWSSecretKey)
+	}
+
+	// TODO: Check to make sure that the SDK can find some credentials
+	// before continuing; otherwise there will be long timeouts.
 
 	// All base filesystem operations will be relative to current directory
 	err = os.Chdir(plugin.Base())

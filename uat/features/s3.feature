@@ -1,17 +1,17 @@
-@posix
-Feature: POSIX data mover
+@s3
+Feature: S3 data mover
 	As a Lustre administrator
-	I want to configure a POSIX data mover
-	In order to migrate Lustre file data to and from a POSIX filesystem.
+	I want to configure a S3 data mover
+	In order to migrate Lustre file data to and from a S3 bucket.
 
 Background:
 	Given I am the root user
 	And I have a Lustre filesystem
 	When I configure the HSM Agent
-	And I configure the posix data mover
+	And I configure the s3 data mover
 	And I start the HSM Agent
 	Then the HSM Agent should be running
-	And the posix data mover should be running
+	And the s3 data mover should be running
 
 Scenario: Archive
 	When I archive a test file

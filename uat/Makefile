@@ -18,4 +18,4 @@ $(GODOG_BIN):
 
 test: $(GODOG_BIN) $(TEST_BINARIES)
 	@echo Running User Acceptance Tests...
-	@sudo -E sh -c "export PATH=$(PATH); $(shell which godog) ."
+	@tags=; if [ x"$(TAGS)" != "x" ]; then tags="--tags $(TAGS)"; fi; sudo -E sh -c "export PATH=$(PATH); $(shell which godog) --stop-on-failure $$tags ."

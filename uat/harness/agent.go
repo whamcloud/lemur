@@ -8,6 +8,7 @@ import (
 	"path"
 	"syscall"
 
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/pkg/errors"
 
 	"github.intel.com/hpdd/logging/alert"
@@ -173,11 +174,57 @@ func StopAgent(ctx *ScenarioContext) error {
 
 func writePosixMoverConfig(ctx *ScenarioContext) error {
 	cfg := fmt.Sprintf(`archive "one" {
-id = 1
-root = "%s"
+	id = 1
+	root = "%s"
 }`, ctx.Workdir()+"/archives/1")
 
 	cfgFile := ctx.Workdir() + "/etc/lhsmd/lhsm-plugin-posix"
+	cfgDir := path.Dir(cfgFile)
+	if err := os.MkdirAll(cfgDir, 0755); err != nil {
+		return errors.Wrap(err, "Failed to create plugin config dir")
+	}
+
+	return ioutil.WriteFile(cfgFile, []byte(cfg), 0644)
+}
+
+func writeS3MoverConfig(ctx *ScenarioContext) error {
+	var awsKey string
+	var awsSecret string
+
+	// First, try to leverage the SDK to get credentials from the
+	// environment.
+	envCredentials := &credentials.EnvProvider{}
+	if val, err := envCredentials.Retrieve(); err == nil {
+		awsKey = val.AccessKeyID
+		awsSecret = val.SecretAccessKey
+	}
+
+	// Next, load/override from the harness configuration.
+	if ctx.Config.AWSAccessKeyID != "" {
+		awsKey = ctx.Config.AWSAccessKeyID
+	}
+	if ctx.Config.AWSSecretKey != "" {
+		awsSecret = ctx.Config.AWSSecretKey
+	}
+
+	if awsKey == "" || awsSecret == "" {
+		return fmt.Errorf("Unable to get AWS credentials from environment or harness config")
+	}
+
+	if ctx.Config.S3Region == "" || ctx.Config.S3Bucket == "" {
+		return fmt.Errorf("Unable to configure s3 mover: no user config")
+	}
+	cfg := fmt.Sprintf(`region = "%s"
+aws_access_key_id = "%s"
+aws_secret_key = "%s"
+
+archive "one" {
+	id = 1
+	bucket = "%s"
+	prefix = "hsm"
+}`, ctx.Config.S3Region, awsKey, awsSecret, ctx.Config.S3Bucket)
+
+	cfgFile := ctx.Workdir() + "/etc/lhsmd/lhsm-plugin-s3"
 	cfgDir := path.Dir(cfgFile)
 	if err := os.MkdirAll(cfgDir, 0755); err != nil {
 		return errors.Wrap(err, "Failed to create plugin config dir")
@@ -190,6 +237,8 @@ func writeMoverConfig(ctx *ScenarioContext, name string) error {
 	switch name {
 	case "lhsm-plugin-posix":
 		return writePosixMoverConfig(ctx)
+	case "lhsm-plugin-s3":
+		return writeS3MoverConfig(ctx)
 	default:
 		return fmt.Errorf("Unknown data mover in test: %s", name)
 	}
