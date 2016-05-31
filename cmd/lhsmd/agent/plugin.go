@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -17,6 +18,15 @@ import (
 	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
 )
 
+var backoff = []time.Duration{
+	0 * time.Second,
+	1 * time.Second,
+	10 * time.Second,
+	30 * time.Second,
+	1 * time.Minute,
+}
+var maxBackoff = len(backoff) - 1
+
 type (
 	// PluginConfig represents configuration for a single plugin
 	PluginConfig struct {
@@ -26,6 +36,9 @@ type (
 		ClientMount      string
 		Args             []string
 		RestartOnFailure bool
+
+		lastRestart  time.Time
+		restartCount int
 	}
 
 	// PluginMonitor watches monitored plugins and restarts
@@ -64,6 +77,21 @@ func (p *PluginConfig) String() string {
 func (p *PluginConfig) NoRestart() *PluginConfig {
 	p.RestartOnFailure = false
 	return p
+}
+
+// RestartDelay returns a time.Duration to delay restarts based on
+// the number of restarts and the last restart time.
+func (p *PluginConfig) RestartDelay() time.Duration {
+	// If it's been a decent amount of time since the last restart,
+	// reset the backoff mechanism for a quick restart.
+	if time.Since(p.lastRestart) > backoff[maxBackoff]*2 {
+		p.restartCount = 0
+	}
+
+	if p.restartCount > maxBackoff {
+		return backoff[maxBackoff]
+	}
+	return backoff[p.restartCount]
 }
 
 // NewPlugin returns a plugin configuration
@@ -115,18 +143,21 @@ func (m *PluginMonitor) run(ctx context.Context) {
 			delete(processMap, s.ps.Pid())
 			audit.Logf("Process %d for %s died: %s", s.ps.Pid(), cfg.Name, s.ps)
 			if cfg.RestartOnFailure {
-				// FIXME: This needs some kind of mechanism
-				// to prevent endless restarts of a
-				// badly-configured plugin!!!
-				audit.Logf("Restarting plugin: %s", cfg.Name)
+				delay := cfg.RestartDelay()
+				audit.Logf("Restarting plugin %s after delay of %s (attempt %d)", cfg.Name, delay, cfg.restartCount)
+
+				cfg.restartCount++
+				cfg.lastRestart = time.Now()
 				// Restart in a different goroutine to
 				// avoid deadlocking this one.
-				go func(cfg *PluginConfig) {
+				go func(cfg *PluginConfig, delay time.Duration) {
+					<-time.After(delay)
+
 					err := m.StartPlugin(cfg)
 					if err != nil {
 						audit.Logf("Failed to restart plugin %s: %s", cfg.Name, err)
 					}
-				}(cfg)
+				}(cfg, delay)
 			}
 		case <-ctx.Done():
 			return
