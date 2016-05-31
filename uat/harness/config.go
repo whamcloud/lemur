@@ -35,6 +35,7 @@ type Config struct {
 	AWSSecretKey   string `hcl:"aws_secret_key" json:"aws_secret_key"`
 	S3Region       string `hcl:"s3_region" json:"s3_region"`
 	S3Bucket       string `hcl:"s3_bucket" json:"s3_bucket"`
+	S3Prefix       string `hcl:"s3_prefix" json:"s3_prefix"`
 }
 
 // Merge combines this config's values with the other config's values
@@ -64,6 +65,11 @@ func (c *Config) Merge(other *Config) *Config {
 		result.S3Bucket = other.S3Bucket
 	}
 
+	result.S3Prefix = c.S3Prefix
+	if other.S3Prefix != "" {
+		result.S3Prefix = other.S3Prefix
+	}
+
 	result.AWSAccessKeyID = c.AWSAccessKeyID
 	if other.AWSAccessKeyID != "" {
 		result.AWSAccessKeyID = other.AWSAccessKeyID
@@ -90,7 +96,9 @@ func (c *Config) String() string {
 
 // NewConfig initializes a new Config instance with default values
 func NewConfig() *Config {
-	return &Config{}
+	return &Config{
+		S3Region: "us-east-1",
+	}
 }
 
 // LoadConfig attempts to load a config from one of the default locations
