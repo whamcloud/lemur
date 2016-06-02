@@ -5,9 +5,9 @@ import (
 	"github.com/DATA-DOG/godog/gherkin"
 	"github.com/pkg/errors"
 
+	"github.intel.com/hpdd/lemur/uat/harness"
+	"github.intel.com/hpdd/lemur/uat/steps"
 	"github.intel.com/hpdd/logging/alert"
-	"github.intel.com/hpdd/policy/pdm/uat/harness"
-	"github.intel.com/hpdd/policy/pdm/uat/steps"
 )
 
 // This is the entry point for godog tests. The godog CLI cmd automatically

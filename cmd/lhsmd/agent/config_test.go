@@ -8,8 +8,8 @@ import (
 	"runtime"
 	"testing"
 
+	"github.intel.com/hpdd/lemur/cmd/lhsmd/config"
 	"github.intel.com/hpdd/lustre/fs/spec"
-	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
 )
 
 func TestConfiguredPlugins(t *testing.T) {

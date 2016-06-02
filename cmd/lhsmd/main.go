@@ -14,13 +14,13 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.intel.com/hpdd/lemur/cmd/lhsmd/agent"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
-	"github.intel.com/hpdd/policy/pdm/lhsmd/agent"
 
 	// Register the supported transports
-	_ "github.intel.com/hpdd/policy/pdm/lhsmd/transport/grpc"
+	_ "github.intel.com/hpdd/lemur/cmd/lhsmd/transport/grpc"
 )
 
 func init() {

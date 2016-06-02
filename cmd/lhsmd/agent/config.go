@@ -15,10 +15,10 @@ import (
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/pkg/errors"
 
+	"github.intel.com/hpdd/lemur/cmd/lhsmd/config"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre/fs/spec"
-	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
 )
 
 var (

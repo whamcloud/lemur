@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	pb "github.intel.com/hpdd/policy/pdm/pdm"
+	pb "github.intel.com/hpdd/lemur/pdm"
 	"github.intel.com/hpdd/policy/pkg/client"
 	"google.golang.org/grpc"
 )

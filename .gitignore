@@ -1,0 +1,11 @@
+# Mac
+.DS_Store
+
+# vim
+*.swp
+
+# Go litter
+*.coverprofile
+*.test
+.latest
+.lhsmd-test

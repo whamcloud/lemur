@@ -1,6 +1,6 @@
 package steps
 
-import "github.intel.com/hpdd/policy/pdm/uat/harness"
+import "github.intel.com/hpdd/lemur/uat/harness"
 
 // Package-level singleton which provides per-scenario context. Super
 // unhappy about this design, but the alternatives were more awkward.

@@ -9,9 +9,9 @@ import (
 
 	"google.golang.org/grpc"
 
+	pb "github.intel.com/hpdd/lemur/pdm"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
-	pb "github.intel.com/hpdd/policy/pdm/pdm"
 )
 
 // TestAction is an Action implementation used for testing Movers.

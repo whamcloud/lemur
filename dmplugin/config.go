@@ -8,8 +8,8 @@ import (
 
 	"github.com/hashicorp/hcl"
 	"github.com/pkg/errors"
+	"github.intel.com/hpdd/lemur/cmd/lhsmd/config"
 	"github.intel.com/hpdd/logging/alert"
-	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
 )
 
 type pluginConfig struct {

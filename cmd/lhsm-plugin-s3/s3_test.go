@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.intel.com/hpdd/policy/pdm/dmplugin"
+	"github.intel.com/hpdd/lemur/dmplugin"
 	//	"github.intel.com/hpdd/policy/pdm/lhsm-plugin-posix/posix"
 )
 

@@ -9,16 +9,16 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.intel.com/hpdd/lemur/cmd/lhsmd/agent"
+	"github.intel.com/hpdd/lemur/cmd/lhsmd/agent/fileid"
+	"github.intel.com/hpdd/lemur/cmd/lhsmd/config"
+	_ "github.intel.com/hpdd/lemur/cmd/lhsmd/transport/grpc"
+	"github.intel.com/hpdd/lemur/dmplugin"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
 	"github.intel.com/hpdd/lustre/llapi"
-	"github.intel.com/hpdd/policy/pdm/dmplugin"
-	"github.intel.com/hpdd/policy/pdm/lhsmd/agent"
-	"github.intel.com/hpdd/policy/pdm/lhsmd/agent/fileid"
-	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
-	_ "github.intel.com/hpdd/policy/pdm/lhsmd/transport/grpc"
 )
 
 var (

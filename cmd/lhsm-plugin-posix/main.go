@@ -10,10 +10,10 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.intel.com/hpdd/lemur/cmd/lhsm-plugin-posix/posix"
+	"github.intel.com/hpdd/lemur/dmplugin"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
-	"github.intel.com/hpdd/policy/pdm/dmplugin"
-	"github.intel.com/hpdd/policy/pdm/lhsm-plugin-posix/posix"
 )
 
 type (

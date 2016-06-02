@@ -5,8 +5,8 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.intel.com/hpdd/lemur/uat/harness"
 	"github.intel.com/hpdd/logging/debug"
-	"github.intel.com/hpdd/policy/pdm/uat/harness"
 )
 
 func init() {

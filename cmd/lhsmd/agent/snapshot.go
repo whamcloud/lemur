@@ -8,6 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.intel.com/hpdd/lemur/cmd/lhsmd/agent/fileid"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre"
@@ -15,7 +16,6 @@ import (
 	"github.intel.com/hpdd/lustre/hsm"
 	"github.intel.com/hpdd/lustre/llapi"
 	"github.intel.com/hpdd/lustre/status"
-	"github.intel.com/hpdd/policy/pdm/lhsmd/agent/fileid"
 )
 
 func createSnapDir(p string) (string, error) {

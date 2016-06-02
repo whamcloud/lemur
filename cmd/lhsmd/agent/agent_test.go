@@ -3,9 +3,9 @@ package agent_test
 import (
 	"testing"
 
+	"github.intel.com/hpdd/lemur/cmd/lhsmd/agent"
+	_ "github.intel.com/hpdd/lemur/cmd/lhsmd/transport/grpc"
 	"github.intel.com/hpdd/lustre/hsm"
-	"github.intel.com/hpdd/policy/pdm/lhsmd/agent"
-	_ "github.intel.com/hpdd/policy/pdm/lhsmd/transport/grpc"
 
 	"golang.org/x/net/context"
 )

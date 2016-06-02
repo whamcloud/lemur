@@ -13,10 +13,10 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
+	"github.intel.com/hpdd/lemur/dmplugin"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
-	"github.intel.com/hpdd/policy/pdm/dmplugin"
 )
 
 var rate metrics.Meter

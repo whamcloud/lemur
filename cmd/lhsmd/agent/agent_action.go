@@ -8,11 +8,11 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.intel.com/hpdd/lemur/cmd/lhsmd/agent/fileid"
+	pb "github.intel.com/hpdd/lemur/pdm"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
-	"github.intel.com/hpdd/policy/pdm/lhsmd/agent/fileid"
-	pb "github.intel.com/hpdd/policy/pdm/pdm"
 
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"

@@ -6,9 +6,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.intel.com/hpdd/policy/pdm/dmplugin"
-	"github.intel.com/hpdd/policy/pdm/lhsm-plugin-posix/posix"
-	"github.intel.com/hpdd/policy/pdm/lhsmd/config"
+	"github.intel.com/hpdd/lemur/cmd/lhsm-plugin-posix/posix"
+	"github.intel.com/hpdd/lemur/cmd/lhsmd/config"
+	"github.intel.com/hpdd/lemur/dmplugin"
 )
 
 func TestLoadConfig(t *testing.T) {

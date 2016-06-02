@@ -8,9 +8,9 @@ import (
 
 	"github.com/pkg/errors"
 
+	pb "github.intel.com/hpdd/lemur/pdm"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
-	pb "github.intel.com/hpdd/policy/pdm/pdm"
 	"golang.org/x/net/context"
 )
 

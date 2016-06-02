@@ -12,9 +12,9 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/pborman/uuid"
+	"github.intel.com/hpdd/lemur/dmplugin"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
-	"github.intel.com/hpdd/policy/pdm/dmplugin"
 )
 
 // Mover is an S3 data mover
