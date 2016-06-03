@@ -16,13 +16,16 @@ RACE_TARGETS := $(patsubst cmd/%/main.go,%.race,$(CMD_SOURCES))
 PANDOC_BIN := $(shell if which pandoc >/dev/null 2>&1; then echo pandoc; else echo true; fi)
 
 $(TARGETS):
-	go build -i -ldflags "$(LDFLAGS)" -o $@ ./cmd/$@
+	go build -v -i -ldflags "$(LDFLAGS)" -o $@ ./cmd/$@
 
 $(RACE_TARGETS):
-	go build -i -ldflags "$(LDFLAGS)" --race -o $@ ./cmd/$(basename $@)
+	go build -v -i -ldflags "$(LDFLAGS)" --race -o $@ ./cmd/$(basename $@)
+
+all: $(TARGETS) $(MAN_TARGETS)
+.DEFAULT_GOAL:=all
 
 # development tasks
-check: test all
+check: test uat
 
 test:
 	go test $$(go list ./... | grep -v /vendor/ | grep -v /uat/ )
@@ -77,9 +80,6 @@ clean: clean-docs clean-deps
 	rm -f $(TARGETS)
 	rm -f $(RACE_TARGETS)
 	rm -f $(MAN_TARGETS)
-
-all: $(TARGETS) $(MAN_TARGETS)
-.DEFAULT_GOAL:=all
 
 .PHONY: $(TARGETS) $(RACE_TARGETS)
 .PHONY: all check test uat rpm deb install local-install packages  coverage docs jekyll deploy-docs clean-docs clean-deps clean

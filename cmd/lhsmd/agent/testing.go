@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"testing"
 	"time"
 
 	"github.com/pkg/errors"
@@ -18,11 +17,16 @@ const (
 )
 
 type (
+	// Errorer provides Error and Errorf, e.g. *testing.T
+	Errorer interface {
+		Error(args ...interface{})
+		Errorf(format string, args ...interface{})
+	}
 	// TestAgent wraps an HsmAgent and provides extra test-specific methods
 	TestAgent struct {
 		HsmAgent
 		as         *hsm.TestSource
-		t          *testing.T
+		t          Errorer
 		started    chan struct{}
 		startError chan error
 		plugins    []dmplugin.Plugin
@@ -108,7 +112,7 @@ func (ta *TestAgent) Stop() {
 }
 
 // NewTestAgent returns a wrapped *HsmAgent configured for testing
-func NewTestAgent(t *testing.T, cfg *Config, mon *PluginMonitor, as *hsm.TestSource, ep *Endpoints) *TestAgent {
+func NewTestAgent(t Errorer, cfg *Config, mon *PluginMonitor, as *hsm.TestSource, ep *Endpoints) *TestAgent {
 	return &TestAgent{
 		HsmAgent: HsmAgent{
 			stats:        NewActionStats(),

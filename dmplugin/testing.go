@@ -3,7 +3,6 @@ package dmplugin
 import (
 	"math"
 	"path"
-	"testing"
 
 	"golang.org/x/net/context"
 
@@ -14,9 +13,15 @@ import (
 	"github.intel.com/hpdd/logging/debug"
 )
 
+// Fataler provides Fatal and Fatalf
+type Fataler interface {
+	Fatal(args ...interface{})
+	Fatalf(format string, args ...interface{})
+}
+
 // TestAction is an Action implementation used for testing Movers.
 type TestAction struct {
-	t            *testing.T
+	t            Fataler
 	id           uint64
 	path         string
 	offset       uint64
@@ -28,7 +33,7 @@ type TestAction struct {
 }
 
 // NewTestAction returns a stub action that can be used for testing.
-func NewTestAction(t *testing.T, path string, offset uint64, length uint64, fileID []byte, data []byte) *TestAction {
+func NewTestAction(t Fataler, path string, offset uint64, length uint64, fileID []byte, data []byte) *TestAction {
 	return &TestAction{
 		t:      t,
 		id:     1,
@@ -108,7 +113,7 @@ func (a *TestAction) SetActualLength(length uint64) {
 type testPlugin struct {
 	name          string
 	config        *pluginConfig
-	t             *testing.T
+	t             Fataler
 	movers        []*DataMoverClient
 	rpcConn       *grpc.ClientConn
 	ctx           context.Context
@@ -116,7 +121,7 @@ type testPlugin struct {
 }
 
 // NewTestPlugin returns a test plugin
-func NewTestPlugin(t *testing.T, name string) Plugin {
+func NewTestPlugin(t Fataler, name string) Plugin {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &testPlugin{
