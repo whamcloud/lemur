@@ -12,7 +12,7 @@ func init() {
 }
 
 func iConfigureADataMover(dmType string) error {
-	return harness.AddConfiguredMover(ctx, harness.HsmPluginPrefix+dmType)
+	return harness.AddConfiguredMover(ctx, harness.HsmPluginPrefix+dmType+".race")
 }
 
 func theDataMoverShouldBe(dmType, state string) error {
@@ -27,7 +27,7 @@ func theDataMoverShouldBe(dmType, state string) error {
 	time.Sleep(1 * time.Second)
 
 	dmStatus := func() error {
-		return checkProcessState(harness.HsmPluginPrefix+dmType, state, -1)
+		return checkProcessState(harness.HsmPluginPrefix+dmType+".race", state, -1)
 	}
 	return waitFor(dmStatus, DefaultTimeout)
 }

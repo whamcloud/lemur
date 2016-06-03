@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 	"syscall"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -27,7 +28,7 @@ const (
 	HsmAgentCfgKey = "agent_config_key"
 
 	// HsmAgentBinary is the name of the HSM Agent
-	HsmAgentBinary = "lhsmd"
+	HsmAgentBinary = "lhsmd.race"
 
 	// HsmPluginPrefix is the base name of data mover plugins
 	HsmPluginPrefix = "lhsm-plugin-"
@@ -195,13 +196,13 @@ func StopAgent(ctx *ScenarioContext) error {
 	return nil
 }
 
-func writePosixMoverConfig(ctx *ScenarioContext) error {
+func writePosixMoverConfig(ctx *ScenarioContext, name string) error {
 	cfg := fmt.Sprintf(`archive "one" {
 	id = 1
 	root = "%s"
 }`, ctx.Workdir()+"/archives/1")
 
-	cfgFile := ctx.Workdir() + "/etc/lhsmd/lhsm-plugin-posix"
+	cfgFile := ctx.Workdir() + "/etc/lhsmd/" + name
 	cfgDir := path.Dir(cfgFile)
 	if err := os.MkdirAll(cfgDir, 0755); err != nil {
 		return errors.Wrap(err, "Failed to create plugin config dir")
@@ -210,7 +211,7 @@ func writePosixMoverConfig(ctx *ScenarioContext) error {
 	return ioutil.WriteFile(cfgFile, []byte(cfg), 0644)
 }
 
-func writeS3MoverConfig(ctx *ScenarioContext) error {
+func writeS3MoverConfig(ctx *ScenarioContext, name string) error {
 	var awsKey string
 	var awsSecret string
 
@@ -263,7 +264,7 @@ archive "one" {
 	prefix = "%s"
 }`, ctx.Config.S3Region, awsKey, awsSecret, ctx.S3Bucket, ctx.S3Prefix)
 
-	cfgFile := ctx.Workdir() + "/etc/lhsmd/lhsm-plugin-s3"
+	cfgFile := ctx.Workdir() + "/etc/lhsmd/" + name
 	cfgDir := path.Dir(cfgFile)
 	if err := os.MkdirAll(cfgDir, 0755); err != nil {
 		return errors.Wrap(err, "Failed to create plugin config dir")
@@ -346,11 +347,12 @@ func cleanupS3Bucket(ctx *ScenarioContext) cleanupFn {
 }
 
 func writeMoverConfig(ctx *ScenarioContext, name string) error {
-	switch name {
+	n := strings.Split(name, ".")
+	switch n[0] {
 	case "lhsm-plugin-posix":
-		return writePosixMoverConfig(ctx)
+		return writePosixMoverConfig(ctx, name)
 	case "lhsm-plugin-s3":
-		return writeS3MoverConfig(ctx)
+		return writeS3MoverConfig(ctx, name)
 	default:
 		return fmt.Errorf("Unknown data mover in test: %s", name)
 	}
