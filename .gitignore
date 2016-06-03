@@ -9,3 +9,4 @@
 *.test
 .latest
 .lhsmd-test
+test.log

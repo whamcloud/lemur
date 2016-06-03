@@ -2,7 +2,7 @@
 NAME := lemur
 DESC := Lustre HSM Agent and Movers
 PREFIX ?= usr/local
-VERSION := $(shell git describe --tags --always --dirty)
+VERSION := $(shell git describe --tags --always --dirty | tr '-' '_')
 BUILDDATE := $(shell date -u +"%B %d, %Y")
 GOVERSION := $(shell go version)
 PKG_RELEASE ?= 1
@@ -23,6 +23,10 @@ $(RACE_TARGETS):
 
 all: $(TARGETS) $(MAN_TARGETS)
 .DEFAULT_GOAL:=all
+
+# packaging tasks
+rpm:
+	$(MAKE) -C packaging/rpm NAME=$(NAME) VERSION=$(VERSION) RELEASE=$(PKG_RELEASE) URL=$(PROJECT_URL)
 
 # development tasks
 check: test uat
