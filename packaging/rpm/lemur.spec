@@ -31,9 +31,10 @@ These data movers are designed to implement the Lustre HSM Agent's data
 movement protocol. When associated with an HSM archive number, a data
 mover fulfills data movement requests on behalf of the HSM Agent.
 
+# Links against liblustreapi.
 %package -n %{pkg_prefix}-testing
 Summary: INSERT PRODUCT NAME HERE - Testing Collateral
-License: Apache
+License: GPL
 Requires: %{pkg_prefix}-hsm-agent = %{version} %{pkg_prefix}-data-movers = %{version}
 
 %description -n %{pkg_prefix}-testing
@@ -55,6 +56,7 @@ CLI for Lustre data movement control.
 
 %install
 %{__make} install PREFIX=$RPM_BUILD_ROOT/%{_prefix}
+%{__make} uat-install PREFIX=$RPM_BUILD_ROOT/%{_prefix} BUILDROOT=$RPM_BUILD_ROOT/
 
 %files
 %defattr(-,root,root)
@@ -69,6 +71,9 @@ CLI for Lustre data movement control.
 %files -n %{pkg_prefix}-testing
 %defattr(-,root,root)
 %{_bindir}/lhsm-plugin-noop
+%{_libexecdir}/%{pkg_prefix}-testing/*.race
+%{_libexecdir}/%{pkg_prefix}-testing/%{pkg_prefix}-uat-runner
+%{_datarootdir}/%{pkg_prefix}/test/features/*.feature
 
 %files -n ldmc
 %defattr(-,root,root)

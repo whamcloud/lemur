@@ -1,15 +1,18 @@
 # variable definitions
 NAME := lemur
 DESC := Lustre HSM Agent and Movers
-PREFIX ?= usr/local
+PREFIX ?= $(PWD)/usr/local
+BUILDROOT ?=
 VERSION := $(shell git describe --tags --always --dirty | tr '-' '_')
 BUILDDATE := $(shell date -u +"%B %d, %Y")
 GOVERSION := $(shell go version)
 PKG_RELEASE ?= 1
 PROJECT_URL := "https://github.intel.comcom/hpdd/$(NAME)"
 LDFLAGS := -X 'main.version=$(VERSION)'
+FEATURE_TESTS := uat/features
 
 CMD_SOURCES := $(shell find cmd -name main.go)
+FEATURE_FILES := $(shell find $(FEATURE_TESTS) -type f -printf '%f ' -name *.feature)
 
 TARGETS := $(patsubst cmd/%/main.go,%,$(CMD_SOURCES))
 RACE_TARGETS := $(patsubst cmd/%/main.go,%.race,$(CMD_SOURCES))
@@ -25,6 +28,8 @@ all: $(TARGETS) $(MAN_TARGETS)
 .DEFAULT_GOAL:=all
 
 # packaging tasks
+# TODO: These builds need to be done in a truly clean environment. At the
+# moment, they are relying on the developer's GOPATH, which is not correct.
 rpm:
 	$(MAKE) -C packaging/rpm NAME=$(NAME) VERSION=$(VERSION) RELEASE=$(PKG_RELEASE) URL=$(PROJECT_URL)
 
@@ -57,6 +62,11 @@ docs: $(MAN_TARGETS)
 # Installation
 INSTALLED_TARGETS = $(addprefix $(PREFIX)/bin/, $(TARGETS))
 INSTALLED_MAN_TARGETS = $(addprefix $(PREFIX)/share/man/man1/, $(MAN_TARGETS))
+# test targets
+UAT_RACE_TARGETS_DEST := libexec/$(NAME)-testing
+INSTALLED_RACE_TARGETS = $(addprefix $(PREFIX)/$(UAT_RACE_TARGETS_DEST)/, $(RACE_TARGETS))
+UAT_FEATURES_DEST := share/$(NAME)/test/features
+INSTALLED_FEATURES = $(addprefix $(PREFIX)/$(UAT_FEATURES_DEST)/, $(FEATURE_FILES))
 
 # install tasks
 $(PREFIX)/bin/%: %
@@ -67,10 +77,25 @@ $(PREFIX)/share/man/man1/%: %
 	install -d $$(dirname $@)
 	install -m 644 $< $@
 
+$(PREFIX)/$(UAT_FEATURES_DEST)/%: $(FEATURE_TESTS)/%
+	install -d $$(dirname $@)
+	install -m 644 $< $@
+
+$(PREFIX)/$(UAT_RACE_TARGETS_DEST)/%: %
+	install -d $$(dirname $@)
+	install -m 755 $< $@
+
 install: $(INSTALLED_TARGETS) $(INSTALLED_MAN_TARGETS)
 
 local-install:
 	$(MAKE) install PREFIX=usr/local
+
+$(NAME)-uat-runner: uat/*.go
+	cd uat && \
+	go test -c -o $(PWD)/$@ -ldflags="-X '_$(PWD)/uat.runDir=$(subst $(BUILDROOT),,$(dir $(PREFIX)/$(UAT_FEATURES_DEST)))' -X '_$(PWD)/uat.raceBinPath=$(subst $(BUILDROOT),,$(PREFIX)/$(UAT_RACE_TARGETS_DEST))'"
+
+uat-install: $(NAME)-uat-runner $(INSTALLED_RACE_TARGETS) $(INSTALLED_FEATURES)
+	install -m 755 $(NAME)-uat-runner $(PREFIX)/$(UAT_RACE_TARGETS_DEST)
 
 # clean up tasks
 clean-docs:
@@ -84,6 +109,7 @@ clean: clean-docs clean-deps
 	rm -f $(TARGETS)
 	rm -f $(RACE_TARGETS)
 	rm -f $(MAN_TARGETS)
+	rm -f $(NAME)-uat-runner
 
 .PHONY: $(TARGETS) $(RACE_TARGETS)
-.PHONY: all check test uat rpm deb install local-install packages  coverage docs jekyll deploy-docs clean-docs clean-deps clean
+.PHONY: all check test uat rpm deb install local-install packages  coverage docs jekyll deploy-docs clean-docs clean-deps clean uat-install
