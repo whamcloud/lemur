@@ -1,0 +1,14 @@
+## Sample configuration for the S3 data mover plugin.
+##
+## Maximum number of concurrent copies.
+##
+# num_threads = 8
+
+##
+## One or more archive definition is required.
+##
+# archive  "s3-test" {
+#    id = 2                   # Must be unique to this endpoint
+#    bucket = "rmr-hsm-test"  # S3 Bucket used for this archive
+#    prefix = "archive"       # Optional prefix
+# }

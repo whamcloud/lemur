@@ -1,0 +1,40 @@
+## Sample configuration for the Lustre HSM Agent. See lhsmd(1) for more information.
+##
+## The mount target for the Lustre filesystem that will be used with this agent.
+##
+# client_device=  "10.0.2.15@tcp:/lustre"
+
+client_device = "required"
+
+##
+## Base directory used for the Lustre mount points created by the agent
+##
+# mount_root= "/var/lib/lhsmd/roots"
+
+##
+## List of enabled plugins
+##
+# enabled_plugins = ["lhsm-plugin-posix", "lhsm-plugin-s3"]
+
+##
+## Number of threads handling incoming HSM requests.
+##
+# handler_count = 4
+
+##
+## Enable expeimental snapshot feature.
+##
+# snapshots {
+#     enabled = false
+# }
+
+
+##
+## Metric Storage
+##
+# influxdb {
+#    url = "http://10.0.1.123:8086"
+#    db = "lhsmd"
+#    user = "*user*"
+#    password = "*password*"
+# }

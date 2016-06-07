@@ -24,9 +24,6 @@ $(TARGETS):
 $(RACE_TARGETS):
 	go build -v -i -ldflags "$(LDFLAGS)" --race -o $@ ./cmd/$(basename $@)
 
-all: $(TARGETS) $(MAN_TARGETS)
-.DEFAULT_GOAL:=all
-
 # packaging tasks
 # TODO: These builds need to be done in a truly clean environment. At the
 # moment, they are relying on the developer's GOPATH, which is not correct.
@@ -59,6 +56,9 @@ MAN_TARGETS := $(patsubst man/%.md,%,$(MAN_SOURCES))
 
 docs: $(MAN_TARGETS)
 
+all: $(TARGETS) $(MAN_TARGETS)
+.DEFAULT_GOAL:=all
+
 # Installation
 INSTALLED_TARGETS = $(addprefix $(PREFIX)/bin/, $(TARGETS))
 INSTALLED_MAN_TARGETS = $(addprefix $(PREFIX)/share/man/man1/, $(MAN_TARGETS))
@@ -67,6 +67,12 @@ UAT_RACE_TARGETS_DEST := libexec/$(NAME)-testing
 INSTALLED_RACE_TARGETS = $(addprefix $(PREFIX)/$(UAT_RACE_TARGETS_DEST)/, $(RACE_TARGETS))
 UAT_FEATURES_DEST := share/$(NAME)/test/features
 INSTALLED_FEATURES = $(addprefix $(PREFIX)/$(UAT_FEATURES_DEST)/, $(FEATURE_FILES))
+
+# Sample config files
+#
+EXAMPLES = $(shell find doc -name "*.example")
+EXAMPLE_TARGETS = $(patsubst doc/%,%,$(EXAMPLES))
+INSTALLED_EXAMPLES = $(addprefix $(PREFIX)/etc/lhsmd/, $(EXAMPLE_TARGETS))
 
 # install tasks
 $(PREFIX)/bin/%: %
@@ -84,6 +90,12 @@ $(PREFIX)/$(UAT_FEATURES_DEST)/%: $(FEATURE_TESTS)/%
 $(PREFIX)/$(UAT_RACE_TARGETS_DEST)/%: %
 	install -d $$(dirname $@)
 	install -m 755 $< $@
+
+$(PREFIX)/etc/lhsmd/%:
+	install -d $$(dirname $@)
+	install -m 644 doc/$$(basename $@) $@
+
+install-example: $(INSTALLED_EXAMPLES)
 
 install: $(INSTALLED_TARGETS) $(INSTALLED_MAN_TARGETS)
 

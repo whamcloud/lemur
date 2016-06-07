@@ -56,17 +56,23 @@ CLI for Lustre data movement control.
 
 %install
 %{__make} install PREFIX=$RPM_BUILD_ROOT/%{_prefix}
+%{__make} install-example PREFIX=$RPM_BUILD_ROOT/
 %{__make} uat-install PREFIX=$RPM_BUILD_ROOT/%{_prefix} BUILDROOT=$RPM_BUILD_ROOT/
 
 %files
 %defattr(-,root,root)
 %{_bindir}/lhsmd
 %{_mandir}/man1/lhsmd.1.gz
+%{_sysconfdir}/lhsmd/agent.example
 
 %files -n %{pkg_prefix}-data-movers
 %defattr(-,root,root)
 %{_bindir}/lhsm-plugin-posix
 %{_bindir}/lhsm-plugin-s3
+%{_mandir}/man1/lhsm-plugin-s3.1.gz
+%{_mandir}/man1/lhsm-plugin-posix.1.gz
+%{_sysconfdir}/lhsmd/lhsm-plugin-posix.example
+%{_sysconfdir}/lhsmd/lhsm-plugin-s3.example
 
 %files -n %{pkg_prefix}-testing
 %defattr(-,root,root)
