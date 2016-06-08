@@ -10,8 +10,6 @@ import (
 var runDir = "."
 var raceBinPath = "."
 
-const GodogSuiteName = "uat"
-
 func TestMain(m *testing.M) {
 	// Run the features tests from the compiled-in location.
 	if err := os.Chdir(runDir); err != nil {
