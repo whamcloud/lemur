@@ -105,7 +105,7 @@ func TestMergedConfig(t *testing.T) {
 		ClientMountOptions: []string{
 			"user_xattr",
 		},
-		Processes: 2,
+		Processes: runtime.NumCPU(),
 		InfluxDB: &influxConfig{
 			URL: "http://172.17.0.4:8086",
 			DB:  "lhsmd",
