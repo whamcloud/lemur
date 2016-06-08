@@ -30,6 +30,9 @@ $(RACE_TARGETS):
 rpm:
 	$(MAKE) -C packaging/rpm NAME=$(NAME) VERSION=$(VERSION) RELEASE=$(PKG_RELEASE) URL=$(PROJECT_URL)
 
+docker:
+	$(MAKE) -C packaging/docker
+
 # development tasks
 check: test uat
 
