@@ -107,10 +107,9 @@ func (action *Action) Prepare() error {
 				// WTF, let's try again
 				time.Sleep(1 * time.Second)
 				action.FileID, err = fileid.Get(action.agent.Root(), action.aih.Fid())
-
-			}
-			if err != nil {
-				alert.Warnf("Error reading fileid: %v (%v)", err, action) // hmm, can't restore if there is no file id
+				if err != nil {
+					alert.Warnf("Error reading fileid: %v (%v)", err, action) // hmm, can't restore if there is no file id
+				}
 			}
 		}
 	}
@@ -165,7 +164,7 @@ func (action *Action) Update(status *pb.ActionStatus) (bool, error) {
 			audit.Logf("id:%d completion failed: %v", status.Id, err)
 			return true, err // Completed, but Failed. Internal HSM state is not updated
 		}
-
+		<-action.agent.rpcsInFlight
 		if action.aih.Action() == llapi.HsmActionArchive && action.agent.config.Snapshots.Enabled && status.FileId != nil {
 			createSnapshot(action.agent.Root(), action.aih.ArchiveID(), action.aih.Fid(), status.FileId)
 		}
@@ -193,6 +192,7 @@ func (action *Action) Fail(rc int) error {
 	if err != nil {
 		audit.Logf("id:%d fail after fail %x: %v", action.id, action.aih.Cookie, err)
 	}
+	<-action.agent.rpcsInFlight
 	return errors.Wrap(err, "end action failed")
 
 }

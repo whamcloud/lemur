@@ -46,6 +46,7 @@ type (
 		actionSource hsm.ActionSource
 		monitor      *PluginMonitor
 		cancelFunc   context.CancelFunc
+		rpcsInFlight chan struct{} // Buffered channel to throttle rpcs in flight
 	}
 
 	// Transport for backend plugins
@@ -65,6 +66,7 @@ func New(cfg *Config) (*HsmAgent, error) {
 	ct := &HsmAgent{
 		config:       cfg,
 		client:       client,
+		rpcsInFlight: make(chan struct{}, cfg.Processes*10),
 		stats:        NewActionStats(),
 		monitor:      NewMonitor(),
 		actionSource: hsm.NewActionSource(client.Root()),
@@ -143,9 +145,11 @@ func (ct *HsmAgent) handleActions(tag string) {
 		aih, err := ai.Begin(0, false)
 		if err != nil {
 			alert.Warnf("%s: begin failed: %v: %s", tag, err, ai)
+			ai.FailImmediately(int(unix.EIO))
 			continue
 		}
 		action := ct.newAction(aih)
+		ct.rpcsInFlight <- struct{}{}
 		ct.stats.StartAction(action)
 		action.Prepare()
 		if e, ok := ct.Endpoints.Get(uint32(aih.ArchiveID())); ok {
