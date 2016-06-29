@@ -1,7 +1,7 @@
 FROM centos:7
 MAINTAINER Robert Read <robert.read@intel.com>
 
-RUN rpm -Uvh https://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-6.noarch.rpm
+RUN rpm -Uvh https://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-7.noarch.rpm
 
 # Setup go build environment
 RUN yum install -y @development golang pcre-devel glibc-static which
@@ -12,7 +12,7 @@ ENV GOPATH=/go \
 
 RUN go get github.com/tools/godep && cp /go/bin/godep /usr/local/bin
 
-ARG go_version 
+ARG go_version
 
 # Bootstrap a go1.6 build from Fedora Rawhide, but disable tests because they require privileged mode
 RUN rpm -ivh http://mirrors.kernel.org/fedora/development/rawhide/Everything/x86_64/os/Packages/g/go-srpm-macros-2-6.fc24.noarch.rpm \
