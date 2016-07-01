@@ -1,8 +1,10 @@
 package dmplugin
 
 import (
+	"net"
 	"path"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -35,6 +37,10 @@ type Plugin interface {
 	ConfigFile() string
 }
 
+func unixDialer(addr string, timeout time.Duration) (net.Conn, error) {
+	return net.DialTimeout("unix", addr, timeout)
+}
+
 // New returns a new *Plugin, or error
 func New(name string) (Plugin, error) {
 	config := mustInitConfig()
@@ -45,7 +51,7 @@ func New(name string) (Plugin, error) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	conn, err := grpc.Dial(config.AgentAddress, grpc.WithInsecure())
+	conn, err := grpc.Dial(config.AgentAddress, grpc.WithDialer(unixDialer), grpc.WithInsecure())
 	if err != nil {
 		return nil, errors.Wrap(err, "dial gprc server failed")
 	}

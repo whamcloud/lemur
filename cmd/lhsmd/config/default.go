@@ -23,8 +23,9 @@ const (
 
 	// DefaultTransport is the default agent<->plugin transport
 	DefaultTransport = "grpc"
-	// DefaultTransportPort is the default listen port for the agent
-	DefaultTransportPort = 4242
+
+	// DefaultTransportSocketDir is default directory to store the unix socket
+	DefaultTransportSocketDir = "/var/run/lhsmd"
 
 	// DefaultAgentMountRoot is the root directory for agent client mounts
 	DefaultAgentMountRoot = "/mnt/lhsmd"

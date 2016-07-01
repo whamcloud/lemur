@@ -58,7 +58,7 @@ func (t *rpcTransport) Init(conf *agent.Config, a *agent.HsmAgent) error {
 	}
 
 	debug.Print("Initializing grpc transport")
-	sock, err := net.Listen("tcp", conf.Transport.ConnectionString())
+	sock, err := net.Listen("unix", conf.Transport.ConnectionString())
 	if err != nil {
 		return errors.Errorf("Failed to listen: %v", err)
 	}

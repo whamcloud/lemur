@@ -27,9 +27,8 @@ var (
 
 type (
 	transportConfig struct {
-		Type   string `hcl:"type"`
-		Server string `hcl:"server"`
-		Port   int    `hcl:"port"`
+		Type      string `hcl:"type"`
+		SocketDir string `hcl:"socket_dir"`
 	}
 
 	influxConfig struct {
@@ -84,24 +83,16 @@ func (c *transportConfig) Merge(other *transportConfig) *transportConfig {
 		result.Type = other.Type
 	}
 
-	result.Port = c.Port
-	if other.Port > 0 {
-		result.Port = other.Port
-	}
-
-	result.Server = c.Server
-	if other.Server != "" {
-		result.Server = other.Server
+	result.SocketDir = c.SocketDir
+	if other.SocketDir != "" {
+		result.SocketDir = other.SocketDir
 	}
 
 	return result
 }
 
 func (c *transportConfig) ConnectionString() string {
-	if c.Port == 0 {
-		return c.Server
-	}
-	return fmt.Sprintf("%s:%d", c.Server, c.Port)
+	return fmt.Sprintf("%s/lhsmd-%d", c.SocketDir, os.Getpid())
 }
 
 func (c *influxConfig) Merge(other *influxConfig) *influxConfig {
@@ -247,8 +238,8 @@ func DefaultConfig() *Config {
 	cfg.PluginDir = config.DefaultPluginDir
 	cfg.Processes = runtime.NumCPU()
 	cfg.Transport = &transportConfig{
-		Type: config.DefaultTransport,
-		Port: config.DefaultTransportPort,
+		Type:      config.DefaultTransport,
+		SocketDir: config.DefaultTransportSocketDir,
 	}
 	return cfg
 }
