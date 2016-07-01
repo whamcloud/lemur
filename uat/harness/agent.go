@@ -278,7 +278,10 @@ func createS3Bucket(ctx *ScenarioContext) (string, error) {
 	bucket, err := svc.CreateBucket(&s3.CreateBucketInput{
 		Bucket: aws.String(path.Base(ctx.Workdir())),
 	})
-	return path.Base(*bucket.Location), errors.Wrap(err, "Failed to create test bucket")
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to create test bucket")
+	}
+	return path.Base(*bucket.Location), nil
 }
 
 func cleanupS3Prefix(ctx *ScenarioContext) cleanupFn {
