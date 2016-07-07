@@ -2,6 +2,9 @@ package steps
 
 import (
 	"fmt"
+	"io/ioutil"
+	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.intel.com/hpdd/lustre/fs"
@@ -10,6 +13,31 @@ import (
 
 func init() {
 	addStep(`^I have a Lustre filesystem$`, iHaveALustreFilesystem)
+	addStep(`^the HSM coordinator is (enabled|disabled)$`, hsmIsInState)
+}
+
+func hsmIsInState(expected string) error {
+	// We've established that only the first MDT acts as the HSM
+	// controller for a fs, right?
+	hsmControls, err := filepath.Glob("/proc/fs/lustre/mdt/*-MDT0000/hsm_control")
+	if err != nil {
+		return errors.Wrap(err, "Failed to Glob() HSM control file")
+	}
+	if len(hsmControls) != 1 {
+		return errors.Errorf("Expected exactly 1 MDT (found %d)", len(hsmControls))
+	}
+
+	buf, err := ioutil.ReadFile(hsmControls[0])
+	if err != nil {
+		return errors.Wrapf(err, "Failed to read %s", hsmControls[0])
+	}
+
+	actual := strings.TrimSpace(string(buf))
+	if actual != expected {
+		return errors.Errorf("Coordinator state is %s, but expected %s", actual, expected)
+	}
+
+	return nil
 }
 
 func iHaveALustreFilesystem() error {

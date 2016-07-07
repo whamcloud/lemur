@@ -7,6 +7,7 @@ Feature: POSIX data mover
 Background:
 	Given I am the root user
 	And I have a Lustre filesystem
+	And the HSM coordinator is enabled
 	When I configure the HSM Agent
 	And I configure the posix data mover
 	And I start the HSM Agent
