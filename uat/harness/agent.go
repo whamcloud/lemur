@@ -55,12 +55,12 @@ type harnessConfigProvider struct {
 }
 
 func (p *harnessConfigProvider) Retrieve() (credentials.Value, error) {
-	if p.ctx.Config.AWSAccessKeyID == "" && p.ctx.Config.AWSSecretKey == "" {
+	if p.ctx.Config.AWSAccessKeyID == "" && p.ctx.Config.AWSSecretAccessKey == "" {
 		return credentials.Value{}, fmt.Errorf("No AWS credentials set in harness config")
 	}
 	return credentials.Value{
 		AccessKeyID:     p.ctx.Config.AWSAccessKeyID,
-		SecretAccessKey: p.ctx.Config.AWSSecretKey,
+		SecretAccessKey: p.ctx.Config.AWSSecretAccessKey,
 		ProviderName:    "HarnessConfig",
 	}, nil
 }
@@ -256,7 +256,7 @@ func writeS3MoverConfig(ctx *ScenarioContext, name string) error {
 	// TODO: Make configuration of credentials optional.
 	cfg := fmt.Sprintf(`region = "%s"
 aws_access_key_id = "%s"
-aws_secret_key = "%s"
+aws_secret_access_key = "%s"
 
 archive "one" {
 	id = 1

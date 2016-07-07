@@ -24,7 +24,7 @@ In order to test the s3 mover, the following requirements must be met:
 ~/.lhsmd-test:
 
     aws_access_key_id = "your aws access key"
-    aws_secret_key = "your aws secret key"
+    aws_secret_access_key = "your aws secret key"
     s3_region = "us-east-1"
     s3_bucket = "your s3 bucket name"
 

@@ -31,11 +31,11 @@ type Config struct {
 	CleanupOnFailure bool   `hcl:"cleanup_on_failure" json:"cleanup_on_failure"`
 	EnableAgentDebug bool   `hcl:"enable_agent_debug" json:"enable_agent_debug"`
 
-	AWSAccessKeyID string `hcl:"aws_access_key_id" json:"aws_access_key_id"`
-	AWSSecretKey   string `hcl:"aws_secret_key" json:"aws_secret_key"`
-	S3Region       string `hcl:"s3_region" json:"s3_region"`
-	S3Bucket       string `hcl:"s3_bucket" json:"s3_bucket"`
-	S3Prefix       string `hcl:"s3_prefix" json:"s3_prefix"`
+	AWSAccessKeyID     string `hcl:"aws_access_key_id" json:"aws_access_key_id"`
+	AWSSecretAccessKey string `hcl:"aws_secret_access_key" json:"aws_secret_access_key"`
+	S3Region           string `hcl:"s3_region" json:"s3_region"`
+	S3Bucket           string `hcl:"s3_bucket" json:"s3_bucket"`
+	S3Prefix           string `hcl:"s3_prefix" json:"s3_prefix"`
 }
 
 // Merge combines this config's values with the other config's values
@@ -75,9 +75,9 @@ func (c *Config) Merge(other *Config) *Config {
 		result.AWSAccessKeyID = other.AWSAccessKeyID
 	}
 
-	result.AWSSecretKey = c.AWSSecretKey
-	if other.AWSSecretKey != "" {
-		result.AWSSecretKey = other.AWSSecretKey
+	result.AWSSecretAccessKey = c.AWSSecretAccessKey
+	if other.AWSSecretAccessKey != "" {
+		result.AWSSecretAccessKey = other.AWSSecretAccessKey
 	}
 
 	return result

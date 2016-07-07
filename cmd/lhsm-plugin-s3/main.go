@@ -35,11 +35,11 @@ type (
 	archiveSet []*archiveConfig
 
 	s3Config struct {
-		NumThreads     int        `hcl:"num_threads"`
-		Region         string     `hcl:"region"`
-		AWSAccessKeyID string     `hcl:"aws_access_key_id"`
-		AWSSecretKey   string     `hcl:"aws_secret_key"`
-		Archives       archiveSet `hcl:"archive"`
+		NumThreads         int        `hcl:"num_threads"`
+		Region             string     `hcl:"region"`
+		AWSAccessKeyID     string     `hcl:"aws_access_key_id"`
+		AWSSecretAccessKey string     `hcl:"aws_secret_access_key"`
+		Archives           archiveSet `hcl:"archive"`
 	}
 )
 
@@ -189,8 +189,8 @@ func main() {
 	if cfg.AWSAccessKeyID != "" {
 		os.Setenv("AWS_ACCESS_KEY_ID", cfg.AWSAccessKeyID)
 	}
-	if cfg.AWSSecretKey != "" {
-		os.Setenv("AWS_SECRET_KEY", cfg.AWSSecretKey)
+	if cfg.AWSSecretAccessKey != "" {
+		os.Setenv("AWS_SECRET_ACCESS_KEY", cfg.AWSSecretAccessKey)
 	}
 
 	if err := checkS3Configuration(cfg); err != nil {
