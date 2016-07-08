@@ -10,6 +10,14 @@
 
 # endpoint = ""
 
+## Optional access and secret keys for AWS. This is provided for convenience,
+## but they can also be provided via the standard environment variables,
+##  ~/.aws/credentials, or an IAM Role.
+
+# aws_access_key_id = ""
+# aws_secret_access_key = ""
+
+
 ## Maximum number of concurrent copies.
 ##
 # num_threads = 8

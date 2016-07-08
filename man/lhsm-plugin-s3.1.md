@@ -25,6 +25,20 @@ These are the configuration options available.
       authentication. The default value will be the AWS S3 endpoint for the
       current region.
 
+`aws_access_key_id`
+:      AWS access key. This is provided for convenience. Typically keys are
+       provided though a standard mechanism for AWS  tools, such as ~/.aws/credentials,
+       AWS_ACCESS_KEY_ID environment  variable, or an IAM Role. If this is set, then
+       this will take priority over other keys found in the environment.
+
+`aws_secret_access_key`
+:      AWS secret key. This is provided for convenience. Typically keys are
+       provided though a standard mechanism for AWS  tools, such as ~/.aws/credentials,
+       AWS_SECRET_ACCESS_KEY environment variable, or an IAM Role. If this is set, then
+       this will take priority over other keys found in the environment.
+
+
+
 `num_threads`
 :     The maximum number of concurrent copy requests the plugin will allow.
 

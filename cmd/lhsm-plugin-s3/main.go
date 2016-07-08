@@ -94,6 +94,16 @@ func (c *s3Config) Merge(other *s3Config) *s3Config {
 		result.Endpoint = other.Endpoint
 	}
 
+	result.AWSAccessKeyID = c.AWSAccessKeyID
+	if other.AWSAccessKeyID != "" {
+		result.AWSAccessKeyID = other.AWSAccessKeyID
+	}
+
+	result.AWSSecretAccessKey = c.AWSSecretAccessKey
+	if other.AWSSecretAccessKey != "" {
+		result.AWSSecretAccessKey = other.AWSSecretAccessKey
+	}
+
 	result.Archives = c.Archives
 	if len(other.Archives) > 0 {
 		result.Archives = other.Archives
