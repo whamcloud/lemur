@@ -37,6 +37,7 @@ type (
 	s3Config struct {
 		NumThreads         int        `hcl:"num_threads"`
 		Region             string     `hcl:"region"`
+		Endpoint           string     `hcl:"endpoint"`
 		AWSAccessKeyID     string     `hcl:"aws_access_key_id"`
 		AWSSecretAccessKey string     `hcl:"aws_secret_access_key"`
 		Archives           archiveSet `hcl:"archive"`
@@ -88,6 +89,11 @@ func (c *s3Config) Merge(other *s3Config) *s3Config {
 		result.Region = other.Region
 	}
 
+	result.Endpoint = c.Endpoint
+	if other.Endpoint != "" {
+		result.Endpoint = other.Endpoint
+	}
+
 	result.Archives = c.Archives
 	if len(other.Archives) > 0 {
 		result.Archives = other.Archives
@@ -119,9 +125,14 @@ func init() {
 	// }
 }
 
-func s3Svc(region string) *s3.S3 {
+func s3Svc(region string, endpoint string) *s3.S3 {
 	// TODO: Allow more per-archive configuration options?
-	return s3.New(session.New(aws.NewConfig().WithRegion(region)))
+	cfg := aws.NewConfig().WithRegion(region)
+	if endpoint != "" {
+		cfg.WithEndpoint(endpoint)
+		cfg.WithS3ForcePathStyle(true)
+	}
+	return s3.New(session.New(cfg))
 }
 
 func getMergedConfig(plugin dmplugin.Plugin) (*s3Config, error) {
@@ -149,7 +160,7 @@ func checkS3Configuration(cfg *s3Config) error {
 		return errors.Wrap(err, "No S3 credentials found; cannot initialize data mover")
 	}
 
-	svc := s3Svc(cfg.Region)
+	svc := s3Svc(cfg.Region, cfg.Endpoint)
 	if _, err := svc.ListBuckets(&s3.ListBucketsInput{}); err != nil {
 		return errors.Wrap(err, "Unable to list S3 buckets")
 	}
@@ -214,7 +225,7 @@ func main() {
 		if a.Region != "" {
 			region = a.Region
 		}
-		s3Svc := s3Svc(region)
+		s3Svc := s3Svc(region, cfg.Endpoint)
 		plugin.AddMover(&dmplugin.Config{
 			Mover:      S3Mover(s3Svc, uint32(a.ID), a.Bucket, a.Prefix),
 			NumThreads: cfg.NumThreads,

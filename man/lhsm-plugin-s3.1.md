@@ -17,6 +17,14 @@ configuration file.
 The default location for the mover configuration file is `/etc/lhsm/lhsm-plugin-s3`.
 These are the configuration options available.
 
+`region`
+:     The AWS region to use. The default is `us-east-1`.
+
+`endpoint`
+:     The full URL of the S3 service. The service must support auth V4 signed
+      authentication. The default value will be the AWS S3 endpoint for the
+      current region.
+
 `num_threads`
 :     The maximum number of concurrent copy requests the plugin will allow.
 

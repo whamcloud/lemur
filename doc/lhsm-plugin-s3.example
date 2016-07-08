@@ -1,5 +1,15 @@
 ## Sample configuration for the S3 data mover plugin.
 ##
+## Set AWS region
+# region = "us-east-1"
+
+## Customize the S3 endpoint to use a non-AWS S3 style interface.  The S3
+## service must support Auth V4 signed authentication mechanism.
+## The default value is the AWS S3 service endpoint for the current
+## region or the region the bucket is in, but this can be overridden here.
+
+# endpoint = ""
+
 ## Maximum number of concurrent copies.
 ##
 # num_threads = 8
