@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/codegangsta/cli"
+	"gopkg.in/urfave/cli.v1"
 
 	"github.intel.com/hpdd/logging/applog"
 )
