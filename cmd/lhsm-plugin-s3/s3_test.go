@@ -210,6 +210,8 @@ func WithS3Mover(t *testing.T, updateConfig func(*archiveConfig) *archiveConfig,
 		region = "us-east-1"
 	}
 
+	s3Endpoint := os.Getenv("AWS_S3_ENDPOINT")
+
 	bucket := os.Getenv(bucketVar)
 	if bucket == "" {
 		t.Skipf("Set %q in environment to test S3 mover.", bucketVar)
@@ -227,7 +229,7 @@ func WithS3Mover(t *testing.T, updateConfig func(*archiveConfig) *archiveConfig,
 	}
 
 	defer testChdirTemp(t)()
-	svc := s3Svc(config.Region)
+	svc := s3Svc(config.Region, s3Endpoint)
 	mover := S3Mover(svc, 1, config.Bucket, config.Prefix)
 
 	tester(t, mover)
