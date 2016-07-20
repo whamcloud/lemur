@@ -26,12 +26,12 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"
 
+	"github.intel.com/hpdd/lemur/pkg/client"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
 	"github.intel.com/hpdd/lustre/llapi"
-	"github.intel.com/hpdd/policy/pkg/client"
 )
 
 type (

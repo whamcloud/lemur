@@ -11,7 +11,7 @@ import (
 	"golang.org/x/net/context"
 
 	pb "github.intel.com/hpdd/lemur/pdm"
-	"github.intel.com/hpdd/policy/pkg/client"
+	"github.intel.com/hpdd/lemur/pkg/client"
 	"google.golang.org/grpc"
 )
 

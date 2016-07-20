@@ -8,8 +8,8 @@ import (
 	"golang.org/x/net/context"
 
 	"github.intel.com/hpdd/lemur/dmplugin"
+	"github.intel.com/hpdd/lemur/pkg/client"
 	"github.intel.com/hpdd/lustre/hsm"
-	"github.intel.com/hpdd/policy/pkg/client"
 )
 
 const (
