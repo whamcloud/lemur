@@ -17,7 +17,6 @@
 	},
 	"Transport": {
 		"Type": "",
-		"Server": "",
-		"Port": 0
+		"SocketDir": "/tmp",
 	}
 }

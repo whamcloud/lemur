@@ -12,7 +12,7 @@ import (
 
 func TestAgentStartStop(t *testing.T) {
 	cfg := agent.DefaultConfig()
-	cfg.Transport.Port = 12345
+	cfg.Transport.SocketDir = "/tmp"
 	mon := agent.NewMonitor()
 	as := hsm.NewTestSource()
 	ep := agent.NewEndpoints()

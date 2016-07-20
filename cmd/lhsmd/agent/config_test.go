@@ -22,21 +22,21 @@ func TestConfiguredPlugins(t *testing.T) {
 		{
 			Name:             "lhsm-plugin-posix",
 			BinPath:          config.DefaultPluginDir + "/lhsm-plugin-posix",
-			AgentConnection:  ":4242",
+			AgentConnection:  "",
 			ClientMount:      "/mnt/lhsmd/lhsm-plugin-posix",
 			RestartOnFailure: true,
 		},
 		{
 			Name:             "lhsm-plugin-s3",
 			BinPath:          config.DefaultPluginDir + "/lhsm-plugin-s3",
-			AgentConnection:  ":4242",
+			AgentConnection:  "",
 			ClientMount:      "/mnt/lhsmd/lhsm-plugin-s3",
 			RestartOnFailure: true,
 		},
 		{
 			Name:             "lhsm-plugin-noop",
 			BinPath:          config.DefaultPluginDir + "/lhsm-plugin-noop",
-			AgentConnection:  ":4242",
+			AgentConnection:  "",
 			ClientMount:      "/mnt/lhsmd/lhsm-plugin-noop",
 			RestartOnFailure: true,
 		},
@@ -77,8 +77,8 @@ func TestLoadConfig(t *testing.T) {
 		},
 		PluginDir: "/go/bin",
 		Transport: &transportConfig{
-			Type: "grpc",
-			Port: 4242,
+			Type:      "grpc",
+			SocketDir: "/tmp",
 		},
 	}
 
@@ -118,8 +118,8 @@ func TestMergedConfig(t *testing.T) {
 			Enabled: false,
 		},
 		Transport: &transportConfig{
-			Type: "grpc",
-			Port: 9000,
+			Type:      "grpc",
+			SocketDir: "/var/run/lhsmd",
 		},
 	}
 

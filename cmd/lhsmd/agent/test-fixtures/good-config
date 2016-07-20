@@ -13,4 +13,8 @@ snapshots {
 	enabled = false
 }
 
+transport  {
+        socket_dir = "/tmp"
+}
+
 enabled_plugins = ["lhsm-plugin-posix"]

@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	testRpcPort    = 12345
+	testSocketDir  = "/tmp"
 	testArchiveID  = 1
 	enableLeakTest = false
 )
@@ -30,7 +30,6 @@ var (
 func init() {
 	flag.BoolVar(&enableLeakTest, "leak", false, "enable leak check")
 	flag.Parse()
-
 	// swap in the dummy implementation
 	fileid.EnableTestMode()
 }
@@ -107,9 +106,7 @@ func newTestAgent(t *testing.T) *agent.TestAgent {
 	// leaving it here for now with the idea that tests may want to
 	// supply their own implementations of these things.
 	cfg := agent.DefaultConfig()
-	cfg.Transport.Port = testRpcPort
-	// little hack, to allow testing in parallel
-	testRpcPort++
+	cfg.Transport.SocketDir = testSocketDir
 
 	mon := agent.NewMonitor()
 	as := hsm.NewTestSource()

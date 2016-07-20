@@ -154,10 +154,12 @@ func (a *testPlugin) ConfigFile() string {
 // connection.
 func (a *testPlugin) AddMover(config *Config) {
 	// TODO: grpc config should be centralized
-	conn, err := grpc.Dial(a.config.AgentAddress, grpc.WithInsecure())
+
+	conn, err := grpc.Dial(a.config.AgentAddress, grpc.WithDialer(unixDialer), grpc.WithInsecure())
 	if err != nil {
 		a.t.Fatalf("error in grpc connection to agent: %s", err)
 	}
+
 	a.rpcConn = conn
 	dm := NewMover(a, pb.NewDataMoverClient(conn), config)
 	go dm.Run(a.ctx)

@@ -117,6 +117,7 @@ func NewTestAgent(t Errorer, cfg *Config, mon *PluginMonitor, as *hsm.TestSource
 		HsmAgent: HsmAgent{
 			stats:        NewActionStats(),
 			client:       client.Test(cfg.AgentMountpoint()),
+			rpcsInFlight: make(chan struct{}, cfg.Processes*10),
 			config:       cfg,
 			monitor:      mon,
 			actionSource: as,
