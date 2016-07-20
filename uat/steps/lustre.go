@@ -1,12 +1,12 @@
 package steps
 
 import (
-	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/pkg/mntent"
 )
@@ -23,7 +23,11 @@ func hsmIsInState(expected string) error {
 	if err != nil {
 		return errors.Wrap(err, "Failed to Glob() HSM control file")
 	}
-	if len(hsmControls) != 1 {
+	if len(hsmControls) == 0 {
+		alert.Warn("No MDT found on this system; can't verify coordinator state")
+		return nil
+	}
+	if len(hsmControls) > 1 {
 		return errors.Errorf("Expected exactly 1 MDT (found %d)", len(hsmControls))
 	}
 
@@ -43,7 +47,7 @@ func hsmIsInState(expected string) error {
 func iHaveALustreFilesystem() error {
 	if ctx.Config.LustrePath != "" {
 		if _, err := fs.MountRoot(ctx.Config.LustrePath); err != nil {
-			return fmt.Errorf("Configured Lustre path is invalid: %s", err)
+			return errors.Errorf("Configured Lustre path is invalid: %s", err)
 		}
 		return nil
 	}
@@ -60,5 +64,5 @@ func iHaveALustreFilesystem() error {
 		}
 	}
 
-	return fmt.Errorf("No Lustre filesystem found")
+	return errors.Errorf("No Lustre filesystem found")
 }

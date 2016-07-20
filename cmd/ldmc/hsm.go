@@ -9,8 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/codegangsta/cli"
 	"github.com/dustin/go-humanize"
+	"github.com/pkg/errors"
+	"gopkg.in/urfave/cli.v1"
 
 	"github.intel.com/hpdd/logging/applog"
 	"github.intel.com/hpdd/lustre"
@@ -209,75 +210,77 @@ func getPathStatus(c *cli.Context, filePath string) (string, error) {
 	return buf.String(), nil
 }
 
-func hsmSetAction(c *cli.Context) {
+func hsmSetAction(c *cli.Context) error {
 	logContext(c)
 
 	paths, err := getFilePaths(c)
 	if err != nil {
-		applog.Fail(err)
+		return err
 	}
 
 	if len(paths) < 1 {
-		applog.Fail(fmt.Errorf("HSM set request must be made with at least 1 path"))
+		return errors.New("HSM set request must be made with at least 1 path")
 	}
 
 	setFlags, err := hsm.GetStatusMask(c.StringSlice("flag"))
 	if err != nil {
-		applog.Fail(err)
+		return err
 	}
 	clearFlags, err := hsm.GetStatusMask(c.StringSlice("clear"))
 	if err != nil {
-		applog.Fail(err)
+		return err
 	}
 	archiveID := uint32(c.Int("id"))
 
 	if setFlags == 0 && clearFlags == 0 && archiveID == 0 {
-		applog.Fail(fmt.Errorf("HSM set request made with no flags to set or clear, and no new archive ID supplied"))
+		return errors.New("HSM set request made with no flags to set or clear, and no new archive ID supplied")
 	}
 
 	// TODO: Parallelize this?
 	for _, path := range paths {
 		if err := hsm.SetFileStatus(path, setFlags, clearFlags, archiveID); err != nil {
-			applog.Fail(err)
+			return err
 		}
 	}
+
+	return nil
 }
 
-func hsmStatusAction(c *cli.Context) {
+func hsmStatusAction(c *cli.Context) error {
 	logContext(c)
 
 	paths, err := getFilePaths(c)
 	if err != nil {
-		applog.Fail(err)
+		return err
 	}
 
 	if len(paths) < 1 {
-		applog.Fail(fmt.Errorf("HSM status request must be made with at least 1 path"))
+		return errors.New("HSM status request must be made with at least 1 path")
 	}
 
 	for _, path := range paths {
 		status, err := getPathStatus(c, path)
 		if err != nil {
-			applog.Fail("%s: %v", path, err)
+			return errors.Errorf("%s: %v", path, err)
 		}
 		fmt.Println(status)
 	}
+
+	return nil
 }
 
 type hsmRequestFn func(fs.RootDir, uint, []*lustre.Fid) error
 
-func hsmRequestAction(requestFn func(fs.RootDir, uint, []*lustre.Fid) error) func(*cli.Context) {
-	return func(c *cli.Context) {
+func hsmRequestAction(requestFn func(fs.RootDir, uint, []*lustre.Fid) error) cli.ActionFunc {
+	return func(c *cli.Context) error {
 		logContext(c)
 
 		paths, err := getFilePaths(c)
 		if err != nil {
-			applog.Fail(err)
+			return err
 		}
-		err = submitHsmRequest(c.Command.Name, hsmRequestFn(requestFn), uint(c.Int("id")), paths...)
-		if err != nil {
-			applog.Fail(err)
-		}
+
+		return submitHsmRequest(c.Command.Name, hsmRequestFn(requestFn), uint(c.Int("id")), paths...)
 	}
 }
 
