@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path"
 	"time"
@@ -41,9 +42,7 @@ func newFileID() string {
 
 func (m *Mover) destination(id string) string {
 	return path.Join(m.prefix,
-		"objects",
-		fmt.Sprintf("%s", id[0:2]),
-		fmt.Sprintf("%s", id[2:4]),
+		"o",
 		id)
 }
 
@@ -64,6 +63,22 @@ func (m *Mover) newDownloader() *s3manager.Downloader {
 func (m *Mover) Start() {
 	debug.Printf("%s started", m.name)
 }
+func (m *Mover) fileIDtoBucketPath(fileID string) (string, string, error) {
+	var bucket, path string
+
+	u, err := url.ParseRequestURI(fileID)
+	if err == nil {
+		if u.Scheme != "s3" {
+			return "", "", errors.Errorf("invalid URL in file_id %s", fileID)
+		}
+		path = u.Path
+		bucket = u.Host
+	} else {
+		path = m.destination(fileID)
+		bucket = m.bucket
+	}
+	return bucket, path, nil
+}
 
 // Archive fulfills an HSM Archive request
 func (m *Mover) Archive(action dmplugin.Action) error {
@@ -83,6 +98,7 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 	}
 
 	fileID := newFileID()
+	fileKey := m.destination(fileID)
 	size := fi.Size()
 	progressFunc := func(offset, length uint64) error {
 		return action.Update(offset, length, uint64(size))
@@ -94,7 +110,7 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 	out, err := uploader.Upload(&s3manager.UploadInput{
 		Body:        progressReader,
 		Bucket:      aws.String(m.bucket),
-		Key:         aws.String(m.destination(fileID)),
+		Key:         aws.String(fileKey),
 		ContentType: aws.String("application/octet-stream"),
 	})
 	if err != nil {
@@ -108,7 +124,14 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 		time.Since(start),
 		action.PrimaryPath(),
 		out.Location)
-	action.SetFileID([]byte(fileID))
+
+	u := url.URL{
+		Scheme: "s3",
+		Host:   m.bucket,
+		Path:   fileKey,
+	}
+
+	action.SetFileID([]byte(u.String()))
 	action.SetActualLength(uint64(fi.Size()))
 	return nil
 }
@@ -122,12 +145,16 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	if action.FileID() == nil {
 		return errors.Errorf("Missing file_id on action %d", action.ID())
 	}
+	bucket, srcObj, err := m.fileIDtoBucketPath(string(action.FileID()))
 
-	srcObj := m.destination(string(action.FileID()))
+	if err != nil {
+		return errors.Wrap(err, "fileIDtoBucketPath failed")
+	}
 	out, err := m.s3Svc.HeadObject(&s3.HeadObjectInput{
-		Bucket: aws.String(m.bucket),
+		Bucket: aws.String(bucket),
 		Key:    aws.String(srcObj),
 	})
+
 	if err != nil {
 		return errors.Errorf("s3.HeadObject() on %s failed: %s", srcObj, err)
 	}
@@ -173,9 +200,11 @@ func (m *Mover) Remove(action dmplugin.Action) error {
 		return errors.New("Missing file_id")
 	}
 
-	_, err := m.s3Svc.DeleteObject(&s3.DeleteObjectInput{
-		Bucket: aws.String(m.bucket),
-		Key:    aws.String(m.destination(string(action.FileID()))),
+	bucket, srcObj, err := m.fileIDtoBucketPath(string(action.FileID()))
+
+	_, err = m.s3Svc.DeleteObject(&s3.DeleteObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(srcObj),
 	})
 	return errors.Wrap(err, "delete object failed")
 }

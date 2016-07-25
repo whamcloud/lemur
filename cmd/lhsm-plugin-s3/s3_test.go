@@ -82,6 +82,7 @@ func TestArchive(t *testing.T) {
 		if restore.Updates != expectedUpdates {
 			t.Errorf("expected %d updates, got %d, duration: %v", expectedUpdates, restore.Updates, duration)
 		}
+		testRemove(t, mover, action.FileID(), nil)
 	})
 }
 
@@ -94,6 +95,7 @@ func TestArchiveMaxSize(t *testing.T) {
 		// we received maxuint64 from coordinator, so test this as well
 		action := testArchive(t, mover, tfile, 0, math.MaxUint64, nil, nil)
 		testRestore(t, mover, 0, math.MaxUint64, action.FileID(), nil)
+		testRemove(t, mover, action.FileID(), nil)
 	})
 }
 
