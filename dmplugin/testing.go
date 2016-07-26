@@ -4,6 +4,8 @@ import (
 	"math"
 	"path"
 
+	"github.com/pkg/errors"
+
 	"golang.org/x/net/context"
 
 	"google.golang.org/grpc"
@@ -121,16 +123,22 @@ type testPlugin struct {
 }
 
 // NewTestPlugin returns a test plugin
-func NewTestPlugin(t Fataler, name string) Plugin {
+func NewTestPlugin(name string) (Plugin, error) {
 	ctx, cancel := context.WithCancel(context.Background())
+	config := mustInitConfig()
+
+	conn, err := grpc.Dial(config.AgentAddress, grpc.WithDialer(unixDialer), grpc.WithInsecure())
+	if err != nil {
+		return nil, errors.Wrap(err, "error in grpc connection to agent")
+	}
 
 	return &testPlugin{
-		config:        mustInitConfig(),
+		config:        config,
 		name:          name,
-		t:             t,
 		ctx:           ctx,
+		rpcConn:       conn,
 		cancelContext: cancel,
-	}
+	}, nil
 }
 
 // FsName returns the associate Lustre filesystem name
@@ -153,15 +161,7 @@ func (a *testPlugin) ConfigFile() string {
 // is desired. Simple tests which don't call AddMover() will skip this
 // connection.
 func (a *testPlugin) AddMover(config *Config) {
-	// TODO: grpc config should be centralized
-
-	conn, err := grpc.Dial(a.config.AgentAddress, grpc.WithDialer(unixDialer), grpc.WithInsecure())
-	if err != nil {
-		a.t.Fatalf("error in grpc connection to agent: %s", err)
-	}
-
-	a.rpcConn = conn
-	dm := NewMover(a, pb.NewDataMoverClient(conn), config)
+	dm := NewMover(a, pb.NewDataMoverClient(a.rpcConn), config)
 	go dm.Run(a.ctx)
 	a.movers = append(a.movers, dm)
 }

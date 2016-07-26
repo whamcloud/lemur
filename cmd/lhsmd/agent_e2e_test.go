@@ -90,7 +90,10 @@ func newTestMover() *testMover {
 
 func newTestPlugin(t *testing.T) (dmplugin.Plugin, *testMover) {
 	// Not crazy about this, because it means dmplugin.New() isn't covered
-	plugin := dmplugin.NewTestPlugin(t, "fake-test-plugin")
+	plugin, err := dmplugin.NewTestPlugin("fake-test-plugin")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	tm := newTestMover()
 	plugin.AddMover(&dmplugin.Config{
