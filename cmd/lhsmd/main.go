@@ -8,9 +8,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/intel-hpdd/go-metrics-influxdb"
 	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
-	"github.com/vrischmann/go-metrics-influxdb"
 
 	"golang.org/x/net/context"
 
