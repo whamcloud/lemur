@@ -120,7 +120,7 @@ func CopyWithProgress(dst io.WriterAt, src io.ReaderAt, start uint64, length uin
 			return offset, err
 		}
 
-		err = action.Update(offset-n, uint64(n), length)
+		err = action.Update(offset-n, n, length)
 		if err != nil {
 			return offset, err
 		}
@@ -183,8 +183,8 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 
 	var length uint64
 	if action.Length() == math.MaxUint64 {
-		fi, err := src.Stat()
-		if err != nil {
+		fi, err2 := src.Stat()
+		if err2 != nil {
 			return errors.Wrap(err, "stat failed")
 		}
 
@@ -275,8 +275,8 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 
 	var length uint64
 	if action.Length() == math.MaxUint64 {
-		fi, err := src.Stat()
-		if err != nil {
+		fi, err2 := src.Stat()
+		if err2 != nil {
 			return errors.Wrap(err, "stat failed")
 		}
 

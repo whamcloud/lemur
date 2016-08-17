@@ -269,7 +269,7 @@ func LoadConfig(configPath string) (*Config, error) {
 
 	defaults := DefaultConfig()
 	cfg := NewConfig()
-	if err := hcl.DecodeObject(cfg, obj); err != nil {
+	if err = hcl.DecodeObject(cfg, obj); err != nil {
 		return nil, errors.Wrap(err, "decode config failed")
 	}
 	cfg = defaults.Merge(cfg)
@@ -288,7 +288,7 @@ func LoadConfig(configPath string) (*Config, error) {
 	}
 
 	var devStr string
-	if err := hcl.DecodeObject(&devStr, f.Elem().Items[0].Val); err != nil {
+	if err = hcl.DecodeObject(&devStr, f.Elem().Items[0].Val); err != nil {
 		return nil, errors.Wrap(err, "decode device failed")
 	}
 	cfg.ClientDevice, err = spec.ClientDeviceFromString(devStr)

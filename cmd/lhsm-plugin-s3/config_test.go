@@ -77,7 +77,7 @@ func TestArchiveValidation(t *testing.T) {
 	}
 
 	for _, archive := range loaded.Archives {
-		if err := archive.checkValid(); err != nil {
+		if err = archive.checkValid(); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}

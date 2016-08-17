@@ -299,14 +299,17 @@ func submitHsmRequest(actionName string, requestFn hsmRequestFn, archiveID uint,
 	// TODO: Occurs to me that it might be better to break up a large
 	// batch into multiple batches, each serviced by its own goroutine.
 	for _, path := range paths {
-		absPath, err := filepath.Abs(path)
+		absPath, err2 := filepath.Abs(path)
+		if err2 != nil {
+			return fmt.Errorf("Cannot resolve absolute path for %s: %s", path, err)
+		}
 		if !strings.HasPrefix(absPath, fsRoot.Path()) {
 			return fmt.Errorf("All files in HSM request must be in the same filesystem (%s is not in %s)",
 				path, fsRoot)
 		}
 
-		fid, err := fs.LookupFid(path)
-		if err != nil {
+		fid, err2 := fs.LookupFid(path)
+		if err2 != nil {
 			return fmt.Errorf("Cannot resolve Fid for %s: %s", path, err)
 		}
 		fids = append(fids, fid)

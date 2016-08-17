@@ -41,7 +41,6 @@ type (
 	// AgentEndpoint represents the agent side of a data mover connection
 	AgentEndpoint struct {
 		state    EndpointState
-		archive  int
 		actionCh chan *agent.Action
 		mu       sync.Mutex
 		actions  map[agent.ActionID]*agent.Action

@@ -198,7 +198,7 @@ func main() {
 
 	for _, archive := range cfg.Archives {
 		debug.Print(archive)
-		if err := archive.checkValid(); err != nil {
+		if err = archive.checkValid(); err != nil {
 			alert.Abort(errors.Wrap(err, "Invalid configuration"))
 		}
 	}
@@ -214,7 +214,7 @@ func main() {
 		os.Setenv("AWS_SECRET_ACCESS_KEY", cfg.AWSSecretAccessKey)
 	}
 
-	if err := checkS3Configuration(cfg); err != nil {
+	if err = checkS3Configuration(cfg); err != nil {
 		alert.Abort(errors.Wrap(err, "S3 config check failed"))
 	}
 

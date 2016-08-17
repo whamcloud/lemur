@@ -155,7 +155,7 @@ func TestConfigSaveLoad(t *testing.T) {
 	defer os.RemoveAll(td)
 
 	cfgFile := path.Join(td, "cfg")
-	if err := ioutil.WriteFile(cfgFile, []byte(startCfg.String()), 0644); err != nil {
+	if err = ioutil.WriteFile(cfgFile, []byte(startCfg.String()), 0644); err != nil {
 		t.Fatal(err)
 	}
 

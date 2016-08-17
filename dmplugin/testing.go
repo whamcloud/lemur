@@ -115,7 +115,6 @@ func (a *TestAction) SetActualLength(length uint64) {
 type testPlugin struct {
 	name          string
 	config        *pluginConfig
-	t             Fataler
 	movers        []*DataMoverClient
 	rpcConn       *grpc.ClientConn
 	ctx           context.Context
