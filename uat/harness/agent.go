@@ -255,6 +255,7 @@ func writeS3MoverConfig(ctx *ScenarioContext, name string) error {
 
 	// TODO: Make configuration of credentials optional.
 	cfg := fmt.Sprintf(`region = "%s"
+endpoint = "%s"
 aws_access_key_id = "%s"
 aws_secret_access_key = "%s"
 
@@ -262,7 +263,7 @@ archive "one" {
 	id = 1
 	bucket = "%s"
 	prefix = "%s"
-}`, ctx.Config.S3Region, awsKey, awsSecret, ctx.S3Bucket, ctx.S3Prefix)
+}`, ctx.Config.S3Region, ctx.Config.S3Endpoint, awsKey, awsSecret, ctx.S3Bucket, ctx.S3Prefix)
 
 	cfgFile := ctx.Workdir() + "/etc/lhsmd/" + name
 	cfgDir := path.Dir(cfgFile)
@@ -273,8 +274,19 @@ archive "one" {
 	return ioutil.WriteFile(cfgFile, []byte(cfg), 0644)
 }
 
+func s3Svc(region string, endpoint string) *s3.S3 {
+	// TODO: Allow more per-archive configuration options?
+	cfg := aws.NewConfig().WithRegion(region)
+	if endpoint != "" {
+		cfg.WithEndpoint(endpoint)
+		cfg.WithS3ForcePathStyle(true)
+	}
+	// cfg.WithLogLevel(aws.LogDebug)
+	return s3.New(session.New(cfg))
+}
+
 func createS3Bucket(ctx *ScenarioContext) (string, error) {
-	svc := s3.New(session.New(aws.NewConfig().WithRegion(ctx.Config.S3Region)))
+	svc := s3Svc(ctx.Config.S3Region, ctx.Config.S3Endpoint)
 	bucket, err := svc.CreateBucket(&s3.CreateBucketInput{
 		Bucket: aws.String(path.Base(ctx.Workdir())),
 	})
@@ -285,25 +297,30 @@ func createS3Bucket(ctx *ScenarioContext) (string, error) {
 }
 
 func cleanupS3Prefix(ctx *ScenarioContext) cleanupFn {
-	svc := s3.New(session.New(aws.NewConfig().WithRegion(ctx.Config.S3Region)))
-	doi := &s3.DeleteObjectInput{
-		Bucket: aws.String(ctx.S3Bucket),
-		Key:    aws.String(ctx.S3Prefix),
-	}
 	return func() error {
 		debug.Printf("Cleaning up %s/%s...", ctx.S3Bucket, ctx.S3Prefix)
 		if err := deleteObjects(ctx); err != nil {
 			return errors.Wrap(err, "Failed to delete test prefix objects in cleanup")
 		}
 
-		_, err := svc.DeleteObject(doi)
+		err := deleteObject(ctx, ctx.S3Prefix)
 		return errors.Wrap(err, "Failed to delete test prefix in cleanup")
 	}
 
 }
 
+func deleteObject(ctx *ScenarioContext, key string) error {
+	svc := s3Svc(ctx.Config.S3Region, ctx.Config.S3Endpoint)
+	doi := &s3.DeleteObjectInput{
+		Bucket: aws.String(ctx.S3Bucket),
+		Key:    aws.String(key),
+	}
+	_, err := svc.DeleteObject(doi)
+	return errors.Wrap(err, key)
+}
+
 func deleteObjects(ctx *ScenarioContext) error {
-	svc := s3.New(session.New(aws.NewConfig().WithRegion(ctx.Config.S3Region)))
+	svc := s3Svc(ctx.Config.S3Region, ctx.Config.S3Endpoint)
 	loi := &s3.ListObjectsInput{
 		Bucket: aws.String(ctx.S3Bucket),
 		Prefix: aws.String(ctx.S3Prefix),
@@ -318,22 +335,18 @@ func deleteObjects(ctx *ScenarioContext) error {
 		return nil
 	}
 
-	deleteInput := &s3.Delete{}
+	/* Not all S3 backends support DeleteObjects, so do this the hard way. */
 	for _, obj := range out.Contents {
-		deleteInput.Objects = append(deleteInput.Objects, &s3.ObjectIdentifier{Key: obj.Key})
+		err = deleteObject(ctx, *obj.Key)
+		if err != nil {
+			return errors.Wrap(err, "Failed to delete")
+		}
 	}
-	doi := &s3.DeleteObjectsInput{
-		Bucket: aws.String(ctx.S3Bucket),
-		Delete: deleteInput,
-	}
-	_, err = svc.DeleteObjects(doi)
-
-	return errors.Wrap(err, "Failed to delete objects")
+	return nil
 }
 
 func cleanupS3Bucket(ctx *ScenarioContext) cleanupFn {
-	svc := s3.New(session.New(aws.NewConfig().WithRegion(ctx.Config.S3Region)))
-
+	svc := s3Svc(ctx.Config.S3Region, ctx.Config.S3Endpoint)
 	dbi := &s3.DeleteBucketInput{
 		Bucket: aws.String(ctx.S3Bucket),
 	}

@@ -34,6 +34,7 @@ type Config struct {
 	AWSAccessKeyID     string `hcl:"aws_access_key_id" json:"aws_access_key_id"`
 	AWSSecretAccessKey string `hcl:"aws_secret_access_key" json:"aws_secret_access_key"`
 	S3Region           string `hcl:"s3_region" json:"s3_region"`
+	S3Endpoint         string `hcl:"s3_endpoint" json:"s3_endpoint"`
 	S3Bucket           string `hcl:"s3_bucket" json:"s3_bucket"`
 	S3Prefix           string `hcl:"s3_prefix" json:"s3_prefix"`
 }
@@ -58,6 +59,11 @@ func (c *Config) Merge(other *Config) *Config {
 	result.S3Region = c.S3Region
 	if other.S3Region != "" {
 		result.S3Region = other.S3Region
+	}
+
+	result.S3Endpoint = c.S3Endpoint
+	if other.S3Endpoint != "" {
+		result.S3Endpoint = other.S3Endpoint
 	}
 
 	result.S3Bucket = c.S3Bucket
