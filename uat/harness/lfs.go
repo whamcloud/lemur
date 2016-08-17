@@ -28,7 +28,7 @@ func (lfs *lfsDriver) run(args ...string) ([]byte, error) {
 
 	// TODO: Capture stdout/err
 	// TODO: run with timeout
-	return exec.Command(lfs.binPath, args...).Output()
+	return exec.Command(lfs.binPath, args...).Output() // #nosec
 }
 
 func (lfs *lfsDriver) GetState(filePath string) (HsmState, error) {

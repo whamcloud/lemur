@@ -74,7 +74,7 @@ func waitFor(waitFn func() error, timeout time.Duration) error {
 	go func() {
 		// This will poll with an increasing intervals
 		// and then decreasing intervals as the timeout approaches
-		duration := time.Duration(100 * time.Millisecond)
+		duration := 100 * time.Millisecond
 		started := time.Now()
 		for {
 			// prevent this goroutine from running forever
@@ -91,7 +91,7 @@ func waitFor(waitFn func() error, timeout time.Duration) error {
 			// Reduce pause duration if timeout is imminent
 			if duration > timeout-time.Since(started) {
 				debug.Printf("timeout: %v elapsed: %v reduce timeout from %v to %v",
-					time.Duration(timeout),
+					timeout,
 					time.Since(started),
 					duration,
 					(timeout-time.Since(started))/2)

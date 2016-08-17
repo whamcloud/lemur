@@ -51,8 +51,8 @@ func NewTestFile(dir, prefix string) (*TestFile, error) {
 	}
 	defer in.Close()
 
-	if _, err := bufio.NewReader(in).WriteTo(out); err != nil {
-		return nil, errors.Wrap(err, "Failed to write data to test file")
+	if _, err2 := bufio.NewReader(in).WriteTo(out); err2 != nil {
+		return nil, errors.Wrap(err2, "Failed to write data to test file")
 	}
 
 	debug.Printf("Created test file: %s", out.Name())

@@ -44,7 +44,9 @@ func noop() {
 	})
 
 	<-done
-	plugin.Close()
+	if err = plugin.Close(); err != nil {
+		alert.Abort(errors.Wrap(err, "close failed"))
+	}
 }
 
 func main() {

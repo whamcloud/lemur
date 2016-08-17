@@ -4,6 +4,8 @@ import (
 	"crypto/sha1"
 	"hash"
 	"io"
+
+	"github.com/pkg/errors"
 )
 
 type (
@@ -38,7 +40,10 @@ func NewSha1HashWriter(dest io.WriterAt) ChecksumWriter {
 
 // WriteAt updates the checksum and writes the byte slice at offset
 func (hw *Sha1HashWriter) WriteAt(b []byte, off int64) (int, error) {
-	hw.cksum.Write(b)
+	_, err := hw.cksum.Write(b)
+	if err != nil {
+		return 0, errors.Wrap(err, "updating checksum failed")
+	}
 	return hw.dest.WriteAt(b, off)
 }
 

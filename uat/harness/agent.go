@@ -114,7 +114,7 @@ func WriteAgentConfig(ctx *ScenarioContext) error {
 	}
 
 	cfgDir := path.Dir(cfgFile)
-	if err := os.MkdirAll(cfgDir, 0755); err != nil {
+	if err := os.MkdirAll(cfgDir, 0700); err != nil {
 		return errors.Wrap(err, "Failed to create agent config dir")
 	}
 	return ioutil.WriteFile(cfgFile, []byte(ctx.AgentDriver.ac.String()), 0644)
@@ -149,7 +149,7 @@ func newAgentCmd(ctx *ScenarioContext) (*exec.Cmd, error) {
 	if ctx.Config.EnableAgentDebug {
 		agentArgs = append(agentArgs, "-debug")
 	}
-	cmd := exec.Command(HsmAgentBinary, agentArgs...)
+	cmd := exec.Command(HsmAgentBinary, agentArgs...) // #nosec
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 
@@ -204,7 +204,7 @@ func writePosixMoverConfig(ctx *ScenarioContext, name string) error {
 
 	cfgFile := ctx.Workdir() + "/etc/lhsmd/" + name
 	cfgDir := path.Dir(cfgFile)
-	if err := os.MkdirAll(cfgDir, 0755); err != nil {
+	if err := os.MkdirAll(cfgDir, 0700); err != nil {
 		return errors.Wrap(err, "Failed to create plugin config dir")
 	}
 
@@ -266,7 +266,7 @@ archive "one" {
 
 	cfgFile := ctx.Workdir() + "/etc/lhsmd/" + name
 	cfgDir := path.Dir(cfgFile)
-	if err := os.MkdirAll(cfgDir, 0755); err != nil {
+	if err := os.MkdirAll(cfgDir, 0700); err != nil {
 		return errors.Wrap(err, "Failed to create plugin config dir")
 	}
 
