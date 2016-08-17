@@ -174,7 +174,7 @@ func (m *PluginMonitor) Start(ctx context.Context) {
 func (m *PluginMonitor) StartPlugin(cfg *PluginConfig) error {
 	debug.Printf("Starting %s for %s", cfg.BinPath, cfg.Name)
 
-	cmd := exec.Command(cfg.BinPath, cfg.Args...)
+	cmd := exec.Command(cfg.BinPath, cfg.Args...) // #nosec
 
 	prefix := path.Base(cfg.BinPath)
 	cmd.Stdout = audit.Writer().Prefix(prefix + " ")
