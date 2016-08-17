@@ -1,7 +1,6 @@
 package posix_test
 
 import (
-	"bytes"
 	"math"
 	"os"
 	"testing"
@@ -44,9 +43,7 @@ func testRestoreFail(t *testing.T, mover *posix.Mover, offset uint64, length uin
 	defer cleanFile()
 	action := dmplugin.NewTestAction(t, tfile, offset, length, fileID, data)
 	if err := mover.Restore(action); err == nil {
-		var buf bytes.Buffer
-		errors.Fprint(&buf, outer)
-		t.Fatalf("expected restore failure at: %s", buf.String())
+		t.Fatalf("expected restore failure at: %s", outer)
 	} else {
 		t.Logf("got expected error: %v", err)
 	}
