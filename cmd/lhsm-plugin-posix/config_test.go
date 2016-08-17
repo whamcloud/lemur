@@ -40,7 +40,11 @@ func TestMergedConfig(t *testing.T) {
 	os.Setenv(config.PluginMountpointEnvVar, "/foo/bar/baz")
 	os.Setenv(config.ConfigDirEnvVar, "./test-fixtures")
 
-	plugin := dmplugin.NewTestPlugin(t, path.Base(os.Args[0]))
+	plugin, err := dmplugin.NewTestPlugin(path.Base(os.Args[0]))
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
 	merged, err := getMergedConfig(plugin)
 	if err != nil {
 		t.Fatalf("err: %s", err)
