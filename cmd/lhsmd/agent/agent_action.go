@@ -186,11 +186,11 @@ func (action *Action) Update(status *pb.ActionStatus) (bool, error) {
 
 // Fail signals that the action has failed
 func (action *Action) Fail(rc int) error {
-	audit.Logf("id:%d fail %x %v: %v", action.id, action.aih.Cookie, action.aih.Fid(), rc)
+	audit.Logf("id:%d fail %x %v: %v", action.id, action.aih.Cookie(), action.aih.Fid(), rc)
 	action.agent.stats.CompleteAction(action, rc)
 	err := action.aih.End(0, 0, 0, rc)
 	if err != nil {
-		audit.Logf("id:%d fail after fail %x: %v", action.id, action.aih.Cookie, err)
+		audit.Logf("id:%d fail after fail %x: %v", action.id, action.aih.Cookie(), err)
 	}
 	<-action.agent.rpcsInFlight
 	return errors.Wrap(err, "end action failed")
