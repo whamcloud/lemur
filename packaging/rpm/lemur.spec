@@ -52,9 +52,18 @@ Requires: lustre >= %{?MIN_LUSTRE_VERSION}%{?!MIN_LUSTRE_VERSION:2.6.0}
 CLI for Lustre data movement control.
 
 %prep
+
 %setup -n %{pkg_prefix}-%{version}
+# ohhh myyyy...
+cd ..
+mkdir -p src/github.intel.com/hpdd
+mv %{pkg_prefix}-%{version} src/github.intel.com/hpdd/%{pkg_prefix}
+mkdir %{pkg_prefix}-%{version}
+mv src %{pkg_prefix}-%{version}
 
 %install
+export GOPATH=$PWD:$GOPATH
+cd src/github.intel.com/hpdd/%{pkg_prefix}
 %{__make} install PREFIX=$RPM_BUILD_ROOT/%{_prefix}
 %{__make} install-example PREFIX=$RPM_BUILD_ROOT/
 %{__make} uat-install PREFIX=$RPM_BUILD_ROOT/%{_prefix} BUILDROOT=$RPM_BUILD_ROOT/
