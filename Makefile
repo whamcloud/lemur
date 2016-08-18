@@ -59,7 +59,7 @@ MAN_TARGETS := $(patsubst man/%.md,%,$(MAN_SOURCES))
 
 docs: $(MAN_TARGETS)
 
-all: $(TARGETS) $(MAN_TARGETS)
+all: lint $(TARGETS) $(MAN_TARGETS)
 .DEFAULT_GOAL:=all
 
 # Installation
@@ -76,6 +76,10 @@ INSTALLED_FEATURES = $(addprefix $(PREFIX)/$(UAT_FEATURES_DEST)/, $(FEATURE_FILE
 EXAMPLES = $(shell find doc -name "*.example")
 EXAMPLE_TARGETS = $(patsubst doc/%,%,$(EXAMPLES))
 INSTALLED_EXAMPLES = $(addprefix $(PREFIX)/etc/lhsmd/, $(EXAMPLE_TARGETS))
+
+# Cleanliness...
+lint:
+	gometalinter -j2 -D errcheck -D dupl -D gocyclo --deadline 60s ./... --exclude pdm/
 
 # install tasks
 $(PREFIX)/bin/%: %
