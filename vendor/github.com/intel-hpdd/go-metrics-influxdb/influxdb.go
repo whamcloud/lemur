@@ -25,11 +25,11 @@ type reporter struct {
 
 // InfluxDB starts a InfluxDB reporter which will post the metrics from the given registry at each d interval.
 func InfluxDB(r metrics.Registry, d time.Duration, url, database, username, password string) {
-	InfluxDBWithTags(r, d, url, database, username, password, nil)
+	WithTags(r, d, url, database, username, password, nil)
 }
 
-// InfluxDBWithTags starts a InfluxDB reporter which will post the metrics from the given registry at each d interval with the specified tags
-func InfluxDBWithTags(r metrics.Registry, d time.Duration, url, database, username, password string, tags map[string]string) {
+// WithTags starts a InfluxDB reporter which will post the metrics from the given registry at each d interval with the specified tags
+func WithTags(r metrics.Registry, d time.Duration, url, database, username, password string, tags map[string]string) {
 	u, err := uurl.Parse(url)
 	if err != nil {
 		log.Printf("unable to parse InfluxDB url %s. err=%v", url, err)
