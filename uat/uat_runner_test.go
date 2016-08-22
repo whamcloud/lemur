@@ -20,7 +20,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("PATH", raceBinPath+":"+os.Getenv("PATH"))
 
 	status := godog.Run(func(suite *godog.Suite) {
-		configureSuite(suite)
+		ConfigureSuite(suite)
 	})
 	os.Exit(status)
 }

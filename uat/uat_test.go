@@ -39,7 +39,7 @@ import (
 // be done very judiciously. Troubleshooting scenario failures gets
 // complicated very quickly when there is a rat's nest of step
 // interdependencies.
-func configureSuite(s *godog.Suite) {
+func ConfigureSuite(s *godog.Suite) {
 	cfg, err := harness.LoadConfig()
 	if err != nil {
 		alert.Abort(errors.Wrap(err, "Failed to load test config"))
