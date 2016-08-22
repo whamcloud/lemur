@@ -1,10 +1,13 @@
 package uat
 
 import (
+	"os"
+
 	"github.com/DATA-DOG/godog"
 	"github.com/DATA-DOG/godog/gherkin"
 	"github.com/pkg/errors"
 
+	"github.intel.com/hpdd/lemur/cmd/lhsmd/config"
 	"github.intel.com/hpdd/lemur/uat/harness"
 	"github.intel.com/hpdd/lemur/uat/steps"
 	"github.intel.com/hpdd/logging/alert"
@@ -40,6 +43,13 @@ func configureSuite(s *godog.Suite) {
 	cfg, err := harness.LoadConfig()
 	if err != nil {
 		alert.Abort(errors.Wrap(err, "Failed to load test config"))
+	}
+
+	// Create socket dir so that tests don't fail mysteriously. This
+	// is handled by the RPM when things are installed that way, but
+	// it should work when run via Makefile, too.
+	if err := os.MkdirAll(config.DefaultTransportSocketDir, 0700); err != nil {
+		alert.Abort(errors.Wrap(err, "Failed to create agent socket dir"))
 	}
 
 	// This is a pretty awkward solution, but it should keep us
