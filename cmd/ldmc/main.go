@@ -4,9 +4,10 @@ import (
 	"os"
 	"strings"
 
-	"gopkg.in/urfave/cli.v1"
+	"github.intel.com/hpdd/logging/alert"
+	"github.intel.com/hpdd/logging/debug"
 
-	"github.intel.com/hpdd/logging/applog"
+	"gopkg.in/urfave/cli.v1"
 )
 
 var commands []cli.Command
@@ -36,15 +37,14 @@ func main() {
 	}
 	app.Before = configureLogging
 	if err := app.Run(os.Args); err != nil {
-		applog.Fail(err)
+		alert.Abort(err)
 	}
 }
 
 func configureLogging(c *cli.Context) error {
 	if c.Bool("debug") {
-		applog.SetLevel(applog.DEBUG)
+		debug.Enable()
 	}
-	applog.SetJournal(c.String("logfile"))
 
 	return nil
 }
@@ -57,5 +57,5 @@ func logContext(c *cli.Context) {
 		c = c.Parent()
 	}
 
-	applog.Trace("Context: %s", strings.Join(c.Args(), " "))
+	debug.Printf("Context: %s", strings.Join(c.Args(), " "))
 }

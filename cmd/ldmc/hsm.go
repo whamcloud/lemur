@@ -13,7 +13,6 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.intel.com/hpdd/logging/applog"
 	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/fs"
 	"github.intel.com/hpdd/lustre/hsm"
@@ -174,7 +173,7 @@ func getPathStatus(c *cli.Context, filePath string) (string, error) {
 
 	s, err := hsm.GetFileStatus(filePath)
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "Failed to get HSM status for %s", filePath)
 	}
 
 	if !c.Bool("hide-path") {
@@ -185,7 +184,7 @@ func getPathStatus(c *cli.Context, filePath string) (string, error) {
 	if s.Exists() && c.Bool("action") {
 		a, err := hsm.GetFileAction(filePath)
 		if err != nil {
-			return "", err
+			return "", errors.Wrapf(err, "Failed to get current HSM action for %s", filePath)
 		}
 		if a.IsNone() {
 			fmt.Fprintf(&buf, " -")
@@ -194,7 +193,7 @@ func getPathStatus(c *cli.Context, filePath string) (string, error) {
 			if c.Bool("progress") && (a.IsArchive() || a.IsRestore()) {
 				st, err := os.Stat(filePath)
 				if err != nil {
-					applog.Fail(err)
+					return "", errors.Wrapf(err, "Failed to stat() %s", filePath)
 				}
 				fmt.Fprintf(&buf, "(%s/%s)",
 					humanize.IBytes(a.BytesCopied),
