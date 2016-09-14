@@ -31,7 +31,7 @@ const (
 	DefaultAgentMountRoot = "/mnt/lhsmd"
 
 	// DefaultPluginDir is the default location for plugin binaries
-	DefaultPluginDir = "/usr/share/lhsmd/plugins"
+	DefaultPluginDir = "/usr/libexec/lhsmd"
 )
 
 // DefaultClientMountOptions is the default set of Lustre client

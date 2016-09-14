@@ -1,5 +1,6 @@
 %global debug_package %{nil}
 %define pkg_prefix %{?PACKAGE_PREFIX}%{!?PACKAGE_PREFIX:lemur}
+%define plugin_dir %{?PLUGIN_DIR}%{!?PLUGIN_DIR:%{_libexecdir}/lhsmd}
 
 Name: %{pkg_prefix}-hsm-agent
 Version: %{?_gitver}%{!?_gitver:0.0.1}
@@ -7,6 +8,8 @@ Release: %{?dist}%{!?dist:1}
 
 Vendor: Intel Corporation
 Source: %{pkg_prefix}-%{version}.tar.gz
+Source1: lhsmd.conf
+Source2: lhsmd.service
 License: GPL
 Summary: INSERT PRODUCT NAME HERE - Lustre HSM Agent
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
@@ -14,6 +17,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 BuildRequires: golang >= 1.6
 BuildRequires: pandoc
 Requires: lustre >= %{?MIN_LUSTRE_VERSION}%{?!MIN_LUSTRE_VERSION:2.6.0}
+%{?systemd_requires}
 
 %description
 The Lustre HSM Agent provides a backend-agnostic HSM Agent for brokering
@@ -64,22 +68,63 @@ mv src %{pkg_prefix}-%{version}
 %install
 export GOPATH=$PWD:$GOPATH
 cd src/github.intel.com/hpdd/%{pkg_prefix}
-%{__make} install PREFIX=$RPM_BUILD_ROOT/%{_prefix}
-%{__make} install-example PREFIX=$RPM_BUILD_ROOT/
-%{__make} uat-install PREFIX=$RPM_BUILD_ROOT/%{_prefix} BUILDROOT=$RPM_BUILD_ROOT/
-install -m 700 -d $RPM_BUILD_ROOT/%{_localstatedir}/run/lhsmd
+%{__make} install PREFIX=%{buildroot}/%{_prefix}
+%{__make} install-example PREFIX=%{buildroot}/
+%{__make} uat-install PREFIX=%{buildroot}/%{_prefix} BUILDROOT=%{buildroot}/
+
+# move datamover plugins to plugin dir
+install -d %{buildroot}%{plugin_dir}
+for plugin in %{buildroot}/%{_bindir}/lhsm-plugin-*; do
+    mv $plugin %{buildroot}/%{plugin_dir}/$(basename $plugin)
+done
+
+# move lhsmd to /sbin
+install -d %{buildroot}%{_sbindir}
+mv %{buildroot}/%{_bindir}/lhsmd %{buildroot}/%{_sbindir}
+
+%if 0%{?el6}
+  install -m 700 -d %{buildroot}/%{_localstatedir}/run/lhsmd
+  install -d %{buildroot}%{_sysconfdir}/init
+  install -p -m 0644 %SOURCE1 %{buildroot}%{_sysconfdir}/init/lhsmd.conf
+%endif
+
+%if 0%{?el7}
+  install -d %{buildroot}%{_unitdir}
+  install -p -m 0644 %SOURCE2 %{buildroot}%{_unitdir}/lhsmd.service
+%endif
+
+%post
+%if 0%{?el7}
+  %systemd_post lhsmd.service
+%endif
+
+%preun
+%if 0%{?el7}
+  %systemd_preun lhsmd.service
+%endif
+
+%postun
+%if 0%{?el7}
+  %systemd_postun_with_restart lhsmd.service
+%endif
 
 %files
 %defattr(-,root,root)
-%{_bindir}/lhsmd
+%{_sbindir}/lhsmd
 %{_mandir}/man1/lhsmd.1.gz
 %{_sysconfdir}/lhsmd/agent.example
-%dir %attr(700, root, root) %{_localstatedir}/run/lhsmd
+%if 0%{?el6}
+  %config %{_sysconfdir}/init/lhsmd.conf
+  %{_localstatedir}/run/lhsmd
+%endif
+%if 0%{?el7}
+  %{_unitdir}/lhsmd.service
+%endif
 
 %files -n %{pkg_prefix}-data-movers
 %defattr(-,root,root)
-%{_bindir}/lhsm-plugin-posix
-%{_bindir}/lhsm-plugin-s3
+%{plugin_dir}/lhsm-plugin-posix
+%{plugin_dir}/lhsm-plugin-s3
 %{_mandir}/man1/lhsm-plugin-s3.1.gz
 %{_mandir}/man1/lhsm-plugin-posix.1.gz
 %{_sysconfdir}/lhsmd/lhsm-plugin-posix.example
@@ -87,7 +132,7 @@ install -m 700 -d $RPM_BUILD_ROOT/%{_localstatedir}/run/lhsmd
 
 %files -n %{pkg_prefix}-testing
 %defattr(-,root,root)
-%{_bindir}/lhsm-plugin-noop
+%{plugin_dir}/lhsm-plugin-noop
 %{_libexecdir}/%{pkg_prefix}-testing/*.race
 %{_libexecdir}/%{pkg_prefix}-testing/%{pkg_prefix}-uat-runner
 %{_datarootdir}/%{pkg_prefix}/test/features/*.feature

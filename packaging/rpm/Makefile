@@ -1,10 +1,11 @@
-SOURCE   := $(NAME)-$(VERSION).tar.gz
-WORKDIR  := $(shell mktemp -d)
-SPECFILE := $(NAME).spec
-USER     ?= $(shell whoami)
-YBLDDEP  := $(shell if which yum-builddep 2>/dev/null; then true; else echo yum-builddep; fi)
+SOURCE    := $(NAME)-$(VERSION).tar.gz
+WORKDIR   := $(shell mktemp -d)
+SPECFILE  := $(NAME).spec
+INITFILES := $(patsubst %,$(WORKDIR)/%,lhsmd.service lhsmd.conf)
+USER      ?= $(shell whoami)
+YBLDDEP   := $(shell if which yum-builddep 2>/dev/null; then true; else echo yum-builddep; fi)
 
-rpm: $(WORKDIR)/$(SOURCE) $(WORKDIR)/$(SPECFILE) $(WORKDIR)/.deps
+rpm: $(WORKDIR)/$(SOURCE) $(INITFILES) $(WORKDIR)/$(SPECFILE) $(WORKDIR)/.deps
 	cd $(WORKDIR) && \
 	rpmbuild --define '%_sourcedir $(WORKDIR)' \
 	         --define '%_gitver $(VERSION)' \
@@ -28,3 +29,6 @@ $(WORKDIR)/$(SOURCE):
 	    --exclude=.git --exclude=*.swp \
 	    --transform 's|./|$(NAME)-$(VERSION)/|' -czf $@ ./ && \
 	chown $(USER).$(USER) $@
+
+$(INITFILES):
+	cp $(notdir $@) $@

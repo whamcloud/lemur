@@ -1,0 +1,13 @@
+[Unit]
+Description=Lustre HSM Agent
+Requires=network.target
+
+[Service]
+ExecStart=/usr/sbin/lhsmd
+Restart=on-failure
+User=root
+RuntimeDirectory=lhsmd
+RuntimeDirectoryMode=0700
+
+[Install]
+WantedBy=multi-user.target
