@@ -14,7 +14,7 @@ configuration file.
 
 # GENERAL USAGE
 
-The default location for the mover configuration file is `/etc/lhsm/lhsm-plugin-posix`.
+The default location for the mover configuration file is `/etc/lhsmd/lhsm-plugin-posix`.
 These are the configuration options available.
 
 `num_threads`

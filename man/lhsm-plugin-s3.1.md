@@ -14,7 +14,7 @@ configuration file.
 
 # GENERAL USAGE
 
-The default location for the mover configuration file is `/etc/lhsm/lhsm-plugin-s3`.
+The default location for the mover configuration file is `/etc/lhsmd/lhsm-plugin-s3`.
 These are the configuration options available.
 
 `region`

@@ -33,7 +33,7 @@ metrics in InfluxDB.
 
 # GENERAL USAGE
 
-The default location for the agent configuration file is `/etc/lhsm/agent`. These are the configuration options available.
+The default location for the agent configuration file is `/etc/lhsmd/agent`. These are the configuration options available.
 
 `client_device`
 :     Required option, the `client_device` the mount target for the Lustre filesystem the agent will be using. The
