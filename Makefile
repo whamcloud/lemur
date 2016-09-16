@@ -24,10 +24,14 @@ $(TARGETS):
 $(RACE_TARGETS):
 	go build -v -i -ldflags "$(LDFLAGS)" --race -o $@ ./cmd/$(basename $@)
 
-# packaging tasks
-# TODO: These builds need to be done in a truly clean environment. At the
-# moment, they are relying on the developer's GOPATH, which is not correct.
-rpm:
+rpm: docker-rpm
+
+docker-rpm: docker
+	rm -fr $(CURDIR)/output
+	mkdir -p $(CURDIR)/output/{BUILD,BUILDROOT,RPMS/{noarch,x86_64},SPECS,SRPMS}
+	docker run --rm -v$(CURDIR):/source -v$(CURDIR)/output:/root/rpmbuild lemur-rpm-build
+
+local-rpm:
 	$(MAKE) -C packaging/rpm NAME=$(NAME) VERSION=$(VERSION) RELEASE=$(PKG_RELEASE) URL=$(PROJECT_URL)
 
 docker:
