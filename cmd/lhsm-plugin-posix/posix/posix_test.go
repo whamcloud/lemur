@@ -10,6 +10,7 @@ import (
 
 	"github.intel.com/hpdd/lemur/cmd/lhsm-plugin-posix/posix"
 	"github.intel.com/hpdd/lemur/dmplugin"
+	"github.intel.com/hpdd/lemur/internal/testhelpers"
 )
 
 func testArchive(t *testing.T, mover *posix.Mover, path string, offset uint64, length uint64, fileID []byte, data []byte) *dmplugin.TestAction {
@@ -29,7 +30,7 @@ func testRemove(t *testing.T, mover *posix.Mover, fileID []byte, data []byte) *d
 }
 
 func testRestore(t *testing.T, mover *posix.Mover, offset uint64, length uint64, fileID []byte, data []byte) *dmplugin.TestAction {
-	tfile, cleanFile := testTempFile(t, 0)
+	tfile, cleanFile := testhelpers.TempFile(t, 0)
 	defer cleanFile()
 	action := dmplugin.NewTestAction(t, tfile, offset, length, fileID, data)
 	if err := mover.Restore(action); err != nil {
@@ -39,7 +40,7 @@ func testRestore(t *testing.T, mover *posix.Mover, offset uint64, length uint64,
 }
 
 func testRestoreFail(t *testing.T, mover *posix.Mover, offset uint64, length uint64, fileID []byte, data []byte, outer error) *dmplugin.TestAction {
-	tfile, cleanFile := testTempFile(t, 0)
+	tfile, cleanFile := testhelpers.TempFile(t, 0)
 	defer cleanFile()
 	action := dmplugin.NewTestAction(t, tfile, offset, length, fileID, data)
 	if err := mover.Restore(action); err == nil {
@@ -63,7 +64,7 @@ func TestArchive(t *testing.T) {
 	WithPosixMover(t, nil, func(t *testing.T, mover *posix.Mover) {
 		// trigger two updates (at current interval of 10MB
 		var length uint64 = 20 * 1024 * 1024
-		tfile, cleanFile := testTempFile(t, length)
+		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
 		action := testArchive(t, mover, tfile, 0, length, nil, nil)
@@ -79,7 +80,7 @@ func TestArchive(t *testing.T) {
 func TestArchiveMaxSize(t *testing.T) {
 	WithPosixMover(t, nil, func(t *testing.T, mover *posix.Mover) {
 		var length uint64 = 1000000
-		tfile, cleanFile := testTempFile(t, length)
+		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
 		// we received maxuint64 from coordinator, so test this as well
@@ -94,7 +95,7 @@ func TestArchiveDefaultChecksum(t *testing.T) {
 	}
 	WithPosixMover(t, defaultChecksum, func(t *testing.T, mover *posix.Mover) {
 		var length uint64 = 100
-		tfile, cleanFile := testTempFile(t, length)
+		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
 		action := testArchive(t, mover, tfile, 0, length, nil, nil)
@@ -108,7 +109,7 @@ func TestArchiveRestoreBrokenFileID(t *testing.T) {
 	}
 	WithPosixMover(t, defaultChecksum, func(t *testing.T, mover *posix.Mover) {
 		var length uint64 = 100
-		tfile, cleanFile := testTempFile(t, length)
+		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
 		action := testArchive(t, mover, tfile, 0, length, nil, nil)
@@ -142,14 +143,14 @@ func TestArchiveRestoreError(t *testing.T) {
 	}
 	WithPosixMover(t, defaultChecksum, func(t *testing.T, mover *posix.Mover) {
 		var length uint64 = 100
-		tfile, cleanFile := testTempFile(t, length)
+		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
 		// we received maxuint64 from coordinator, so test this as well
 		action := testArchive(t, mover, tfile, 0, length, nil, nil)
 
 		failRestore := func(t *testing.T, mover *posix.Mover, offset uint64, length uint64, fileID []byte, data []byte) *dmplugin.TestAction {
-			tfile, cleanFile := testTempFile(t, 0)
+			tfile, cleanFile := testhelpers.TempFile(t, 0)
 			defer cleanFile()
 			os.Chmod(tfile, 0444)
 			action := dmplugin.NewTestAction(t, tfile, offset, length, fileID, data)
@@ -175,7 +176,7 @@ func TestArchiveNoChecksum(t *testing.T) {
 
 	WithPosixMover(t, disableChecksum, func(t *testing.T, mover *posix.Mover) {
 		var length uint64 = 1000000
-		tfile, cleanFile := testTempFile(t, length)
+		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
 		action := testArchive(t, mover, tfile, 0, math.MaxUint64, nil, nil)
@@ -186,7 +187,7 @@ func TestArchiveNoChecksum(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		testCorruptFile(t, mover.Destination(fileID.UUID))
+		testhelpers.CorruptFile(t, mover.Destination(fileID.UUID))
 
 		// Successfully restore corrupt data
 		testRestore(t, mover, 0, math.MaxUint64, action.FileID(), nil)
@@ -200,7 +201,7 @@ func TestArchiveNoChecksumRestore(t *testing.T) {
 
 	WithPosixMover(t, disableChecksum, func(t *testing.T, mover *posix.Mover) {
 		var length uint64 = 1000000
-		tfile, cleanFile := testTempFile(t, length)
+		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
 		action := testArchive(t, mover, tfile, 0, math.MaxUint64, nil, nil)
@@ -211,7 +212,7 @@ func TestArchiveNoChecksumRestore(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		testCorruptFile(t, mover.Destination(fileID.UUID))
+		testhelpers.CorruptFile(t, mover.Destination(fileID.UUID))
 		// Successfully restore corrupt data
 		testRestore(t, mover, 0, math.MaxUint64, action.FileID(), nil)
 	})
@@ -220,14 +221,14 @@ func TestArchiveNoChecksumRestore(t *testing.T) {
 func TestArchiveChecksumAfter(t *testing.T) {
 	WithPosixMover(t, nil, func(t *testing.T, mover *posix.Mover) {
 		var length uint64 = 1000000
-		tfile, cleanFile := testTempFile(t, length)
+		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
 		// we received maxuint64 from coordinator, so test this as well
 		action := testArchive(t, mover, tfile, 0, math.MaxUint64, nil, nil)
 		// Disable checksum generation but should still check existing checksums
 		mover.ChecksumConfig().Disabled = true
-		testCorruptFile(t, testDestinationFile(t, mover, action.FileID()))
+		testhelpers.CorruptFile(t, testDestinationFile(t, mover, action.FileID()))
 		// Don't  restore corrupt data
 		testRestoreFail(t, mover, 0, math.MaxUint64, action.FileID(), nil, errors.New(""))
 	})
@@ -236,7 +237,7 @@ func TestArchiveChecksumAfter(t *testing.T) {
 func TestCorruptArchive(t *testing.T) {
 	WithPosixMover(t, nil, func(t *testing.T, mover *posix.Mover) {
 		var length uint64 = 1000000
-		tfile, cleanFile := testTempFile(t, length)
+		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
 		action := dmplugin.NewTestAction(t, tfile, 0, length, nil, nil)
@@ -246,7 +247,7 @@ func TestCorruptArchive(t *testing.T) {
 
 		path := testDestinationFile(t, mover, action.FileID())
 
-		testCorruptFile(t, path)
+		testhelpers.CorruptFile(t, path)
 
 		// TODO check for specific CheckSum error
 		testRestoreFail(t, mover, 0, length, action.FileID(), nil, errors.New(""))
@@ -257,7 +258,7 @@ func TestCorruptArchive(t *testing.T) {
 func TestRemove(t *testing.T) {
 	WithPosixMover(t, nil, func(t *testing.T, mover *posix.Mover) {
 		var length uint64 = 1000000
-		tfile, cleanFile := testTempFile(t, length)
+		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
 		action := testArchive(t, mover, tfile, 0, length, nil, nil)
@@ -281,8 +282,8 @@ func TestRemove(t *testing.T) {
 func WithPosixMover(t *testing.T, updateConfig func(*posix.ChecksumConfig) *posix.ChecksumConfig,
 	tester func(t *testing.T, mover *posix.Mover)) {
 
-	defer testChdirTemp(t)()
-	archiveDir, cleanArchive := testTempDir(t)
+	defer testhelpers.ChdirTemp(t)()
+	archiveDir, cleanArchive := testhelpers.TempDir(t)
 	defer cleanArchive()
 
 	var config *posix.ChecksumConfig

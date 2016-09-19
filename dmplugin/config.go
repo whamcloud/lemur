@@ -21,6 +21,15 @@ type pluginConfig struct {
 // LoadConfig reads this plugin's config file and decodes it into the passed
 // config struct.
 func LoadConfig(cfgFile string, cfg interface{}) error {
+	// Ensure config file is private
+	fi, err := os.Stat(cfgFile)
+	if err != nil {
+		return errors.Wrap(err, "stat config file failed")
+	}
+	if (int(fi.Mode()) & 077) != 0 {
+		return errors.New("config file permisisons are insecure")
+	}
+
 	data, err := ioutil.ReadFile(cfgFile)
 	if err != nil {
 		return errors.Wrap(err, "read config file failed")

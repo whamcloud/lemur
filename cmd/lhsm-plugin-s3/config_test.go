@@ -8,11 +8,14 @@ import (
 
 	"github.intel.com/hpdd/lemur/cmd/lhsmd/config"
 	"github.intel.com/hpdd/lemur/dmplugin"
+	"github.intel.com/hpdd/lemur/internal/testhelpers"
 )
 
 func TestLoadConfig(t *testing.T) {
 	var cfg s3Config
-	err := dmplugin.LoadConfig("./test-fixtures/lhsm-plugin-s3.test", &cfg)
+	cfgFile, cleanup := testhelpers.TempCopy(t, "./test-fixtures/lhsm-plugin-s3.test", 0600)
+	defer cleanup()
+	err := dmplugin.LoadConfig(cfgFile, &cfg)
 	loaded := &cfg
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -35,10 +38,31 @@ func TestLoadConfig(t *testing.T) {
 	}
 }
 
+func TestInsecureConfig(t *testing.T) {
+	var cfg s3Config
+	cfgFile, cleanup := testhelpers.TempCopy(t, "./test-fixtures/lhsm-plugin-s3.test", 0666)
+	defer cleanup()
+
+	err := dmplugin.LoadConfig(cfgFile, &cfg)
+	if err == nil {
+		t.Fatal("Used insecure file, expecteed error")
+	}
+	t.Log(err)
+	/* verify err is the correct error */
+}
+
 func TestMergedConfig(t *testing.T) {
 	os.Setenv(config.AgentConnEnvVar, "foo://bar:1234")
 	os.Setenv(config.PluginMountpointEnvVar, "/foo/bar/baz")
-	os.Setenv(config.ConfigDirEnvVar, "./test-fixtures")
+
+	tmpDir, dirCleanup := testhelpers.TempDir(t)
+	defer dirCleanup()
+
+	testhelpers.CopyFile(t,
+		path.Join("./test-fixtures", path.Base(os.Args[0])),
+		path.Join(tmpDir, path.Base(os.Args[0])),
+		0600)
+	os.Setenv(config.ConfigDirEnvVar, tmpDir)
 
 	plugin, err := dmplugin.NewTestPlugin(path.Base(os.Args[0]))
 	if err != nil {
@@ -70,7 +94,9 @@ func TestMergedConfig(t *testing.T) {
 
 func TestArchiveValidation(t *testing.T) {
 	var cfg s3Config
-	err := dmplugin.LoadConfig("./test-fixtures/lhsm-plugin-s3.test", &cfg)
+	cfgFile, cleanup := testhelpers.TempCopy(t, "./test-fixtures/lhsm-plugin-s3.test", 0600)
+	defer cleanup()
+	err := dmplugin.LoadConfig(cfgFile, &cfg)
 	loaded := &cfg
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -83,7 +109,9 @@ func TestArchiveValidation(t *testing.T) {
 	}
 
 	var cfg2 s3Config
-	err = dmplugin.LoadConfig("./test-fixtures/lhsm-plugin-s3-badarchive", &cfg2)
+	cfgFile2, cleanup2 := testhelpers.TempCopy(t, "./test-fixtures/lhsm-plugin-s3-badarchive", 0600)
+	defer cleanup2()
+	err = dmplugin.LoadConfig(cfgFile2, &cfg2)
 	loaded = &cfg2
 	if err != nil {
 		t.Fatalf("err: %s", err)

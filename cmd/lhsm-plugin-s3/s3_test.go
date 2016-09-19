@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.intel.com/hpdd/lemur/dmplugin"
-	//	"github.intel.com/hpdd/policy/pdm/lhsm-plugin-posix/posix"
+	"github.intel.com/hpdd/lemur/internal/testhelpers"
 )
 
 func testArchive(t *testing.T, mover *Mover, path string, offset uint64, length uint64, fileID []byte, data []byte) *dmplugin.TestAction {
@@ -27,7 +27,7 @@ func testRemove(t *testing.T, mover *Mover, fileID []byte, data []byte) *dmplugi
 }
 
 func testRestore(t *testing.T, mover *Mover, offset uint64, length uint64, fileID []byte, data []byte) *dmplugin.TestAction {
-	tfile, cleanFile := testTempFile(t, 0)
+	tfile, cleanFile := testhelpers.TempFile(t, 0)
 	defer cleanFile()
 	action := dmplugin.NewTestAction(t, tfile, offset, length, fileID, data)
 	if err := mover.Restore(action); err != nil {
@@ -37,7 +37,7 @@ func testRestore(t *testing.T, mover *Mover, offset uint64, length uint64, fileI
 }
 
 func testRestoreFail(t *testing.T, mover *Mover, offset uint64, length uint64, fileID []byte, data []byte) *dmplugin.TestAction {
-	tfile, cleanFile := testTempFile(t, 0)
+	tfile, cleanFile := testhelpers.TempFile(t, 0)
 	defer cleanFile()
 	action := dmplugin.NewTestAction(t, tfile, offset, length, fileID, data)
 	if err := mover.Restore(action); err == nil {
@@ -61,7 +61,7 @@ func TestArchive(t *testing.T) {
 	WithS3Mover(t, nil, func(t *testing.T, mover *Mover) {
 		// trigger two updates (at current interval of 10MB
 		var length uint64 = 20 * 1024 * 1024
-		tfile, cleanFile := testTempFile(t, length)
+		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
 		start := time.Now()
@@ -89,7 +89,7 @@ func TestArchive(t *testing.T) {
 func TestArchiveMaxSize(t *testing.T) {
 	WithS3Mover(t, nil, func(t *testing.T, mover *Mover) {
 		var length uint64 = 1000000
-		tfile, cleanFile := testTempFile(t, length)
+		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
 		// we received maxuint64 from coordinator, so test this as well
@@ -193,7 +193,7 @@ func TestCorruptArchive(t *testing.T) {
 func TestRemove(t *testing.T) {
 	WithS3Mover(t, nil, func(t *testing.T, mover *Mover) {
 		var length uint64 = 1000000
-		tfile, cleanFile := testTempFile(t, length)
+		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
 		action := testArchive(t, mover, tfile, 0, length, nil, nil)
@@ -230,7 +230,7 @@ func WithS3Mover(t *testing.T, updateConfig func(*archiveConfig) *archiveConfig,
 		config = updateConfig(config)
 	}
 
-	defer testChdirTemp(t)()
+	defer testhelpers.ChdirTemp(t)()
 	svc := s3Svc(config.Region, s3Endpoint)
 	mover := S3Mover(svc, 1, config.Bucket, config.Prefix)
 
