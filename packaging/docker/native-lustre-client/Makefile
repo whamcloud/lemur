@@ -14,6 +14,9 @@ $(CLIENT_VERSION): $(IMAGE)
 
 $(IMAGE): Dockerfile
 	@echo "Building $(IMAGE) for $(CLIENT_VERSION)"
-	docker build -t $(subst /,:,$(IMAGE)) -t $(REPO):latest --build-arg=package_url=$(PACKAGE_URL)/artifact/artifacts/ $(BUILD_VARS) . && touch done
+	docker build -t $(subst /,:,$(IMAGE)) -t $(REPO):latest --build-arg=package_url=$(PACKAGE_URL)/artifact/artifacts/ $(BUILD_VARS) .
+
+clean:
+	docker rmi $(subst /,:,$(IMAGE)) $(REPO):latest lustre-client:latest
 
 .PHONY: $(CLIENT_VERSION) $(IMAGE)
