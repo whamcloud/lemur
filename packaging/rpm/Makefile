@@ -13,6 +13,8 @@ rpm: $(WORKDIR)/$(SOURCE) $(INITFILES) $(WORKDIR)/$(SPECFILE) $(WORKDIR)/.deps
 		 --define '%dist $(RELEASE)' \
 		 -ba $(SPECFILE) && \
 	rm -fr $(WORKDIR)
+	# clean up any cruft left by the go compiler
+	rm -fr $$(rpm --eval '%{_builddir}')/$(NAME)-*
 
 $(WORKDIR)/.deps: $(YBLDDEP) $(WORKDIR)/$(SPECFILE)
 	sudo yum-builddep -y $(WORKDIR)/$(SPECFILE) && touch $(WORKDIR)/.deps
