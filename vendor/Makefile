@@ -4,7 +4,7 @@ GO_SRC_DIRS := $(shell echo $(GO_SOURCES) | tr ' ' '\n' | sed -e 's/^..\///' -e 
 
 # Explicit repo imports which need to be added because they can't be inferred
 # from imports of repo subdirs or are in the UAT dir.
-EXPLICIT_IMPORTS := "github.intel.com/hpdd/logging github.com/DATA-DOG/godog"
+EXPLICIT_IMPORTS := github.intel.com/hpdd/logging github.com/DATA-DOG/godog
 
 # These patterns match imports which we don't need to ship, and therefore
 # don't want to include in the vendor tree.
@@ -28,7 +28,7 @@ export EXCLUDES
 manifest: $(GVT_BIN) $(GO_SOURCES)
 	# First, build the naive import set recursively.
 	pushd .. >/dev/null; \
-	imports="$(EXPLICIT_IMPORTS) $$(go list -f '{{.Deps}}' $(addsuffix /...,$(addprefix ./,$(GO_SRC_DIRS))) | tr "[" " " | tr "]" " " | tr ' ' '\n' | grep -v vendor | tr '\n' ' ' | xargs go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}' | sort | uniq)"; \
+	imports="$(EXPLICIT_IMPORTS) $$(go list -f '{{ join .Deps "\n" }}' $(addsuffix /...,$(addprefix ./,$(GO_SRC_DIRS))) | grep -v vendor | xargs go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}' | sort | uniq)"; \
 	for import in $$imports; do \
 		$(GVT_BIN) fetch $$import; \
 	done; \
