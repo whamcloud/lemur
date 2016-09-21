@@ -1,4 +1,4 @@
-FROM host-kernel:latest
+FROM go-el7:latest
 MAINTAINER Michael MacDonald <michael.macdonald@intel.com>
 
 env REPO_NAME lustre-client
