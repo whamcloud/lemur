@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.intel.com/hpdd/lemur/dmplugin"
+	"github.intel.com/hpdd/lemur/pkg/fsroot"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 )
@@ -32,7 +33,9 @@ func (m *Mover) Start() {
 func noop() {
 	done := make(chan struct{})
 
-	plugin, err := dmplugin.New(path.Base(os.Args[0]))
+	plugin, err := dmplugin.New(path.Base(os.Args[0]), func(path string) (fsroot.Client, error) {
+		return fsroot.New(path)
+	})
 	if err != nil {
 		alert.Abort(errors.Wrap(err, "create plugin failed"))
 	}

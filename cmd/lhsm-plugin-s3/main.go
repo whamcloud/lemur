@@ -18,6 +18,7 @@ import (
 	"github.com/rcrowley/go-metrics"
 
 	"github.intel.com/hpdd/lemur/dmplugin"
+	"github.intel.com/hpdd/lemur/pkg/fsroot"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
@@ -179,7 +180,9 @@ func checkS3Configuration(cfg *s3Config) error {
 }
 
 func main() {
-	plugin, err := dmplugin.New(path.Base(os.Args[0]))
+	plugin, err := dmplugin.New(path.Base(os.Args[0]), func(path string) (fsroot.Client, error) {
+		return fsroot.New(path)
+	})
 	if err != nil {
 		alert.Abort(errors.Wrap(err, "failed to initialize plugin"))
 	}

@@ -26,7 +26,7 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"
 
-	"github.intel.com/hpdd/lemur/pkg/client"
+	"github.intel.com/hpdd/lemur/pkg/fsroot"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre/fs"
@@ -38,7 +38,7 @@ type (
 	// HsmAgent for a single filesytem and a collection of backends.
 	HsmAgent struct {
 		config       *Config
-		client       client.Client
+		client       fsroot.Client
 		stats        *ActionStats
 		wg           sync.WaitGroup
 		Endpoints    *Endpoints
@@ -58,7 +58,7 @@ type (
 
 // New accepts a config and returns a *HsmAgent
 func New(cfg *Config) (*HsmAgent, error) {
-	client, err := client.New(cfg.AgentMountpoint())
+	client, err := fsroot.New(cfg.AgentMountpoint())
 	if err != nil {
 		return nil, err
 	}

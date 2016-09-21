@@ -8,7 +8,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.intel.com/hpdd/lemur/dmplugin"
-	"github.intel.com/hpdd/lemur/pkg/client"
+	"github.intel.com/hpdd/lemur/pkg/fsroot"
 	"github.intel.com/hpdd/lustre/hsm"
 )
 
@@ -116,7 +116,7 @@ func NewTestAgent(t Errorer, cfg *Config, mon *PluginMonitor, as *hsm.TestSource
 	return &TestAgent{
 		HsmAgent: HsmAgent{
 			stats:        NewActionStats(),
-			client:       client.Test(cfg.AgentMountpoint()),
+			client:       fsroot.Test(cfg.AgentMountpoint()),
 			rpcsInFlight: make(chan struct{}, cfg.Processes*10),
 			config:       cfg,
 			monitor:      mon,

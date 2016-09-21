@@ -12,6 +12,7 @@ import (
 
 	"github.intel.com/hpdd/lemur/cmd/lhsm-plugin-posix/posix"
 	"github.intel.com/hpdd/lemur/dmplugin"
+	"github.intel.com/hpdd/lemur/pkg/fsroot"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 )
@@ -122,7 +123,9 @@ func getMergedConfig(plugin dmplugin.Plugin) (*posixConfig, error) {
 }
 
 func main() {
-	plugin, err := dmplugin.New(path.Base(os.Args[0]))
+	plugin, err := dmplugin.New(path.Base(os.Args[0]), func(path string) (fsroot.Client, error) {
+		return fsroot.New(path)
+	})
 	if err != nil {
 		alert.Abort(errors.Wrap(err, "failed to initialize plugin"))
 	}

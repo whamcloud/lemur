@@ -1,4 +1,4 @@
-package client
+package fsroot
 
 import "github.intel.com/hpdd/lustre/fs"
 

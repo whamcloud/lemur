@@ -130,8 +130,8 @@ func (s *dmRPCServer) Register(context context.Context, e *pb.Endpoint) (*pb.Han
 
 /*
  * GetActions establish a connection the backend for a particular archive ID. The Endpoint
-* remains in Connected status as long as the backend is receiving messages from the agent.
-*/
+ * remains in Connected status as long as the backend is receiving messages from the agent.
+ */
 
 func (s *dmRPCServer) GetActions(h *pb.Handle, stream pb.DataMover_GetActionsServer) error {
 	temp, ok := s.agent.Endpoints.GetWithHandle((*agent.Handle)(&h.Id))
@@ -190,7 +190,7 @@ func (s *dmRPCServer) StatusStream(stream pb.DataMover_StatusStreamServer) error
 	for {
 		status, err := stream.Recv()
 		if err != nil {
-			return nil
+			return errors.Wrap(err, "status receive failed")
 		}
 		temp, ok := s.agent.Endpoints.GetWithHandle((*agent.Handle)(&status.Handle.Id))
 		if !ok {

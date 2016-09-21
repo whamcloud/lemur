@@ -11,7 +11,7 @@ import (
 	"golang.org/x/net/context"
 
 	pb "github.intel.com/hpdd/lemur/pdm"
-	"github.intel.com/hpdd/lemur/pkg/client"
+	"github.intel.com/hpdd/lemur/pkg/fsroot"
 	"google.golang.org/grpc"
 )
 
@@ -22,7 +22,7 @@ type dmPlugin struct {
 	rpcConn       *grpc.ClientConn
 	cli           pb.DataMoverClient
 	movers        []*DataMoverClient
-	fsClient      client.Client
+	fsClient      fsroot.Client
 	config        *pluginConfig
 }
 
@@ -42,12 +42,12 @@ func unixDialer(addr string, timeout time.Duration) (net.Conn, error) {
 }
 
 // New returns a new *Plugin, or error
-func New(name string) (Plugin, error) {
+func New(name string, initClient func(string) (fsroot.Client, error)) (Plugin, error) {
 	config := mustInitConfig()
 
-	fsClient, err := client.New(config.ClientRoot)
+	fsClient, err := initClient(config.ClientRoot)
 	if err != nil {
-		return nil, errors.Wrap(err, "client new failed")
+		return nil, errors.Wrap(err, "client init failed")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
