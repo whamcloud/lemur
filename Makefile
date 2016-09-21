@@ -24,8 +24,8 @@ $(TARGETS):
 $(RACE_TARGETS):
 	go build -v -i -ldflags "$(LDFLAGS)" --race -o $@ ./cmd/$(basename $@)
 
+# build tasks
 rpm: docker-rpm
-
 docker-rpm: docker
 	rm -fr $(CURDIR)/output
 	mkdir -p $(CURDIR)/output/{BUILD,BUILDROOT,RPMS/{noarch,x86_64},SPECS,SRPMS}
@@ -36,6 +36,9 @@ local-rpm:
 
 docker:
 	$(MAKE) -C packaging/docker
+
+vendor:
+	$(MAKE) -C vendor
 
 # development tasks
 check: test uat
@@ -135,4 +138,4 @@ clean: clean-docs clean-deps
 	rm -f $(NAME)-uat-runner
 
 .PHONY: $(TARGETS) $(RACE_TARGETS)
-.PHONY: all check test uat rpm deb install local-install packages  coverage docs jekyll deploy-docs clean-docs clean-deps clean uat-install
+.PHONY: all check test uat rpm deb install local-install packages  coverage docs jekyll deploy-docs clean-docs clean-deps clean uat-install vendor
