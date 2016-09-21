@@ -9,6 +9,7 @@ import (
 	"github.intel.com/hpdd/lemur/cmd/lhsmd/config"
 	"github.intel.com/hpdd/lemur/dmplugin"
 	"github.intel.com/hpdd/lemur/internal/testhelpers"
+	"github.intel.com/hpdd/lemur/pkg/fsroot"
 )
 
 func TestLoadConfig(t *testing.T) {
@@ -64,7 +65,9 @@ func TestMergedConfig(t *testing.T) {
 		0600)
 	os.Setenv(config.ConfigDirEnvVar, tmpDir)
 
-	plugin, err := dmplugin.NewTestPlugin(path.Base(os.Args[0]))
+	plugin, err := dmplugin.New(path.Base(os.Args[0]), func(path string) (fsroot.Client, error) {
+		return fsroot.Test(path), nil
+	})
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

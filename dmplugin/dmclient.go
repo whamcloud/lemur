@@ -20,7 +20,7 @@ type (
 
 	// DataMoverClient is the data mover client to the HSM agent
 	DataMoverClient struct {
-		plugin    Plugin
+		plugin    *Plugin
 		rpcClient pb.DataMoverClient
 		status    chan *pb.ActionStatus
 		mover     Mover
@@ -211,7 +211,7 @@ func (a *dmAction) SetActualLength(length uint64) {
 }
 
 // NewMover returns a new *DataMoverClient
-func NewMover(plugin Plugin, cli pb.DataMoverClient, config *Config) *DataMoverClient {
+func NewMover(plugin *Plugin, cli pb.DataMoverClient, config *Config) *DataMoverClient {
 	actions := make(map[pb.Command]ActionHandler)
 
 	if archiver, ok := config.Mover.(Archiver); ok {

@@ -29,7 +29,7 @@ type (
 		t          Errorer
 		started    chan struct{}
 		startError chan error
-		plugins    []dmplugin.Plugin
+		plugins    []*dmplugin.Plugin
 	}
 )
 
@@ -47,7 +47,7 @@ func (ta *TestAgent) AddAction(ar hsm.ActionRequest) {
 
 // AddPlugin adds a plugin to be managed by the test agent. Mostly useful
 // for ensuring that the plugin is cleanly shut down at test end.
-func (ta *TestAgent) AddPlugin(p dmplugin.Plugin) {
+func (ta *TestAgent) AddPlugin(p *dmplugin.Plugin) {
 	ta.plugins = append(ta.plugins, p)
 }
 

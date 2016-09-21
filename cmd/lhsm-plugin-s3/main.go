@@ -146,7 +146,7 @@ func s3Svc(region string, endpoint string) *s3.S3 {
 	return s3.New(session.New(cfg))
 }
 
-func getMergedConfig(plugin dmplugin.Plugin) (*s3Config, error) {
+func getMergedConfig(plugin *dmplugin.Plugin) (*s3Config, error) {
 	baseCfg := &s3Config{
 		Region: "us-east-1",
 	}

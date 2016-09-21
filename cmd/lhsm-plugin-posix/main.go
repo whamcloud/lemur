@@ -81,7 +81,7 @@ func (c *posixConfig) Merge(other *posixConfig) *posixConfig {
 	return result
 }
 
-func start(plugin dmplugin.Plugin, cfg *posixConfig) {
+func start(plugin *dmplugin.Plugin, cfg *posixConfig) {
 	// All base filesystem operations will be relative to current directory
 	err := os.Chdir(plugin.Base())
 	if err != nil {
@@ -108,7 +108,7 @@ func start(plugin dmplugin.Plugin, cfg *posixConfig) {
 	plugin.Run()
 }
 
-func getMergedConfig(plugin dmplugin.Plugin) (*posixConfig, error) {
+func getMergedConfig(plugin *dmplugin.Plugin) (*posixConfig, error) {
 	baseCfg := &posixConfig{
 		Checksums: &posix.ChecksumConfig{},
 	}

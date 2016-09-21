@@ -2,17 +2,8 @@ package dmplugin
 
 import (
 	"math"
-	"path"
 
-	"github.com/pkg/errors"
-
-	"golang.org/x/net/context"
-
-	"google.golang.org/grpc"
-
-	pb "github.intel.com/hpdd/lemur/pdm"
 	"github.intel.com/hpdd/logging/alert"
-	"github.intel.com/hpdd/logging/debug"
 )
 
 // Fataler provides Fatal and Fatalf
@@ -110,77 +101,4 @@ func (a *TestAction) SetActualLength(length uint64) {
 		a.t.Fatalf("actual length does not match original %d !=%d", length, a.length)
 	}
 	a.ActualLength = int(length)
-}
-
-type testPlugin struct {
-	name          string
-	config        *pluginConfig
-	movers        []*DataMoverClient
-	rpcConn       *grpc.ClientConn
-	ctx           context.Context
-	cancelContext context.CancelFunc
-}
-
-// NewTestPlugin returns a test plugin
-func NewTestPlugin(name string) (Plugin, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-	config := mustInitConfig()
-
-	conn, err := grpc.Dial(config.AgentAddress, grpc.WithDialer(unixDialer), grpc.WithInsecure())
-	if err != nil {
-		return nil, errors.Wrap(err, "error in grpc connection to agent")
-	}
-
-	return &testPlugin{
-		config:        config,
-		name:          name,
-		ctx:           ctx,
-		rpcConn:       conn,
-		cancelContext: cancel,
-	}, nil
-}
-
-// FsName returns the associate Lustre filesystem name
-func (a *testPlugin) FsName() string {
-	return "test-fake-fs"
-}
-
-// Base returns the root directory for plugin.
-func (a *testPlugin) Base() string {
-	return a.config.ClientRoot
-}
-
-// ConfigFile returns path to the plugin config file.
-func (a *testPlugin) ConfigFile() string {
-	return path.Join(a.config.ConfigDir, a.name)
-}
-
-// AddMover registers a new data mover with the plugin. In this test
-// implementation, it is assumed that a real grpc connection to an agent
-// is desired. Simple tests which don't call AddMover() will skip this
-// connection.
-func (a *testPlugin) AddMover(config *Config) {
-	dm := NewMover(a, pb.NewDataMoverClient(a.rpcConn), config)
-	go dm.Run(a.ctx)
-	a.movers = append(a.movers, dm)
-}
-
-func (a *testPlugin) Run() {
-
-}
-
-// Stop signals to all registered data movers that they should stop processing
-// and shut down
-func (a *testPlugin) Stop() {
-	debug.Print("Shutting down all data movers")
-	a.cancelContext()
-}
-
-// Close closes the connection to the agent
-func (a *testPlugin) Close() error {
-	if a.rpcConn == nil {
-		return nil
-	}
-	debug.Print("Closing RPC connection to agent")
-	return a.rpcConn.Close()
 }

@@ -3,6 +3,7 @@ package main_test
 import (
 	"flag"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/fortytw2/leaktest"
@@ -14,6 +15,7 @@ import (
 	"github.intel.com/hpdd/lemur/cmd/lhsmd/config"
 	_ "github.intel.com/hpdd/lemur/cmd/lhsmd/transport/grpc"
 	"github.intel.com/hpdd/lemur/dmplugin"
+	"github.intel.com/hpdd/lemur/pkg/fsroot"
 	"github.intel.com/hpdd/logging/debug"
 	"github.intel.com/hpdd/lustre"
 	"github.intel.com/hpdd/lustre/fs"
@@ -88,9 +90,10 @@ func newTestMover() *testMover {
 	}
 }
 
-func newTestPlugin(t *testing.T) (dmplugin.Plugin, *testMover) {
-	// Not crazy about this, because it means dmplugin.New() isn't covered
-	plugin, err := dmplugin.NewTestPlugin("fake-test-plugin")
+func newTestPlugin(t *testing.T) (*dmplugin.Plugin, *testMover) {
+	plugin, err := dmplugin.New(path.Base(os.Args[0]), func(path string) (fsroot.Client, error) {
+		return fsroot.Test(path), nil
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,6 +148,8 @@ func TestArchiveEndToEnd(t *testing.T) {
 	p, tm := newTestPlugin(t)
 	ta.AddPlugin(p)
 
+	go p.Run()
+
 	// Wait for the mover to signal that it has been started
 	<-tm.Started()
 
@@ -172,6 +177,7 @@ func TestArchiveEndToEnd(t *testing.T) {
 
 	// Wait for the mover to end the request
 	<-tr.Finished()
+	p.Stop()
 }
 
 func TestRestoreEndToEnd(t *testing.T) {
@@ -194,6 +200,7 @@ func TestRestoreEndToEnd(t *testing.T) {
 	p, tm := newTestPlugin(t)
 	ta.AddPlugin(p)
 
+	go p.Run()
 	// Wait for the mover to signal that it has been started
 	<-tm.Started()
 
@@ -222,6 +229,7 @@ func TestRestoreEndToEnd(t *testing.T) {
 
 	// Wait for the mover to end the request
 	<-tr.Finished()
+	p.Stop()
 }
 
 func TestRemoveEndToEnd(t *testing.T) {
@@ -243,6 +251,8 @@ func TestRemoveEndToEnd(t *testing.T) {
 	// test agent to receive an injected action.
 	p, tm := newTestPlugin(t)
 	ta.AddPlugin(p)
+
+	go p.Run()
 
 	// Wait for the mover to signal that it has been started
 	<-tm.Started()
@@ -268,4 +278,5 @@ func TestRemoveEndToEnd(t *testing.T) {
 
 	// Wait for the mover to end the request
 	<-tr.Finished()
+	p.Stop()
 }
