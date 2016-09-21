@@ -284,18 +284,20 @@ func (dm *DataMoverClient) processActions(ctx context.Context) chan *pb.ActionIt
 	actions := make(chan *pb.ActionItem)
 
 	go func() {
+		defer close(actions)
 		handle, ok := getHandle(ctx)
 		if !ok {
-			alert.Abort(errors.New("No context"))
+			alert.Warn(errors.New("No context"))
+			return
 		}
 		stream, err := dm.rpcClient.GetActions(ctx, handle)
 		if err != nil {
-			alert.Abort(errors.Wrap(err, "GetActions() failed"))
+			alert.Warn(errors.Wrap(err, "GetActions() failed"))
+			return
 		}
 		for {
 			action, err := stream.Recv()
 			if err != nil {
-				close(actions)
 				if err == io.EOF {
 					debug.Print("Shutting down dmclient action stream")
 					return
@@ -322,14 +324,16 @@ func (dm *DataMoverClient) processStatus(ctx context.Context) {
 		}
 		acks, err := dm.rpcClient.StatusStream(ctx)
 		if err != nil {
-			alert.Abort(errors.Wrap(err, "StatusStream() failed"))
+			alert.Warn(errors.Wrap(err, "StatusStream() failed"))
+			return
 		}
 		for reply := range dm.status {
 			reply.Handle = handle
 			// debug.Printf("Sent reply  %x error: %#v", reply.Id, reply.Error)
 			err := acks.Send(reply)
 			if err != nil {
-				alert.Abort(errors.Wrapf(err, "Failed to ack message %x", reply.Id))
+				alert.Warn(errors.Wrapf(err, "Failed to ack message %x", reply.Id))
+				return
 			}
 		}
 	}()
