@@ -12,7 +12,7 @@ LDFLAGS := -X 'main.version=$(VERSION)'
 FEATURE_TESTS := uat/features
 
 CMD_SOURCES := $(shell find cmd -name main.go)
-FEATURE_FILES := $(shell find $(FEATURE_TESTS) -type f -printf '%f ' -name *.feature)
+FEATURE_FILES := $(shell find $(FEATURE_TESTS) -type f -name *.feature -exec basename {} \; | tr '\n' ' ')
 
 TARGETS := $(patsubst cmd/%/main.go,%,$(CMD_SOURCES))
 RACE_TARGETS := $(patsubst cmd/%/main.go,%.race,$(CMD_SOURCES))
