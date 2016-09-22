@@ -13,7 +13,7 @@ import (
 	"github.intel.com/hpdd/lemur/pkg/fsroot"
 )
 
-func TestLoadConfig(t *testing.T) {
+func TestPosixLoadConfig(t *testing.T) {
 	var cfg posixConfig
 	cfgFile, cleanup := testhelpers.TempCopy(t, "./test-fixtures/lhsm-plugin-posix.test", 0600)
 	defer cleanup()
@@ -39,7 +39,7 @@ func TestLoadConfig(t *testing.T) {
 	}
 }
 
-func TestInsecureConfig(t *testing.T) {
+func TestPosixInsecureConfig(t *testing.T) {
 	var cfg posixConfig
 	cfgFile, cleanup := testhelpers.TempCopy(t, "./test-fixtures/lhsm-plugin-posix.test", 0666)
 	defer cleanup()
@@ -52,7 +52,7 @@ func TestInsecureConfig(t *testing.T) {
 	/* verify err is the correct error */
 }
 
-func TestMergedConfig(t *testing.T) {
+func TestPosixMergedConfig(t *testing.T) {
 	os.Setenv(config.AgentConnEnvVar, "foo://bar:1234")
 	os.Setenv(config.PluginMountpointEnvVar, "/foo/bar/baz")
 
@@ -94,7 +94,7 @@ func TestMergedConfig(t *testing.T) {
 	}
 }
 
-func TestArchiveValidation(t *testing.T) {
+func TestPosixArchiveValidation(t *testing.T) {
 	var cfg posixConfig
 	cfgFile, cleanup := testhelpers.TempCopy(t, "./test-fixtures/lhsm-plugin-posix.test", 0600)
 	defer cleanup()
@@ -110,7 +110,7 @@ func TestArchiveValidation(t *testing.T) {
 		}
 	}
 }
-func TestArchiveValidation2(t *testing.T) {
+func TestPosixArchiveValidation2(t *testing.T) {
 	var cfg posixConfig
 	cfgFile, cleanup := testhelpers.TempCopy(t, "./test-fixtures/lhsm-plugin-posix-badarchive", 0600)
 	defer cleanup()
@@ -127,7 +127,7 @@ func TestArchiveValidation2(t *testing.T) {
 	}
 }
 
-func TestChecksumConfig(t *testing.T) {
+func TestPosixChecksumConfig(t *testing.T) {
 	var cfg posixConfig
 	cfgFile, cleanup := testhelpers.TempCopy(t, "./test-fixtures/lhsm-plugin-posix.checksums", 0600)
 	defer cleanup()

@@ -13,3 +13,4 @@ test.log
 
 # build junk
 packaging/docker/lemur-rpm-build/lemur.spec
+output

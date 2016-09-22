@@ -60,7 +60,7 @@ func testDestinationFile(t *testing.T, mover *posix.Mover, buf []byte) string {
 	return mover.Destination(fileID.UUID)
 }
 
-func TestArchive(t *testing.T) {
+func TestPosixArchive(t *testing.T) {
 	WithPosixMover(t, nil, func(t *testing.T, mover *posix.Mover) {
 		// trigger two updates (at current interval of 10MB
 		var length uint64 = 20 * 1024 * 1024
@@ -77,7 +77,7 @@ func TestArchive(t *testing.T) {
 	})
 }
 
-func TestArchiveMaxSize(t *testing.T) {
+func TestPosixArchiveMaxSize(t *testing.T) {
 	WithPosixMover(t, nil, func(t *testing.T, mover *posix.Mover) {
 		var length uint64 = 1000000
 		tfile, cleanFile := testhelpers.TempFile(t, length)
@@ -89,7 +89,7 @@ func TestArchiveMaxSize(t *testing.T) {
 	})
 }
 
-func TestArchiveDefaultChecksum(t *testing.T) {
+func TestPosixArchiveDefaultChecksum(t *testing.T) {
 	defaultChecksum := func(cfg *posix.ChecksumConfig) *posix.ChecksumConfig {
 		return cfg.Merge(nil)
 	}
@@ -103,7 +103,7 @@ func TestArchiveDefaultChecksum(t *testing.T) {
 	})
 }
 
-func TestArchiveRestoreBrokenFileID(t *testing.T) {
+func TestPosixArchiveRestoreBrokenFileID(t *testing.T) {
 	defaultChecksum := func(cfg *posix.ChecksumConfig) *posix.ChecksumConfig {
 		return cfg.Merge(nil)
 	}
@@ -137,7 +137,7 @@ func TestArchiveRestoreBrokenFileID(t *testing.T) {
 	})
 }
 
-func TestArchiveRestoreError(t *testing.T) {
+func TestPosixArchiveRestoreError(t *testing.T) {
 	defaultChecksum := func(cfg *posix.ChecksumConfig) *posix.ChecksumConfig {
 		return cfg.Merge(nil)
 	}
@@ -159,7 +159,8 @@ func TestArchiveRestoreError(t *testing.T) {
 					t.Fatalf("Unexpected failure: %v", err)
 				}
 			} else {
-				t.Fatal("Expected failure")
+				fi, _ := os.Stat(tfile)
+				t.Fatalf("Expected permission failure: %s mode:0%o", fi.Name(), fi.Mode())
 			}
 
 			return action
@@ -169,7 +170,7 @@ func TestArchiveRestoreError(t *testing.T) {
 	})
 }
 
-func TestArchiveNoChecksum(t *testing.T) {
+func TestPosixArchiveNoChecksum(t *testing.T) {
 	disableChecksum := func(cfg *posix.ChecksumConfig) *posix.ChecksumConfig {
 		return cfg.Merge(&posix.ChecksumConfig{Disabled: true})
 	}
@@ -194,7 +195,7 @@ func TestArchiveNoChecksum(t *testing.T) {
 	})
 }
 
-func TestArchiveNoChecksumRestore(t *testing.T) {
+func TestPosixArchiveNoChecksumRestore(t *testing.T) {
 	disableChecksum := func(cfg *posix.ChecksumConfig) *posix.ChecksumConfig {
 		return cfg.Merge(&posix.ChecksumConfig{DisableCompareOnRestore: true})
 	}
@@ -218,7 +219,7 @@ func TestArchiveNoChecksumRestore(t *testing.T) {
 	})
 }
 
-func TestArchiveChecksumAfter(t *testing.T) {
+func TestPosixArchiveChecksumAfter(t *testing.T) {
 	WithPosixMover(t, nil, func(t *testing.T, mover *posix.Mover) {
 		var length uint64 = 1000000
 		tfile, cleanFile := testhelpers.TempFile(t, length)
@@ -234,7 +235,7 @@ func TestArchiveChecksumAfter(t *testing.T) {
 	})
 }
 
-func TestCorruptArchive(t *testing.T) {
+func TestPosixCorruptArchive(t *testing.T) {
 	WithPosixMover(t, nil, func(t *testing.T, mover *posix.Mover) {
 		var length uint64 = 1000000
 		tfile, cleanFile := testhelpers.TempFile(t, length)
@@ -255,7 +256,7 @@ func TestCorruptArchive(t *testing.T) {
 	})
 }
 
-func TestRemove(t *testing.T) {
+func TestPosixRemove(t *testing.T) {
 	WithPosixMover(t, nil, func(t *testing.T, mover *posix.Mover) {
 		var length uint64 = 1000000
 		tfile, cleanFile := testhelpers.TempFile(t, length)

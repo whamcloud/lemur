@@ -57,7 +57,7 @@ func testDestinationFile(t *testing.T, mover *Mover, buf []byte) string {
 }
 */
 
-func TestArchive(t *testing.T) {
+func TestS3Archive(t *testing.T) {
 	WithS3Mover(t, nil, func(t *testing.T, mover *Mover) {
 		// trigger two updates (at current interval of 10MB
 		var length uint64 = 20 * 1024 * 1024
@@ -86,7 +86,7 @@ func TestArchive(t *testing.T) {
 	})
 }
 
-func TestArchiveMaxSize(t *testing.T) {
+func TestS3ArchiveMaxSize(t *testing.T) {
 	WithS3Mover(t, nil, func(t *testing.T, mover *Mover) {
 		var length uint64 = 1000000
 		tfile, cleanFile := testhelpers.TempFile(t, length)
@@ -100,7 +100,7 @@ func TestArchiveMaxSize(t *testing.T) {
 }
 
 /*
-func TestArchiveNoChecksum(t *testing.T) {
+func TestS3ArchiveNoChecksum(t *testing.T) {
 	disableChecksum := func(cfg *MoverConfig) *MoverConfig {
 		cfg.Checksums.Disabled = true
 		return cfg
@@ -126,7 +126,7 @@ func TestArchiveNoChecksum(t *testing.T) {
 	})
 }
 
-func TestArchiveNoChecksumRestore(t *testing.T) {
+func TestS3ArchiveNoChecksumRestore(t *testing.T) {
 	disableChecksum := func(cfg *MoverConfig) *MoverConfig {
 		cfg.Checksums.DisableCompareOnRestore = true
 		return cfg
@@ -151,7 +151,7 @@ func TestArchiveNoChecksumRestore(t *testing.T) {
 	})
 }
 
-func TestArchiveChecksumAfter(t *testing.T) {
+func TestS3ArchiveChecksumAfter(t *testing.T) {
 	WithS3Mover(t, nil, func(t *testing.T, mover *Mover) {
 		var length uint64 = 1000000
 		tfile, cleanFile := testTempFile(t, length)
@@ -169,7 +169,7 @@ func TestArchiveChecksumAfter(t *testing.T) {
 */
 
 /*
-func TestCorruptArchive(t *testing.T) {
+func TestS3CorruptArchive(t *testing.T) {
 	WithS3Mover(t, nil, func(t *testing.T, mover *Mover) {
 		var length uint64 = 1000000
 		tfile, cleanFile := testTempFile(t, length)
@@ -190,7 +190,7 @@ func TestCorruptArchive(t *testing.T) {
 	})
 }
 */
-func TestRemove(t *testing.T) {
+func TestS3Remove(t *testing.T) {
 	WithS3Mover(t, nil, func(t *testing.T, mover *Mover) {
 		var length uint64 = 1000000
 		tfile, cleanFile := testhelpers.TempFile(t, length)

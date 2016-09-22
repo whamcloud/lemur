@@ -12,7 +12,7 @@ import (
 	"github.intel.com/hpdd/lemur/pkg/fsroot"
 )
 
-func TestLoadConfig(t *testing.T) {
+func TestS3LoadConfig(t *testing.T) {
 	var cfg s3Config
 	cfgFile, cleanup := testhelpers.TempCopy(t, "./test-fixtures/lhsm-plugin-s3.test", 0600)
 	defer cleanup()
@@ -39,7 +39,7 @@ func TestLoadConfig(t *testing.T) {
 	}
 }
 
-func TestInsecureConfig(t *testing.T) {
+func TestS3InsecureConfig(t *testing.T) {
 	var cfg s3Config
 	cfgFile, cleanup := testhelpers.TempCopy(t, "./test-fixtures/lhsm-plugin-s3.test", 0666)
 	defer cleanup()
@@ -52,7 +52,7 @@ func TestInsecureConfig(t *testing.T) {
 	/* verify err is the correct error */
 }
 
-func TestMergedConfig(t *testing.T) {
+func TestS3MergedConfig(t *testing.T) {
 	os.Setenv(config.AgentConnEnvVar, "foo://bar:1234")
 	os.Setenv(config.PluginMountpointEnvVar, "/foo/bar/baz")
 
