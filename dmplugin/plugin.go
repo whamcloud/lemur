@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc"
 )
 
+// Plugin manages communication between the HSM agent and the datamover
 type Plugin struct {
 	name          string
 	ctx           context.Context
@@ -76,6 +77,7 @@ func (a *Plugin) AddMover(config *Config) {
 	a.movers = append(a.movers, dm)
 }
 
+// Run starts the data mover threads and blocks until they complete.
 func (a *Plugin) Run() {
 	var wg sync.WaitGroup
 	for _, dm := range a.movers {

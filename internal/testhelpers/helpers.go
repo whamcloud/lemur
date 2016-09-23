@@ -1,6 +1,7 @@
 package testhelpers
 
 import (
+	"io"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -8,6 +9,8 @@ import (
 
 var testPrefix = "ptest"
 
+// TempDir returns path to a new temporary directory and function that will
+// forcibly remove it.
 func TempDir(t *testing.T) (string, func()) {
 	tdir, err := ioutil.TempDir("", testPrefix)
 	if err != nil {
@@ -21,6 +24,9 @@ func TempDir(t *testing.T) (string, func()) {
 	}
 }
 
+// ChdirTemp changes the working directory to a new TempDir. The cleanup
+// function returns to the previous working directoy and removes the temp
+// directory.
 func ChdirTemp(t *testing.T) func() {
 	tdir, cleanDir := TempDir(t)
 
@@ -43,7 +49,8 @@ func ChdirTemp(t *testing.T) func() {
 	}
 }
 
-func Fill(t *testing.T, fp *os.File, size uint64) {
+// Fill writes size amount of bytes to the file.
+func Fill(t *testing.T, fp io.Writer, size uint64) {
 	var bs uint64 = 1024 * 1024
 	buf := make([]byte, bs)
 
@@ -60,6 +67,7 @@ func Fill(t *testing.T, fp *os.File, size uint64) {
 	}
 }
 
+// CorruptFile writes an string to the beginning of the file.
 func CorruptFile(t *testing.T, path string) {
 	fp, err := os.OpenFile(path, os.O_RDWR, 0644)
 	if err != nil {
@@ -77,6 +85,8 @@ func CorruptFile(t *testing.T, path string) {
 	}
 }
 
+// TempFile creates a temporary file. If size is >0 then that amount of bytes
+// will be written to the file.
 func TempFile(t *testing.T, size uint64) (string, func()) {
 	fp, err := ioutil.TempFile(".", testPrefix)
 	if err != nil {
@@ -96,6 +106,9 @@ func TempFile(t *testing.T, size uint64) (string, func()) {
 	}
 }
 
+// CopyFile copies data from one file another. If the target file does  not
+// exist then it will be created with the given mode. This is a non-optimal copy
+// and not intended to be used for very large files.
 func CopyFile(t *testing.T, src string, dest string, mode os.FileMode) {
 	buf, err := ioutil.ReadFile(src)
 	if err != nil {
@@ -108,6 +121,8 @@ func CopyFile(t *testing.T, src string, dest string, mode os.FileMode) {
 	}
 }
 
+// TempCopy copies provided file to a new temp file that will be assigned the
+// provided mode after the copy. (So the mode can specify a read-only file.)
 func TempCopy(t *testing.T, src string, mode os.FileMode) (string, func()) {
 	tmpFile, cleanup := TempFile(t, 0)
 	CopyFile(t, src, tmpFile, mode)
@@ -121,6 +136,8 @@ func TempCopy(t *testing.T, src string, mode os.FileMode) (string, func()) {
 	return tmpFile, cleanup
 }
 
+// Action yields "action".
+// Srsly, wtf?
 func Action(t *testing.T) string {
 	return "action"
 }
