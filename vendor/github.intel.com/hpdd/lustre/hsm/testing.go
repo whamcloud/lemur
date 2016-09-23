@@ -20,9 +20,8 @@ type (
 	// TestSource implements hsm.ActionSource, but provides a
 	// Lustre-independent way of generating hsm requests.
 	TestSource struct {
-		outgoing   chan ActionRequest
-		nextAction chan ActionRequest
-		rng        *rand.Rand
+		outgoing chan ActionRequest
+		rng      *rand.Rand
 	}
 
 	// TestRequest implements hsm.ActionRequest with additional
@@ -52,20 +51,19 @@ func (p *TestProgressUpdate) String() string {
 // NewTestSource returns an ActionSource implementation suitable for testing
 func NewTestSource() *TestSource {
 	return &TestSource{
-		nextAction: make(chan ActionRequest),
-		outgoing:   make(chan ActionRequest),
-		rng:        rand.New(rand.NewSource(time.Now().UnixNano())),
+		outgoing: make(chan ActionRequest),
+		rng:      rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }
 
-// AddAction allows test code to inject arbitrary ActionRequests.
-func (s *TestSource) AddAction(ar ActionRequest) {
-	s.nextAction <- ar
+// Inject allows test code to inject arbitrary ActionRequests.
+func (s *TestSource) Inject(ar ActionRequest) {
+	s.outgoing <- ar
 }
 
 // GenerateRandomAction generates a random action request
 func (s *TestSource) GenerateRandomAction() {
-	s.nextAction <- &TestRequest{}
+	s.Inject(&TestRequest{})
 }
 
 // Actions returns a channel for callers to receive ActionRequests
@@ -73,28 +71,16 @@ func (s *TestSource) Actions() <-chan ActionRequest {
 	return s.outgoing
 }
 
-func (s *TestSource) run(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			debug.Print("Shutting down test action generator")
-			close(s.outgoing)
-			return
-		case next := <-s.nextAction:
-			s.outgoing <- next
-		}
-	}
+func (s *TestSource) closer(ctx context.Context) {
+	<-ctx.Done()
+	debug.Print("Shutting down test action generator")
+	close(s.outgoing)
 }
 
 // Start starts the action generator
 func (s *TestSource) Start(ctx context.Context) error {
-	go s.run(ctx)
+	go s.closer(ctx)
 
-	// Bit of magic to let the test harness know that things are
-	// started up.
-	if signalFn, ok := ctx.Value("startSignal").(func()); ok {
-		signalFn()
-	}
 	return nil
 }
 
