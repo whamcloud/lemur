@@ -2,9 +2,11 @@ package agent_test
 
 import (
 	"testing"
+	"time"
 
 	"github.intel.com/hpdd/lemur/cmd/lhsmd/agent"
 	_ "github.intel.com/hpdd/lemur/cmd/lhsmd/transport/grpc"
+	"github.intel.com/hpdd/lemur/pkg/fsroot"
 	"github.intel.com/hpdd/lustre/hsm"
 
 	"golang.org/x/net/context"
@@ -13,17 +15,20 @@ import (
 func TestAgentStartStop(t *testing.T) {
 	cfg := agent.DefaultConfig()
 	cfg.Transport.SocketDir = "/tmp"
-	mon := agent.NewMonitor()
 	as := hsm.NewTestSource()
-	ep := agent.NewEndpoints()
-	ta := agent.NewTestAgent(t, cfg, mon, as, ep)
-
-	if err := ta.Start(context.Background()); err != nil {
-		t.Fatalf("Test agent startup failed: %s", err)
+	ta, err := agent.New(cfg, fsroot.Test(cfg.AgentMountpoint()), as)
+	if err != nil {
+		t.Fatal(err)
 	}
 
+	go func() {
+		if err := ta.Start(context.Background()); err != nil {
+			t.Fatalf("Test agent startup failed: %s", err)
+		}
+	}()
+
 	// Wait for the agent to signal that it has started
-	<-ta.Started()
+	ta.StartWaitFor(5 * time.Second)
 
 	ta.Stop()
 }

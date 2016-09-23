@@ -37,16 +37,18 @@ import (
 type (
 	// HsmAgent for a single filesytem and a collection of backends.
 	HsmAgent struct {
-		config       *Config
-		client       fsroot.Client
-		stats        *ActionStats
-		wg           sync.WaitGroup
-		Endpoints    *Endpoints
-		mu           sync.Mutex // Protect the agent
-		actionSource hsm.ActionSource
-		monitor      *PluginMonitor
-		cancelFunc   context.CancelFunc
-		rpcsInFlight chan struct{} // Buffered channel to throttle rpcs in flight
+		config        *Config
+		client        fsroot.Client
+		stats         *ActionStats
+		wg            sync.WaitGroup
+		Endpoints     *Endpoints
+		mu            sync.Mutex // Protect the agent
+		actionSource  hsm.ActionSource
+		monitor       *PluginMonitor
+		cancelFunc    context.CancelFunc
+		rpcsInFlight  chan struct{} // Buffered channel to throttle rpcs in flight
+		startComplete chan struct{} // Closed when agent startup is completed
+		stopComplete  chan struct{} // Closed when agent shutdown is completed
 	}
 
 	// Transport for backend plugins
@@ -57,20 +59,17 @@ type (
 )
 
 // New accepts a config and returns a *HsmAgent
-func New(cfg *Config) (*HsmAgent, error) {
-	client, err := fsroot.New(cfg.AgentMountpoint())
-	if err != nil {
-		return nil, err
-	}
-
+func New(cfg *Config, client fsroot.Client, as hsm.ActionSource) (*HsmAgent, error) {
 	ct := &HsmAgent{
-		config:       cfg,
-		client:       client,
-		rpcsInFlight: make(chan struct{}, cfg.Processes*10),
-		stats:        NewActionStats(),
-		monitor:      NewMonitor(),
-		actionSource: hsm.NewActionSource(client.Root()),
-		Endpoints:    NewEndpoints(),
+		config:        cfg,
+		client:        client,
+		rpcsInFlight:  make(chan struct{}, cfg.Processes*10),
+		stats:         NewActionStats(),
+		monitor:       NewMonitor(),
+		actionSource:  as,
+		Endpoints:     NewEndpoints(),
+		startComplete: make(chan struct{}),
+		stopComplete:  make(chan struct{}),
 	}
 
 	return ct, nil
@@ -106,8 +105,9 @@ func (ct *HsmAgent) Start(ctx context.Context) error {
 			return errors.Wrapf(err, "creating plugin %q", pluginConf.Name)
 		}
 	}
-
+	close(ct.startComplete)
 	ct.wg.Wait()
+	close(ct.stopComplete)
 	return nil
 }
 
@@ -117,6 +117,18 @@ func (ct *HsmAgent) Stop() {
 	ct.cancelFunc()
 	ct.mu.Unlock()
 	transports[ct.config.Transport.Type].Shutdown()
+	<-ct.stopComplete
+}
+
+// StartWaitFor will wait for Agent to startup with time out of n.
+func (ct *HsmAgent) StartWaitFor(n time.Duration) error {
+	select {
+	case <-ct.startComplete:
+		return nil
+	case <-time.After(n):
+		return errors.Errorf("Agent startup timed out after %v", n)
+	}
+
 }
 
 // Root returns a fs.RootDir representing the Lustre filesystem root

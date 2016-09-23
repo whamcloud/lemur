@@ -15,9 +15,11 @@ import (
 	"golang.org/x/net/context"
 
 	"github.intel.com/hpdd/lemur/cmd/lhsmd/agent"
+	"github.intel.com/hpdd/lemur/pkg/fsroot"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
+	"github.intel.com/hpdd/lustre/hsm"
 
 	// Register the supported transports
 	_ "github.intel.com/hpdd/lemur/cmd/lhsmd/transport/grpc"
@@ -76,7 +78,13 @@ func main() {
 		)
 	}
 
-	ct, err := agent.New(conf)
+	client, err := fsroot.New(conf.AgentMountpoint())
+	if err != nil {
+		alert.Abort(err)
+	}
+	as := hsm.NewActionSource(client.Root())
+
+	ct, err := agent.New(conf, client, as)
 	if err != nil {
 		alert.Abort(errors.Wrap(err, "Error creating agent"))
 	}

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/fortytw2/leaktest"
 
@@ -42,6 +43,7 @@ type (
 	testMover struct {
 		started        signalChan
 		receivedAction chan dmplugin.Action
+		plugin         *dmplugin.Plugin
 	}
 )
 
@@ -83,14 +85,20 @@ func (t *testMover) ReceivedAction() chan dmplugin.Action {
 	return t.receivedAction
 }
 
-func newTestMover() *testMover {
+func (t *testMover) Stop() {
+	t.plugin.Stop()
+	t.plugin.Close()
+}
+
+func newTestMover(p *dmplugin.Plugin) *testMover {
 	return &testMover{
 		started:        make(signalChan),
 		receivedAction: make(chan dmplugin.Action),
+		plugin:         p,
 	}
 }
 
-func newTestPlugin(t *testing.T) (*dmplugin.Plugin, *testMover) {
+func testStartMover(t *testing.T) *testMover {
 	plugin, err := dmplugin.New(path.Base(os.Args[0]), func(path string) (fsroot.Client, error) {
 		return fsroot.Test(path), nil
 	})
@@ -98,32 +106,51 @@ func newTestPlugin(t *testing.T) (*dmplugin.Plugin, *testMover) {
 		t.Fatal(err)
 	}
 
-	tm := newTestMover()
+	tm := newTestMover(plugin)
 	plugin.AddMover(&dmplugin.Config{
 		Mover:     tm,
 		ArchiveID: uint32(testArchiveID),
 	})
+	go plugin.Run()
 
-	return plugin, tm
+	// Wait for the mover to signal that it has been started
+	<-tm.Started()
+
+	return tm
 }
 
-func newTestAgent(t *testing.T) *agent.TestAgent {
+func newTestAgent(t *testing.T, as hsm.ActionSource) *agent.HsmAgent {
 	// Ambivalent about doing this config here vs. in agent.TestAgent;
 	// leaving it here for now with the idea that tests may want to
 	// supply their own implementations of these things.
 	cfg := agent.DefaultConfig()
 	cfg.Transport.SocketDir = testSocketDir
 
-	mon := agent.NewMonitor()
-	as := hsm.NewTestSource()
-	ep := agent.NewEndpoints()
-
 	// Configure environment to launch plugins
 	os.Setenv(config.AgentConnEnvVar, cfg.Transport.ConnectionString())
 	os.Setenv(config.PluginMountpointEnvVar, "/tmp")
 	os.Setenv(config.ConfigDirEnvVar, "/tmp")
 
-	return agent.NewTestAgent(t, cfg, mon, as, ep)
+	a, err := agent.New(cfg, fsroot.Test(cfg.AgentMountpoint()), as)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return a
+}
+
+func testStartAgent(t *testing.T, as hsm.ActionSource) *agent.HsmAgent {
+	ta := newTestAgent(t, as)
+	go func() {
+		if err := ta.Start(context.Background()); err != nil {
+			t.Fatalf("Test agent startup failed: %s", err)
+		}
+	}()
+
+	// Wait for the agent to signal that it has started
+	ta.StartWaitFor(5 * time.Second)
+
+	return ta
 }
 
 func TestArchiveEndToEnd(t *testing.T) {
@@ -134,24 +161,15 @@ func TestArchiveEndToEnd(t *testing.T) {
 	}
 
 	// First, start a test agent to delegate work to test data movers.
-	ta := newTestAgent(t)
-	if err := ta.Start(context.Background()); err != nil {
-		t.Fatalf("Test agent startup failed: %s", err)
-	}
-	defer ta.Stop()
+	as := hsm.NewTestSource()
 
-	// Wait for the agent to signal that it has started
-	<-ta.Started()
+	ta := testStartAgent(t, as)
+	defer ta.Stop()
 
 	// Now, start a data mover plugin which will connect to our
 	// test agent to receive an injected action.
-	p, tm := newTestPlugin(t)
-	ta.AddPlugin(p)
-
-	go p.Run()
-
-	// Wait for the mover to signal that it has been started
-	<-tm.Started()
+	tm := testStartMover(t)
+	defer tm.Stop()
 
 	testFid, err := lustre.ParseFid("0xdead:0xbeef:0x0")
 	if err != nil {
@@ -159,7 +177,7 @@ func TestArchiveEndToEnd(t *testing.T) {
 	}
 	// Inject an action
 	tr := hsm.NewTestRequest(uint(testArchiveID), llapi.HsmActionArchive, testFid, nil)
-	ta.AddAction(tr)
+	as.AddAction(tr)
 
 	// Wait for the mover to signal that it has received the action
 	// on the other side of the RPC interface
@@ -177,7 +195,6 @@ func TestArchiveEndToEnd(t *testing.T) {
 
 	// Wait for the mover to end the request
 	<-tr.Finished()
-	p.Stop()
 }
 
 func TestRestoreEndToEnd(t *testing.T) {
@@ -186,23 +203,14 @@ func TestRestoreEndToEnd(t *testing.T) {
 	}
 
 	// First, start a test agent to delegate work to test data movers.
-	ta := newTestAgent(t)
-	if err := ta.Start(context.Background()); err != nil {
-		t.Fatalf("Test agent startup failed: %s", err)
-	}
+	as := hsm.NewTestSource()
+	ta := testStartAgent(t, as)
 	defer ta.Stop()
-
-	// Wait for the agent to signal that it has started
-	<-ta.Started()
 
 	// Now, start a data mover plugin which will connect to our
 	// test agent to receive an injected action.
-	p, tm := newTestPlugin(t)
-	ta.AddPlugin(p)
-
-	go p.Run()
-	// Wait for the mover to signal that it has been started
-	<-tm.Started()
+	tm := testStartMover(t)
+	defer tm.Stop()
 
 	testFid, err := lustre.ParseFid("0xdead:0xbeef:0x0")
 	if err != nil {
@@ -211,7 +219,7 @@ func TestRestoreEndToEnd(t *testing.T) {
 	fileid.Set(fs.FidRelativePath(testFid), []byte("moo"))
 	// Inject an action
 	tr := hsm.NewTestRequest(uint(testArchiveID), llapi.HsmActionRestore, testFid, nil)
-	ta.AddAction(tr)
+	as.AddAction(tr)
 
 	// Wait for the mover to signal that it has received the action
 	// on the other side of the RPC interface
@@ -229,7 +237,6 @@ func TestRestoreEndToEnd(t *testing.T) {
 
 	// Wait for the mover to end the request
 	<-tr.Finished()
-	p.Stop()
 }
 
 func TestRemoveEndToEnd(t *testing.T) {
@@ -238,24 +245,14 @@ func TestRemoveEndToEnd(t *testing.T) {
 	}
 
 	// First, start a test agent to delegate work to test data movers.
-	ta := newTestAgent(t)
-	if err := ta.Start(context.Background()); err != nil {
-		t.Fatalf("Test agent startup failed: %s", err)
-	}
+	as := hsm.NewTestSource()
+	ta := testStartAgent(t, as)
 	defer ta.Stop()
-
-	// Wait for the agent to signal that it has started
-	<-ta.Started()
 
 	// Now, start a data mover plugin which will connect to our
 	// test agent to receive an injected action.
-	p, tm := newTestPlugin(t)
-	ta.AddPlugin(p)
-
-	go p.Run()
-
-	// Wait for the mover to signal that it has been started
-	<-tm.Started()
+	tm := testStartMover(t)
+	defer tm.Stop()
 
 	testFid, err := lustre.ParseFid("0xdead:0xbeef:0x0")
 	if err != nil {
@@ -264,7 +261,7 @@ func TestRemoveEndToEnd(t *testing.T) {
 	fileid.Set(fs.FidRelativePath(testFid), []byte("moo"))
 	// Inject an action
 	tr := hsm.NewTestRequest(uint(testArchiveID), llapi.HsmActionRemove, testFid, nil)
-	ta.AddAction(tr)
+	as.AddAction(tr)
 
 	// Wait for the mover to signal that it has received the action
 	// on the other side of the RPC interface
@@ -278,5 +275,4 @@ func TestRemoveEndToEnd(t *testing.T) {
 
 	// Wait for the mover to end the request
 	<-tr.Finished()
-	p.Stop()
 }
