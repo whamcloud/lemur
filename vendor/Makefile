@@ -1,4 +1,4 @@
-GVT_BIN := $(shell if which gvt 2>&1; then true; else echo get-gvt; fi)
+GVT_BIN := $(shell if which gvt >/dev/null 2>&1; then true; else echo get-gvt; fi)
 GO_SOURCES := $(shell find .. -name *.go -and -not -path *vendor* -and -not -path *output*)
 GO_SRC_DIRS := $(shell echo $(GO_SOURCES) | tr ' ' '\n' | sed -e 's/^..\///' -e 's/\/.*$$//' | sort | uniq | tr '\n' ' ')
 
@@ -24,7 +24,7 @@ github.com/briandowns # github.intel.com/hpdd/logging/applog
 endef
 export EXCLUDES
 
- 
+
 manifest: $(GVT_BIN) $(GO_SOURCES)
 	# First, build the naive import set recursively.
 	pushd .. >/dev/null; \
@@ -34,7 +34,7 @@ manifest: $(GVT_BIN) $(GO_SOURCES)
 	done; \
 	popd >/dev/null; \
 	touch $@
-	
+
 	# Next, run through the vendored imports and remove those we
 	# know our production code doesn't need.
 	# It would be better if we could prevent these from being imported
