@@ -2,6 +2,7 @@ package main_test
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -24,9 +25,13 @@ import (
 	"github.intel.com/hpdd/lustre/llapi"
 )
 
+const (
+	testSocketDir = "/tmp"
+	testArchiveID = 1
+	testReps      = 10
+)
+
 var (
-	testSocketDir  = "/tmp"
-	testArchiveID  = 1
 	enableLeakTest = false
 )
 
@@ -50,7 +55,6 @@ type (
 func (t *testMover) Archive(a dmplugin.Action) error {
 	debug.Printf("testMover received Archive action: %s", a)
 	t.receivedAction <- a
-	close(t.receivedAction)
 
 	a.Update(0, 1, 2)
 	return nil
@@ -59,7 +63,6 @@ func (t *testMover) Archive(a dmplugin.Action) error {
 func (t *testMover) Restore(a dmplugin.Action) error {
 	debug.Printf("testMover received Restore action: %s", a)
 	t.receivedAction <- a
-	close(t.receivedAction)
 
 	a.Update(0, 0, 0)
 	return nil
@@ -68,7 +71,6 @@ func (t *testMover) Restore(a dmplugin.Action) error {
 func (t *testMover) Remove(a dmplugin.Action) error {
 	debug.Printf("testMover received Remove action: %s", a)
 	t.receivedAction <- a
-	close(t.receivedAction)
 
 	return nil
 }
@@ -88,6 +90,7 @@ func (t *testMover) ReceivedAction() chan dmplugin.Action {
 func (t *testMover) Stop() {
 	t.plugin.Stop()
 	t.plugin.Close()
+	close(t.receivedAction)
 }
 
 func newTestMover(p *dmplugin.Plugin) *testMover {
@@ -153,6 +156,14 @@ func testStartAgent(t *testing.T, as hsm.ActionSource) *agent.HsmAgent {
 	return ta
 }
 
+func testGenFid(t *testing.T, id int) *lustre.Fid {
+	testFid, err := lustre.ParseFid(fmt.Sprintf("0xdead:0x%x:0x0", id))
+	if err != nil {
+		t.Fatalf("error generating test fid: %s", err)
+	}
+	return testFid
+}
+
 func TestArchiveEndToEnd(t *testing.T) {
 	// NB: Leaktest finds a leak in the go-metrics library, but everything
 	// else seems fine.
@@ -171,30 +182,30 @@ func TestArchiveEndToEnd(t *testing.T) {
 	tm := testStartMover(t)
 	defer tm.Stop()
 
-	testFid, err := lustre.ParseFid("0xdead:0xbeef:0x0")
-	if err != nil {
-		t.Fatalf("error generating test fid: %s", err)
+	for i := 0; i < testReps; i++ {
+		testFid := testGenFid(t, i)
+
+		// Inject an action
+		tr := hsm.NewTestRequest(uint(testArchiveID), llapi.HsmActionArchive, testFid, nil)
+		as.Inject(tr)
+
+		// Wait for the mover to signal that it has received the action
+		// on the other side of the RPC interface
+		action := <-tm.ReceivedAction()
+		actionPath := action.PrimaryPath()
+		fidPath := fs.FidRelativePath(testFid)
+		if actionPath != fidPath {
+			debug.Printf("%d: received nil action", i)
+			t.Fatalf("expected path %s, got %s", fidPath, actionPath)
+		}
+
+		// Wait for the mover to send a progress update on the action
+		update := <-tr.ProgressUpdates()
+		debug.Printf("Update: %v", update)
+
+		// Wait for the mover to end the request
+		<-tr.Finished()
 	}
-	// Inject an action
-	tr := hsm.NewTestRequest(uint(testArchiveID), llapi.HsmActionArchive, testFid, nil)
-	as.AddAction(tr)
-
-	// Wait for the mover to signal that it has received the action
-	// on the other side of the RPC interface
-	action := <-tm.ReceivedAction()
-
-	actionPath := action.PrimaryPath()
-	fidPath := fs.FidRelativePath(testFid)
-	if actionPath != fidPath {
-		t.Fatalf("expected path %s, got %s", fidPath, actionPath)
-	}
-
-	// Wait for the mover to send a progress update on the action
-	update := <-tr.ProgressUpdates()
-	debug.Printf("Update: %s", update)
-
-	// Wait for the mover to end the request
-	<-tr.Finished()
 }
 
 func TestRestoreEndToEnd(t *testing.T) {
@@ -212,31 +223,31 @@ func TestRestoreEndToEnd(t *testing.T) {
 	tm := testStartMover(t)
 	defer tm.Stop()
 
-	testFid, err := lustre.ParseFid("0xdead:0xbeef:0x0")
-	if err != nil {
-		t.Fatalf("error generating test fid: %s", err)
+	for i := 0; i < testReps; i++ {
+		testFid := testGenFid(t, i)
+
+		fileid.Set(fs.FidRelativePath(testFid), []byte("moo"))
+		// Inject an action
+		tr := hsm.NewTestRequest(uint(testArchiveID), llapi.HsmActionRestore, testFid, nil)
+		as.Inject(tr)
+
+		// Wait for the mover to signal that it has received the action
+		// on the other side of the RPC interface
+		action := <-tm.ReceivedAction()
+
+		actionPath := action.PrimaryPath()
+		fidPath := fs.FidRelativePath(testFid)
+		if actionPath != fidPath {
+			t.Fatalf("expected path %s, got %s", fidPath, actionPath)
+		}
+
+		// Wait for the mover to send a progress update on the action
+		update := <-tr.ProgressUpdates()
+		debug.Printf("Update: %s", update)
+
+		// Wait for the mover to end the request
+		<-tr.Finished()
 	}
-	fileid.Set(fs.FidRelativePath(testFid), []byte("moo"))
-	// Inject an action
-	tr := hsm.NewTestRequest(uint(testArchiveID), llapi.HsmActionRestore, testFid, nil)
-	as.AddAction(tr)
-
-	// Wait for the mover to signal that it has received the action
-	// on the other side of the RPC interface
-	action := <-tm.ReceivedAction()
-
-	actionPath := action.PrimaryPath()
-	fidPath := fs.FidRelativePath(testFid)
-	if actionPath != fidPath {
-		t.Fatalf("expected path %s, got %s", fidPath, actionPath)
-	}
-
-	// Wait for the mover to send a progress update on the action
-	update := <-tr.ProgressUpdates()
-	debug.Printf("Update: %s", update)
-
-	// Wait for the mover to end the request
-	<-tr.Finished()
 }
 
 func TestRemoveEndToEnd(t *testing.T) {
@@ -254,25 +265,24 @@ func TestRemoveEndToEnd(t *testing.T) {
 	tm := testStartMover(t)
 	defer tm.Stop()
 
-	testFid, err := lustre.ParseFid("0xdead:0xbeef:0x0")
-	if err != nil {
-		t.Fatalf("error generating test fid: %s", err)
+	for i := 0; i < testReps; i++ {
+		testFid := testGenFid(t, i)
+		fileid.Set(fs.FidRelativePath(testFid), []byte("moo"))
+		// Inject an action
+		tr := hsm.NewTestRequest(uint(testArchiveID), llapi.HsmActionRemove, testFid, nil)
+		as.Inject(tr)
+
+		// Wait for the mover to signal that it has received the action
+		// on the other side of the RPC interface
+		action := <-tm.ReceivedAction()
+
+		actionPath := action.PrimaryPath()
+		fidPath := fs.FidRelativePath(testFid)
+		if actionPath != fidPath {
+			t.Fatalf("expected path %s, got %s", fidPath, actionPath)
+		}
+
+		// Wait for the mover to end the request
+		<-tr.Finished()
 	}
-	fileid.Set(fs.FidRelativePath(testFid), []byte("moo"))
-	// Inject an action
-	tr := hsm.NewTestRequest(uint(testArchiveID), llapi.HsmActionRemove, testFid, nil)
-	as.AddAction(tr)
-
-	// Wait for the mover to signal that it has received the action
-	// on the other side of the RPC interface
-	action := <-tm.ReceivedAction()
-
-	actionPath := action.PrimaryPath()
-	fidPath := fs.FidRelativePath(testFid)
-	if actionPath != fidPath {
-		t.Fatalf("expected path %s, got %s", fidPath, actionPath)
-	}
-
-	// Wait for the mover to end the request
-	<-tr.Finished()
 }

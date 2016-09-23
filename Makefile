@@ -86,7 +86,7 @@ INSTALLED_EXAMPLES = $(addprefix $(PREFIX)/etc/lhsmd/, $(EXAMPLE_TARGETS))
 
 # Cleanliness...
 lint:
-	gometalinter -j2 -D errcheck -D dupl -D gocyclo --deadline 60s ./... --exclude pdm/
+	gometalinter -j2 --vendor -D errcheck -D dupl -D gocyclo --deadline 60s ./... --exclude pdm/
 
 # install tasks
 $(PREFIX)/bin/%: %
