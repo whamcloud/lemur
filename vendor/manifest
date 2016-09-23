@@ -177,6 +177,14 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/intel-hpdd/go-metrics-influxdb",
+			"repository": "https://github.com/intel-hpdd/go-metrics-influxdb",
+			"vcs": "git",
+			"revision": "2b4497452ba32369e0b04787efb3b5fd4782d2b7",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/mjmac/go-ps",
 			"repository": "https://github.com/mjmac/go-ps",
 			"vcs": "git",
