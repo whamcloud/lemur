@@ -19,6 +19,7 @@ package llapi
 import "C"
 import (
 	"errors"
+	"fmt"
 	"unsafe"
 
 	"github.intel.com/hpdd/lustre"
@@ -92,6 +93,14 @@ func (action HsmAction) String() (s string) {
 		s = "UNKOWN"
 	}
 	return
+}
+
+func (ai HsmActionItem) String() string {
+	return fmt.Sprintf("%s %s %s 0x%x %s", ai.Action, ai.Fid, ai.Extent, ai.Cookie, ai.Data)
+}
+
+func (e HsmExtent) String() string {
+	return fmt.Sprintf("(%d:%d)", e.Offset, e.Length)
 }
 
 // HsmCopytoolFlags are options for initializing the connectino to the coordinator

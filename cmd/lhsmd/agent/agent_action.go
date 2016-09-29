@@ -79,6 +79,20 @@ func (action *Action) ID() ActionID {
 	return action.id
 }
 
+// MarshalActionData returns an initallized and marshalled ActionData struct. The moverData
+// value is also marshalled before adding it to the ActionData.
+func MarshalActionData(fileID []byte, moverData interface{}) ([]byte, error) {
+	mdata, err := json.Marshal(moverData)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(
+		&ActionData{
+			FileID:    fileID,
+			MoverData: mdata,
+		})
+}
+
 // Prepare ensure action is ready to be sent.
 // Complete any actions that may require accessing the filesystem.
 func (action *Action) Prepare() error {
@@ -87,6 +101,7 @@ func (action *Action) Prepare() error {
 		err := json.Unmarshal(action.aih.Data(), &data)
 		if err != nil {
 			alert.Warnf("unrecognized data passed to agent: %v: %v", action.aih.Data(), err)
+			action.Data = action.aih.Data()
 		}
 	}
 
@@ -175,9 +190,11 @@ func (action *Action) Update(status *pb.ActionStatus) (bool, error) {
 		debug.Printf("id:%d progress update failed: %v", status.Id, err)
 		action.agent.stats.CompleteAction(action, -1)
 		if err2 := action.aih.End(0, 0, 0, -1); err2 != nil {
+			<-action.agent.rpcsInFlight
 			debug.Printf("id:%d completion after error failed: %v", status.Id, err2)
 			return false, fmt.Errorf("err: %s/err2: %s", err, err2)
 		}
+		<-action.agent.rpcsInFlight
 		return false, err // Incomplete Failed Action
 	}
 

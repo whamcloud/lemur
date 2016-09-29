@@ -228,7 +228,7 @@
 			"importpath": "github.intel.com/hpdd/lustre",
 			"repository": "https://github.intel.com/hpdd/lustre.git",
 			"vcs": "git",
-			"revision": "1ba949d7ade1222389cdc5525bc585f0b71bcdeb",
+			"revision": "bdac047c14aaa8e9e2c9a640abf42a210fa4629f",
 			"branch": "master",
 			"notests": true
 		},

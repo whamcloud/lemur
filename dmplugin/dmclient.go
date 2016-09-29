@@ -111,6 +111,10 @@ func getHandle(ctx context.Context) (*pb.Handle, bool) {
 	return handle, ok
 }
 
+func (a *dmAction) String() string {
+	return fmt.Sprintf("%v fileId:'%s' actualSize:%v", a.item, string(a.fileID), a.actualLength)
+}
+
 // Update sends an action status update
 func (a *dmAction) Update(offset, length, max uint64) error {
 	a.status <- &pb.ActionStatus{

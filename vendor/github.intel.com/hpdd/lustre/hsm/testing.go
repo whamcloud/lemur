@@ -27,25 +27,34 @@ type (
 	// TestRequest implements hsm.ActionRequest with additional
 	// methods for controlling/inpecting request state.
 	TestRequest struct {
+		cookie                 uint64
 		archive                uint
 		action                 llapi.HsmAction
+		extent                 llapi.HsmExtent
 		testFid                *lustre.Fid
 		handleProgressReceived chan *TestProgressUpdate
-		handleEndReceived      SignalChan
 		data                   []byte
 	}
 
 	// TestProgressUpdate contains information about progress updates
 	// received by the test handle.
 	TestProgressUpdate struct {
-		Offset uint64
-		Length uint64
-		Total  uint64
+		Cookie   uint64
+		Offset   uint64
+		Length   uint64
+		Total    uint64
+		Flags    int
+		Errval   int
+		Complete bool
 	}
 )
 
+var (
+	nextCookie uint64 = 0x1000
+)
+
 func (p *TestProgressUpdate) String() string {
-	return fmt.Sprintf("Progress: %d->%d/%d", p.Offset, p.Length, p.Total)
+	return fmt.Sprintf("Progress: cookie: 0x%x (%d:%d) total: %d complete: %v", p.Cookie, p.Offset, p.Length, p.Total, p.Complete)
 }
 
 // NewTestSource returns an ActionSource implementation suitable for testing
@@ -86,13 +95,20 @@ func (s *TestSource) Start(ctx context.Context) error {
 
 // NewTestRequest returns a new *TestRequest
 func NewTestRequest(archive uint, action llapi.HsmAction, fid *lustre.Fid, data []byte) *TestRequest {
+	nextCookie++
 	return &TestRequest{
+		cookie:                 nextCookie,
 		testFid:                fid,
 		archive:                archive,
 		action:                 action,
+		extent:                 llapi.HsmExtent{0, 0},
 		handleProgressReceived: make(chan *TestProgressUpdate),
-		handleEndReceived:      make(SignalChan),
+		data: data,
 	}
+}
+
+func (r *TestRequest) String() string {
+	return fmt.Sprintf("TEST %s %s %s 0x%x %s", r.action, r.testFid, r.extent, r.cookie, r.data)
 }
 
 // Begin returns a new test handle
@@ -110,10 +126,6 @@ func (r *TestRequest) ArchiveID() uint {
 	return r.archive
 }
 
-func (r *TestRequest) String() string {
-	return fmt.Sprintf("Test Request: %s", r.Action())
-}
-
 // Action returns the HSM action type
 func (r *TestRequest) Action() llapi.HsmAction {
 	return r.action
@@ -127,50 +139,64 @@ func (r *TestRequest) ProgressUpdates() chan *TestProgressUpdate {
 	return r.handleProgressReceived
 }
 
-// Finished returns a channel on which waiters may block until the
-// request is finished.
-func (r *TestRequest) Finished() SignalChan {
-	return r.handleEndReceived
-}
-
+// Progress updates current state of data transfer request.
 func (r *TestRequest) Progress(offset, length, total uint64, flags int) error {
 	r.handleProgressReceived <- &TestProgressUpdate{
+		Cookie: r.cookie,
 		Offset: offset,
 		Length: length,
+		Flags:  flags,
 		Total:  total,
 	}
 	return nil
 }
 
+// End completes an HSM actions with success or failure status.
 func (r *TestRequest) End(offset, length uint64, flags int, errval int) error {
+	r.handleProgressReceived <- &TestProgressUpdate{
+		Cookie:   r.cookie,
+		Offset:   offset,
+		Length:   length,
+		Flags:    flags,
+		Total:    length,
+		Errval:   errval,
+		Complete: true,
+	}
 	close(r.handleProgressReceived)
-	close(r.handleEndReceived)
 	return nil
 }
 
+// Fid returns the FID of the test file
 func (r *TestRequest) Fid() *lustre.Fid {
 	return r.testFid
 }
 
+// Cookie returns intneral request identifier
 func (r *TestRequest) Cookie() uint64 {
-	return 0
+	return r.cookie
 }
 
+// DataFid is the FID of the file used to restore data.
 func (r *TestRequest) DataFid() (*lustre.Fid, error) {
 	return r.testFid, nil
 }
 
+// Fd is the file descriptor for restore file.
 func (r *TestRequest) Fd() (int, error) {
 	return 0, nil
 }
 
+// Offset is the starting offset for a data transfer.
 func (r *TestRequest) Offset() uint64 {
 	return 0
 }
 
+// Length is lenght of data transfer that begins at Offset.
 func (r *TestRequest) Length() uint64 {
 	return 0
 }
+
+// Data is extra data that may have been provided through the HSM_REQUEST API.
 func (r *TestRequest) Data() []byte {
 	return r.data
 }
