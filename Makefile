@@ -87,6 +87,7 @@ INSTALLED_EXAMPLES = $(addprefix $(PREFIX)/etc/lhsmd/, $(EXAMPLE_TARGETS))
 # Cleanliness...
 lint:
 	@ln -sf vendor src
+	git rev-parse HEAD
 	GOPATH=$(PWD):$(GOPATH) gometalinter -j2 --vendor -D gotype -D errcheck -D dupl -D gocyclo --deadline 60s ./... --exclude pdm/
 	@rm src
 
