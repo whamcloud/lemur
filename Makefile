@@ -44,7 +44,7 @@ vendor:
 check: test uat
 
 test:
-	go test $$(go list ./... | grep -v /vendor/ | grep -v /uat/ )
+	go test $$(go list ./... | egrep -v '(*vendor/*|*uat/*)' )
 
 uat: $(RACE_TARGETS)
 	@make -C uat test PATH=$(PWD):$(PATH)
