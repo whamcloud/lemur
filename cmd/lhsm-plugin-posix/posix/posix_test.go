@@ -69,8 +69,9 @@ func TestPosixArchive(t *testing.T) {
 
 		action := testArchive(t, mover, tfile, 0, length, nil, nil)
 
-		if action.Updates != 2 {
-			t.Fatalf("expected 2 updates, got %d", action.Updates)
+		// Need to introduce a delay to  test new time based updates.
+		if action.Updates != 0 {
+			t.Fatalf("expected 0 updates, got %d", action.Updates)
 		}
 
 		testRestore(t, mover, 0, length, action.FileID(), nil)
