@@ -86,9 +86,9 @@ INSTALLED_EXAMPLES = $(addprefix $(PREFIX)/etc/lhsmd/, $(EXAMPLE_TARGETS))
 
 # Cleanliness...
 lint:
-	ln -sf vendor src
+	@ln -sf vendor src
 	GOPATH=$(GOPATH):$(PWD) gometalinter -j2 --vendor -D gotype -D errcheck -D dupl -D gocyclo --deadline 60s ./... --exclude pdm/
-	rm src
+	@rm src
 
 # install tasks
 $(PREFIX)/bin/%: %
