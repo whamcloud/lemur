@@ -14,6 +14,7 @@ import (
 
 	"github.com/pborman/uuid"
 	"github.intel.com/hpdd/lemur/dmplugin"
+	"github.intel.com/hpdd/lemur/pkg/progress"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/debug"
 )
@@ -103,7 +104,7 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 	progressFunc := func(offset, length uint64) error {
 		return action.Update(offset, length, uint64(size))
 	}
-	progressReader := NewProgressReader(src, updateInterval, progressFunc)
+	progressReader := progress.NewReader(src, updateInterval, progressFunc)
 	defer progressReader.StopUpdates()
 
 	uploader := m.newUploader()
@@ -171,7 +172,7 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	progressFunc := func(offset, length uint64) error {
 		return action.Update(offset, length, uint64(dstSize))
 	}
-	progressWriter := NewProgressWriter(dst, updateInterval, progressFunc)
+	progressWriter := progress.NewWriter(dst, updateInterval, progressFunc)
 	defer progressWriter.StopUpdates()
 
 	downloader := m.newDownloader()

@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
 	"github.intel.com/hpdd/lemur/dmplugin"
+	"github.intel.com/hpdd/lemur/pkg/progress"
 	"github.intel.com/hpdd/logging/alert"
 	"github.intel.com/hpdd/logging/audit"
 	"github.intel.com/hpdd/logging/debug"
@@ -43,6 +44,9 @@ func init() {
 	}()
 	// }
 }
+
+// Should this be configurable?
+const updateInterval = 10 * time.Second
 
 type (
 	// ChecksumConfig defines the configured behavior for file
@@ -108,19 +112,20 @@ func newFileID() string {
 func CopyWithProgress(dst io.WriterAt, src io.ReaderAt, start uint64, length uint64, action dmplugin.Action) (uint64, error) {
 	var blockSize uint64 = 10 * 1024 * 1024 // FIXME: parameterize
 
+	progressFunc := func(offset, n uint64) error {
+		return action.Update(offset, n, length)
+	}
+	progressWriter := progress.NewWriter(dst, updateInterval, progressFunc)
+	defer progressWriter.StopUpdates()
+
 	offset := start
 	for offset < start+length {
-		n, err := CopyAt(dst, src, offset, blockSize)
+		n, err := CopyAt(progressWriter, src, offset, blockSize)
 		offset += n
 		if n < blockSize && err == io.EOF {
 			break
 		}
 
-		if err != nil {
-			return offset, err
-		}
-
-		err = action.Update(offset-n, n, length)
 		if err != nil {
 			return offset, err
 		}
