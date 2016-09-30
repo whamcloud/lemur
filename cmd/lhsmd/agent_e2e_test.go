@@ -30,7 +30,6 @@ import (
 const (
 	testSocketDir = "/tmp"
 	testArchiveID = 1
-	testReps      = 10
 )
 
 var (
