@@ -46,24 +46,10 @@ func interruptHandler(once func()) {
 
 }
 
-func main() {
-	flag.Parse()
-
-	if debug.Enabled() {
-		// Set this so that plugins can use it without needing
-		// to mess around with plugin args.
-		os.Setenv(debug.EnableEnvVar, "true")
-	}
-
-	// Setting the prefix helps us to track down deprecated calls to log.*
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	log.SetOutput(audit.Writer().Prefix("DEPRECATED "))
-
-	conf := agent.ConfigInitMust()
-
+func run(conf *agent.Config) error {
 	debug.Printf("current configuration:\n%v", conf.String())
 	if err := agent.ConfigureMounts(conf); err != nil {
-		alert.Abort(errors.Wrap(err, "Error while creating Lustre mountpoints"))
+		return errors.Wrap(err, "Error while creating Lustre mountpoints")
 	}
 
 	if conf.InfluxDB != nil && conf.InfluxDB.URL != "" {
@@ -80,24 +66,45 @@ func main() {
 
 	client, err := fsroot.New(conf.AgentMountpoint())
 	if err != nil {
-		alert.Abort(err)
+		return errors.Wrap(err, "Could not get fs client")
 	}
 	as := hsm.NewActionSource(client.Root())
 
 	ct, err := agent.New(conf, client, as)
 	if err != nil {
-		alert.Abort(errors.Wrap(err, "Error creating agent"))
+		return errors.Wrap(err, "Error creating agent")
 	}
 
 	interruptHandler(func() {
 		ct.Stop()
 	})
 
-	if err := ct.Start(context.Background()); err != nil {
-		alert.Abort(errors.Wrap(err, "Error in HsmAgent.Start()"))
+	return errors.Wrap(ct.Start(context.Background()),
+		"Error in HsmAgent.Start()")
+}
+
+func main() {
+	flag.Parse()
+
+	if debug.Enabled() {
+		// Set this so that plugins can use it without needing
+		// to mess around with plugin args.
+		os.Setenv(debug.EnableEnvVar, "true")
 	}
 
+	// Setting the prefix helps us to track down deprecated calls to log.*
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	log.SetOutput(audit.Writer().Prefix("DEPRECATED "))
+
+	conf := agent.ConfigInitMust()
+	err := run(conf)
+
+	// Ensure that we always clean up.
 	if err := agent.CleanupMounts(conf); err != nil {
-		alert.Abort(errors.Wrap(err, "Error while cleaning up Lustre mountpoints"))
+		alert.Warn(errors.Wrap(err, "Error while cleaning up Lustre mountpoints"))
+	}
+
+	if err != nil {
+		alert.Abort(err)
 	}
 }
