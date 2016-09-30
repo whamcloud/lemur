@@ -1,6 +1,6 @@
 #!/bin/bash
 
-EXCLUDES="golang.org/x github.com/mjmac/go-ps" # stuff that isn't really 3rd-party, or is test-only
+EXCLUDES="golang.org/x github.com/mjmac/go-ps github.com/stathat github.com/urfave github.com/DATA-DOG/godog" # stuff that isn't really 3rd-party, or is test-only
 SCANDIR=${SCANDIR:-$(mktemp -d)}
 
 imports=$(go list -f '{{.Deps}}' ./... | \
