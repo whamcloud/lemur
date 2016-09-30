@@ -27,7 +27,7 @@ func LoadConfig(cfgFile string, cfg interface{}) error {
 		return errors.Wrap(err, "stat config file failed")
 	}
 	if (int(fi.Mode()) & 077) != 0 {
-		return errors.New("config file permisisons are insecure")
+		return errors.Errorf("file permissions on %s are insecure (%#o)", cfgFile, int(fi.Mode()))
 	}
 
 	data, err := ioutil.ReadFile(cfgFile)

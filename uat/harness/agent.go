@@ -117,7 +117,7 @@ func WriteAgentConfig(ctx *ScenarioContext) error {
 	if err := os.MkdirAll(cfgDir, 0700); err != nil {
 		return errors.Wrap(err, "Failed to create agent config dir")
 	}
-	return ioutil.WriteFile(cfgFile, []byte(ctx.AgentDriver.ac.String()), 0644)
+	return ioutil.WriteFile(cfgFile, []byte(ctx.AgentDriver.ac.String()), 0600)
 }
 
 // StartAgent starts the configured agent
@@ -208,7 +208,7 @@ func writePosixMoverConfig(ctx *ScenarioContext, name string) error {
 		return errors.Wrap(err, "Failed to create plugin config dir")
 	}
 
-	return ioutil.WriteFile(cfgFile, []byte(cfg), 0644)
+	return ioutil.WriteFile(cfgFile, []byte(cfg), 0600)
 }
 
 func writeS3MoverConfig(ctx *ScenarioContext, name string) error {
@@ -271,7 +271,7 @@ archive "one" {
 		return errors.Wrap(err, "Failed to create plugin config dir")
 	}
 
-	return ioutil.WriteFile(cfgFile, []byte(cfg), 0644)
+	return ioutil.WriteFile(cfgFile, []byte(cfg), 0600)
 }
 
 func s3Svc(region string, endpoint string) *s3.S3 {
