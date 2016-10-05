@@ -10,7 +10,7 @@ Vendor: Intel Corporation
 Source: %{pkg_prefix}-%{version}.tar.gz
 Source1: lhsmd.conf
 Source2: lhsmd.service
-License: GPL
+License: MIT
 Summary: INSERT PRODUCT NAME HERE - Lustre HSM Agent
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 
