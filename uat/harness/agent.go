@@ -335,7 +335,7 @@ func deleteObjects(ctx *ScenarioContext) error {
 		return nil
 	}
 
-	/* Not all S3 backends support DeleteObjects, so do this the hard way. */
+	// Not all S3 backends support DeleteObjects, so do this the hard way.
 	for _, obj := range out.Contents {
 		err = deleteObject(ctx, *obj.Key)
 		if err != nil {

@@ -83,17 +83,14 @@ func (ep *AgentEndpoint) Send(action *agent.Action) {
 	ep.actionCh <- action
 }
 
-/*
- * Register a data mover backend (aka Endpoint). When a backend starts, it first must
- * identify itself and its archive ID with the agent. The agent returns a unique
- * cookie that the backend uses for the rest of that session.
- *
- * If the Endpoint for this archive id already exists and is Connected, then this means
- * this is already a backend receiving messages for this archive, and we reject
- * this registration.  If it exists and is Disconnected, then currently the new backend
- * takes over this Endpoint. Existing in progress messages should be flushed, however.
- */
-
+// Register a data mover backend (aka Endpoint). When a backend starts, it first must
+// identify itself and its archive ID with the agent. The agent returns a unique
+// cookie that the backend uses for the rest of that session.
+//
+// If the Endpoint for this archive id already exists and is Connected, then this means
+// this is already a backend receiving messages for this archive, and we reject
+// this registration.  If it exists and is Disconnected, then currently the new backend
+// takes over this Endpoint. Existing in progress messages should be flushed, however.
 func (s *dmRPCServer) Register(context context.Context, e *pb.Endpoint) (*pb.Handle, error) {
 	ep, ok := s.agent.Endpoints.Get(e.Archive)
 	var handle *agent.Handle
@@ -128,11 +125,8 @@ func (s *dmRPCServer) Register(context context.Context, e *pb.Endpoint) (*pb.Han
 
 }
 
-/*
- * GetActions establish a connection the backend for a particular archive ID. The Endpoint
- * remains in Connected status as long as the backend is receiving messages from the agent.
- */
-
+// GetActions establish a connection the backend for a particular archive ID. The Endpoint
+// remains in Connected status as long as the backend is receiving messages from the agent.
 func (s *dmRPCServer) GetActions(h *pb.Handle, stream pb.DataMover_GetActionsServer) error {
 	temp, ok := s.agent.Endpoints.GetWithHandle((*agent.Handle)(&h.Id))
 	if !ok {
@@ -145,7 +139,7 @@ func (s *dmRPCServer) GetActions(h *pb.Handle, stream pb.DataMover_GetActionsSer
 		return errors.Errorf("not an rpc endpoint: %#v", ep)
 	}
 
-	/* Should use atomic CAS here */
+	// Should use atomic CAS here
 	ep.state = Connected
 	defer func() {
 		debug.Printf("user disconnected %v", h)
@@ -179,13 +173,10 @@ func (s *dmRPCServer) GetActions(h *pb.Handle, stream pb.DataMover_GetActionsSer
 	}
 }
 
-/*
-* StatusStream provides the server with a stream of replies from the backend.
-* The backend includes its cookie in each reply. In theory it's possible for
-* replies to arrive for a Disconnected Endpoint, so we'll need proper protection
-* from various kinds of races here.
- */
-
+// StatusStream provides the server with a stream of replies from the backend.
+// The backend includes its cookie in each reply. In theory it's possible for
+// replies to arrive for a Disconnected Endpoint, so we'll need proper protection
+// from various kinds of races here.
 func (s *dmRPCServer) StatusStream(stream pb.DataMover_StatusStreamServer) error {
 	for {
 		status, err := stream.Recv()

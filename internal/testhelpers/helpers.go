@@ -127,7 +127,7 @@ func TempCopy(t *testing.T, src string, mode os.FileMode) (string, func()) {
 	tmpFile, cleanup := TempFile(t, 0)
 	CopyFile(t, src, tmpFile, mode)
 
-	/* ensure file has correct mode, in case we're overwriting */
+	// ensure file has correct mode, in case we're overwriting
 	err := os.Chmod(tmpFile, mode)
 	if err != nil {
 		t.Fatal(err)

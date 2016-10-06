@@ -1,6 +1,5 @@
-/**
-
-Parallel Data Mover is scalable system to copy or migrate data between
+/*
+Package agent implements a Parallel Data Mover to copy or migrate data between
 various storage systems. It supports multliple types of sources and
 destinations, including POSIX, S3, HPSS, etc.
 
@@ -13,7 +12,6 @@ Use cases include:
 
 Initially the main focus is for HSM.
 */
-
 package agent
 
 import (

@@ -49,7 +49,7 @@ func TestS3InsecureConfig(t *testing.T) {
 		t.Fatal("Used insecure file, expecteed error")
 	}
 	t.Log(err)
-	/* verify err is the correct error */
+	// verify err is the correct error
 }
 
 func TestS3MergedConfig(t *testing.T) {

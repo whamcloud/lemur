@@ -47,7 +47,7 @@ func (all *Endpoints) GetWithHandle(h *Handle) (Endpoint, bool) {
 }
 
 func (all *Endpoints) get(a uint32) (Endpoint, bool) {
-	/* all must already be locked. */
+	// all must already be locked.
 	e, ok := all.endpoints[a]
 	if !ok {
 		return nil, ok
@@ -56,7 +56,7 @@ func (all *Endpoints) get(a uint32) (Endpoint, bool) {
 }
 
 func (all *Endpoints) getWithHandle(h *Handle) (Endpoint, bool) {
-	/* all must already be locked. */
+	// all must already be locked.
 	a, ok := all.handles[*h]
 	if !ok {
 		return nil, ok
