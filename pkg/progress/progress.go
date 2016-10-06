@@ -83,15 +83,37 @@ func (r *Reader) Seek(offset int64, whence int) (int64, error) {
 	return r.src.Seek(offset, whence)
 }
 
-// Read calls the wrapped ReaderAt's ReadAt with offset 0
-func (r *Reader) Read(p []byte) (int, error) {
-	// Should we count these too?
-	return r.src.Read(p)
+// Read calls internal Read and tracks how many bytes were read.
+func (r *Reader) Read(p []byte) (n int, err error) {
+	n, err = r.src.Read(p)
+	atomic.AddUint64(&r.bytesCopied, uint64(n))
+	return
 }
+
+// DISABLED
+//
+// The go http client package wraps the socket with a bufio.NewWriter() with
+// the default 4k buffer. When aws sdk sends our file data, it ends up using
+// io.Copy(w, src) to copy the data. This uses bufio Writer.ReadFrom() method
+// and this reads from from our file into a 4k buf. One way to fix this could
+// have been to implment a WriteTo method so we could read any size buffer we
+// wanted to, but this doesn't work because the aws sdk has wrapped our file
+// object with several others.
+//
+// One way to trick the sdk to read larger buffer sizes is to disable ReadAt and
+// force the sdk to fall back to Read each chunk with one call. This is much
+// better for lustre, but now read IO is single threaded, so this isn't so good
+// either.  On the positive side, now the file is only read once as the sdk is
+// able to sign each chunk from buffer in memeory, and also now we could
+// calculate the sha1 for the whole file like we do in the posix mover.
+//
+// It is a shame that go-aws-sdk doesn't provide a callback for updating status
+// like boto does.
 
 // ReadAt reads len(p) bytes into p starting at offset off in the underlying
 // input source. It returns the number of bytes read (0 <= n <= len(p)) and
 // any error encountered.
+/*
 func (r *Reader) ReadAt(p []byte, off int64) (int, error) {
 	n, err := r.src.ReadAt(p, off)
 
@@ -104,6 +126,7 @@ func (r *Reader) ReadAt(p []byte, off int64) (int, error) {
 
 	return n, err
 }
+*/
 
 // NewReader returns a new Reader
 func NewReader(src ReaderAtSeeker, updateEvery time.Duration, f progressFunc) *Reader {
