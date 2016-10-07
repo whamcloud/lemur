@@ -169,10 +169,26 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/intel-hpdd/go-lustre",
+			"repository": "https://github.com/intel-hpdd/go-lustre.git",
+			"vcs": "git",
+			"revision": "a52f5bb5c56dd0b8d8cededc72e2d58889b0b09e",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/intel-hpdd/go-metrics-influxdb",
 			"repository": "https://github.com/intel-hpdd/go-metrics-influxdb",
 			"vcs": "git",
 			"revision": "2b4497452ba32369e0b04787efb3b5fd4782d2b7",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/intel-hpdd/logging",
+			"repository": "https://github.com/intel-hpdd/logging.git",
+			"vcs": "git",
+			"revision": "90624c07e3fb8bb27703ef96a81ce6c3c462a2f3",
 			"branch": "master",
 			"notests": true
 		},
@@ -205,22 +221,6 @@
 			"repository": "https://github.com/rcrowley/go-metrics",
 			"vcs": "git",
 			"revision": "b71dba47c7bf0374dfe3b67da7b5b702fa160a15",
-			"branch": "master",
-			"notests": true
-		},
-		{
-			"importpath": "github.com/intel-hpdd/logging",
-			"repository": "https://github.com/intel-hpdd/logging.git",
-			"vcs": "git",
-			"revision": "4f7d2f3ae2a7b68f585df1ab9ab69c0f031d09ef",
-			"branch": "master",
-			"notests": true
-		},
-		{
-			"importpath": "github.com/intel-hpdd/go-lustre",
-			"repository": "https://github.com/intel-hpdd/go-lustre.git",
-			"vcs": "git",
-			"revision": "1f5be7fb40dbf7071d1a3317f4be4aceda69130e",
 			"branch": "master",
 			"notests": true
 		},
