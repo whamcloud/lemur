@@ -4,7 +4,7 @@
 
 package fsroot
 
-import "github.intel.com/hpdd/lustre/fs"
+import "github.com/intel-hpdd/go-lustre/fs"
 
 // TestClient implements the client.Client interface
 type testClient struct {

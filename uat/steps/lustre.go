@@ -10,9 +10,9 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.intel.com/hpdd/logging/alert"
-	"github.intel.com/hpdd/lustre/fs"
-	"github.intel.com/hpdd/lustre/pkg/mntent"
+	"github.com/intel-hpdd/logging/alert"
+	"github.com/intel-hpdd/go-lustre/fs"
+	"github.com/intel-hpdd/go-lustre/pkg/mntent"
 )
 
 func init() {

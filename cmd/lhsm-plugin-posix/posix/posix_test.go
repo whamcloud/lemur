@@ -12,9 +12,9 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 
-	"github.intel.com/hpdd/lemur/cmd/lhsm-plugin-posix/posix"
-	"github.intel.com/hpdd/lemur/dmplugin"
-	"github.intel.com/hpdd/lemur/internal/testhelpers"
+	"github.com/intel-hpdd/lemur/cmd/lhsm-plugin-posix/posix"
+	"github.com/intel-hpdd/lemur/dmplugin"
+	"github.com/intel-hpdd/lemur/internal/testhelpers"
 )
 
 func testArchive(t *testing.T, mover *posix.Mover, path string, offset uint64, length uint64, fileID []byte, data []byte) *dmplugin.TestAction {

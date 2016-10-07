@@ -14,11 +14,11 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.intel.com/hpdd/lemur/cmd/lhsm-plugin-posix/posix"
-	"github.intel.com/hpdd/lemur/dmplugin"
-	"github.intel.com/hpdd/lemur/pkg/fsroot"
-	"github.intel.com/hpdd/logging/alert"
-	"github.intel.com/hpdd/logging/debug"
+	"github.com/intel-hpdd/lemur/cmd/lhsm-plugin-posix/posix"
+	"github.com/intel-hpdd/lemur/dmplugin"
+	"github.com/intel-hpdd/lemur/pkg/fsroot"
+	"github.com/intel-hpdd/logging/alert"
+	"github.com/intel-hpdd/logging/debug"
 )
 
 type (

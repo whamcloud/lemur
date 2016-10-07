@@ -4,7 +4,7 @@ GO_SRC_DIRS := $(shell echo $(GO_SOURCES) | tr ' ' '\n' | sed -e 's/^..\///' -e 
 
 # Explicit repo imports which need to be added because they can't be inferred
 # from imports of repo subdirs or are in the UAT dir.
-EXPLICIT_IMPORTS := github.intel.com/hpdd/logging github.com/DATA-DOG/godog
+EXPLICIT_IMPORTS := github.com/intel-hpdd/logging github.com/DATA-DOG/godog
 
 # These patterns match imports which we don't need to ship, and therefore
 # don't want to include in the vendor tree.
@@ -17,10 +17,10 @@ google.golang.org/api
 github.com/BurntSushi # gopkg.in/urfave/cli.v1/altsrc
 github.com/urfave # gopkg.in/urfave/cli.v1/altsrc
 github.com/stathat # github.com/rcrowley/go-metrics/stathat/stathat.go
-github.intel.com/hpdd/logging/applog
-github.com/fatih # github.intel.com/hpdd/logging/applog
-github.com/mattn # github.intel.com/hpdd/logging/applog
-github.com/briandowns # github.intel.com/hpdd/logging/applog
+github.com/intel-hpdd/logging/applog
+github.com/fatih # github.com/intel-hpdd/logging/applog
+github.com/mattn # github.com/intel-hpdd/logging/applog
+github.com/briandowns # github.com/intel-hpdd/logging/applog
 endef
 export EXCLUDES
 

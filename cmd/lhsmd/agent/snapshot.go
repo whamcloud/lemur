@@ -12,14 +12,14 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.intel.com/hpdd/lemur/cmd/lhsmd/agent/fileid"
-	"github.intel.com/hpdd/logging/alert"
-	"github.intel.com/hpdd/logging/debug"
-	"github.intel.com/hpdd/lustre"
-	"github.intel.com/hpdd/lustre/fs"
-	"github.intel.com/hpdd/lustre/hsm"
-	"github.intel.com/hpdd/lustre/llapi"
-	"github.intel.com/hpdd/lustre/status"
+	"github.com/intel-hpdd/lemur/cmd/lhsmd/agent/fileid"
+	"github.com/intel-hpdd/logging/alert"
+	"github.com/intel-hpdd/logging/debug"
+	"github.com/intel-hpdd/go-lustre"
+	"github.com/intel-hpdd/go-lustre/fs"
+	"github.com/intel-hpdd/go-lustre/hsm"
+	"github.com/intel-hpdd/go-lustre/llapi"
+	"github.com/intel-hpdd/go-lustre/status"
 )
 
 func createSnapDir(p string) (string, error) {

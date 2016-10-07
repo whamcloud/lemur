@@ -8,8 +8,8 @@ import (
 	"os"
 	"strings"
 
-	"github.intel.com/hpdd/logging/alert"
-	"github.intel.com/hpdd/logging/debug"
+	"github.com/intel-hpdd/logging/alert"
+	"github.com/intel-hpdd/logging/debug"
 
 	"gopkg.in/urfave/cli.v1"
 )

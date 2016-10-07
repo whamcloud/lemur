@@ -10,8 +10,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.intel.com/hpdd/lemur/cmd/lhsmd/config"
-	"github.intel.com/hpdd/lustre/fs/spec"
+	"github.com/intel-hpdd/lemur/cmd/lhsmd/config"
+	"github.com/intel-hpdd/go-lustre/fs/spec"
 )
 
 func TestMountConfigs(t *testing.T) {

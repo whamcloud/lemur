@@ -7,8 +7,8 @@ package fileid
 import (
 	"fmt"
 
-	"github.intel.com/hpdd/lustre"
-	"github.intel.com/hpdd/lustre/fs"
+	"github.com/intel-hpdd/go-lustre"
+	"github.com/intel-hpdd/go-lustre/fs"
 )
 
 type (

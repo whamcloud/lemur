@@ -10,7 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.intel.com/hpdd/logging/debug"
+	"github.com/intel-hpdd/logging/debug"
 )
 
 // LfsDriver returns an instance of the lfs driver

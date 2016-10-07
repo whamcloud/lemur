@@ -11,7 +11,7 @@ import (
 	"os"
 	"sync"
 
-	"github.intel.com/hpdd/logging/debug"
+	"github.com/intel-hpdd/logging/debug"
 )
 
 type (

@@ -9,7 +9,7 @@ import (
 	"path"
 	"time"
 
-	"github.intel.com/hpdd/logging/debug"
+	"github.com/intel-hpdd/logging/debug"
 
 	"github.com/mjmac/go-ps" // until PR is merged (hopefully)
 	"github.com/pkg/errors"

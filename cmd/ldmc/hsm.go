@@ -17,9 +17,9 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.intel.com/hpdd/lustre"
-	"github.intel.com/hpdd/lustre/fs"
-	"github.intel.com/hpdd/lustre/hsm"
+	"github.com/intel-hpdd/go-lustre"
+	"github.com/intel-hpdd/go-lustre/fs"
+	"github.com/intel-hpdd/go-lustre/hsm"
 )
 
 func init() {

@@ -18,17 +18,17 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.intel.com/hpdd/lemur/cmd/lhsmd/agent"
-	"github.intel.com/hpdd/lemur/cmd/lhsmd/agent/fileid"
-	"github.intel.com/hpdd/lemur/cmd/lhsmd/config"
-	_ "github.intel.com/hpdd/lemur/cmd/lhsmd/transport/grpc"
-	"github.intel.com/hpdd/lemur/dmplugin"
-	"github.intel.com/hpdd/lemur/pkg/fsroot"
-	"github.intel.com/hpdd/logging/debug"
-	"github.intel.com/hpdd/lustre"
-	"github.intel.com/hpdd/lustre/fs"
-	"github.intel.com/hpdd/lustre/hsm"
-	"github.intel.com/hpdd/lustre/llapi"
+	"github.com/intel-hpdd/lemur/cmd/lhsmd/agent"
+	"github.com/intel-hpdd/lemur/cmd/lhsmd/agent/fileid"
+	"github.com/intel-hpdd/lemur/cmd/lhsmd/config"
+	_ "github.com/intel-hpdd/lemur/cmd/lhsmd/transport/grpc"
+	"github.com/intel-hpdd/lemur/dmplugin"
+	"github.com/intel-hpdd/lemur/pkg/fsroot"
+	"github.com/intel-hpdd/logging/debug"
+	"github.com/intel-hpdd/go-lustre"
+	"github.com/intel-hpdd/go-lustre/fs"
+	"github.com/intel-hpdd/go-lustre/hsm"
+	"github.com/intel-hpdd/go-lustre/llapi"
 )
 
 const (

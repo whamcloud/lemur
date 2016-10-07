@@ -7,7 +7,7 @@ package steps
 import (
 	"time"
 
-	"github.intel.com/hpdd/lemur/uat/harness"
+	"github.com/intel-hpdd/lemur/uat/harness"
 )
 
 func init() {

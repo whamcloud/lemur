@@ -7,7 +7,7 @@ package dmplugin
 import (
 	"math"
 
-	"github.intel.com/hpdd/logging/alert"
+	"github.com/intel-hpdd/logging/alert"
 )
 
 // Fataler provides Fatal and Fatalf

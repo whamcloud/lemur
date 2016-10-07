@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.intel.com/hpdd/lemur/dmplugin"
-	"github.intel.com/hpdd/lemur/internal/testhelpers"
+	"github.com/intel-hpdd/lemur/dmplugin"
+	"github.com/intel-hpdd/lemur/internal/testhelpers"
 )
 
 func testArchive(t *testing.T, mover *Mover, path string, offset uint64, length uint64, fileID []byte, data []byte) *dmplugin.TestAction {

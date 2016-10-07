@@ -12,9 +12,9 @@ import (
 
 	"github.com/pkg/errors"
 
-	pb "github.intel.com/hpdd/lemur/pdm"
-	"github.intel.com/hpdd/logging/alert"
-	"github.intel.com/hpdd/logging/debug"
+	pb "github.com/intel-hpdd/lemur/pdm"
+	"github.com/intel-hpdd/logging/alert"
+	"github.com/intel-hpdd/logging/debug"
 	"golang.org/x/net/context"
 )
 

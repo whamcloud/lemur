@@ -60,14 +60,14 @@ CLI for Lustre data movement control.
 %setup -n %{pkg_prefix}-%{version}
 # ohhh myyyy...
 cd ..
-mkdir -p src/github.intel.com/hpdd
-mv %{pkg_prefix}-%{version} src/github.intel.com/hpdd/%{pkg_prefix}
+mkdir -p src/github.com/intel-hpdd
+mv %{pkg_prefix}-%{version} src/github.com/intel-hpdd/%{pkg_prefix}
 mkdir %{pkg_prefix}-%{version}
 mv src %{pkg_prefix}-%{version}
 
 %install
 export GOPATH=$PWD:$GOPATH
-cd src/github.intel.com/hpdd/%{pkg_prefix}
+cd src/github.com/intel-hpdd/%{pkg_prefix}
 %{__make} install PREFIX=%{buildroot}/%{_prefix}
 %{__make} install-example PREFIX=%{buildroot}/
 %{__make} uat-install PREFIX=%{buildroot}/%{_prefix} BUILDROOT=%{buildroot}/

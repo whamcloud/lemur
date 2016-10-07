@@ -16,11 +16,11 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/pkg/errors"
 
+	"github.com/intel-hpdd/lemur/dmplugin"
+	"github.com/intel-hpdd/lemur/pkg/progress"
+	"github.com/intel-hpdd/logging/alert"
+	"github.com/intel-hpdd/logging/debug"
 	"github.com/pborman/uuid"
-	"github.intel.com/hpdd/lemur/dmplugin"
-	"github.intel.com/hpdd/lemur/pkg/progress"
-	"github.intel.com/hpdd/logging/alert"
-	"github.intel.com/hpdd/logging/debug"
 )
 
 // Mover is an S3 data mover

@@ -5,10 +5,10 @@
 package fileid
 
 import (
-	"github.intel.com/hpdd/logging/debug"
-	"github.intel.com/hpdd/lustre"
-	"github.intel.com/hpdd/lustre/fs"
-	"github.intel.com/hpdd/lustre/pkg/xattr"
+	"github.com/intel-hpdd/logging/debug"
+	"github.com/intel-hpdd/go-lustre"
+	"github.com/intel-hpdd/go-lustre/fs"
+	"github.com/intel-hpdd/go-lustre/pkg/xattr"
 )
 
 const xattrFileID = "trusted.hsm_file_id"

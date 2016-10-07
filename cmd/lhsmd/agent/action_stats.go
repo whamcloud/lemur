@@ -15,8 +15,8 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/rcrowley/go-metrics"
 
-	"github.intel.com/hpdd/logging/audit"
-	"github.intel.com/hpdd/logging/debug"
+	"github.com/intel-hpdd/logging/audit"
+	"github.com/intel-hpdd/logging/debug"
 )
 
 // ActionStats is a synchronized container for ArchiveStats instances

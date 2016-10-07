@@ -209,18 +209,18 @@
 			"notests": true
 		},
 		{
-			"importpath": "github.intel.com/hpdd/logging",
-			"repository": "https://github.intel.com/hpdd/logging.git",
+			"importpath": "github.com/intel-hpdd/logging",
+			"repository": "https://github.com/intel-hpdd/logging.git",
 			"vcs": "git",
-			"revision": "1d414b5ef28c5ca908f09d1404b6dd841334a807",
+			"revision": "4f7d2f3ae2a7b68f585df1ab9ab69c0f031d09ef",
 			"branch": "master",
 			"notests": true
 		},
 		{
-			"importpath": "github.intel.com/hpdd/lustre",
-			"repository": "https://github.intel.com/hpdd/lustre.git",
+			"importpath": "github.com/intel-hpdd/go-lustre",
+			"repository": "https://github.com/intel-hpdd/go-lustre.git",
 			"vcs": "git",
-			"revision": "bdac047c14aaa8e9e2c9a640abf42a210fa4629f",
+			"revision": "1f5be7fb40dbf7071d1a3317f4be4aceda69130e",
 			"branch": "master",
 			"notests": true
 		},

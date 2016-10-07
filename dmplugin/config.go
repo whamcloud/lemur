@@ -12,8 +12,8 @@ import (
 
 	"github.com/hashicorp/hcl"
 	"github.com/pkg/errors"
-	"github.intel.com/hpdd/lemur/cmd/lhsmd/config"
-	"github.intel.com/hpdd/logging/alert"
+	"github.com/intel-hpdd/lemur/cmd/lhsmd/config"
+	"github.com/intel-hpdd/logging/alert"
 )
 
 type pluginConfig struct {

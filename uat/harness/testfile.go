@@ -11,7 +11,7 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
-	"github.intel.com/hpdd/logging/debug"
+	"github.com/intel-hpdd/logging/debug"
 )
 
 // FileChecksum is a calculated checksum

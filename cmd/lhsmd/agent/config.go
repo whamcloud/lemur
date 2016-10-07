@@ -19,10 +19,10 @@ import (
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/pkg/errors"
 
-	"github.intel.com/hpdd/lemur/cmd/lhsmd/config"
-	"github.intel.com/hpdd/logging/alert"
-	"github.intel.com/hpdd/logging/debug"
-	"github.intel.com/hpdd/lustre/fs/spec"
+	"github.com/intel-hpdd/lemur/cmd/lhsmd/config"
+	"github.com/intel-hpdd/logging/alert"
+	"github.com/intel-hpdd/logging/debug"
+	"github.com/intel-hpdd/go-lustre/fs/spec"
 )
 
 var (

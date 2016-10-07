@@ -12,15 +12,15 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.intel.com/hpdd/lemur/cmd/lhsmd/agent/fileid"
-	pb "github.intel.com/hpdd/lemur/pdm"
-	"github.intel.com/hpdd/logging/alert"
-	"github.intel.com/hpdd/logging/audit"
-	"github.intel.com/hpdd/logging/debug"
+	"github.com/intel-hpdd/lemur/cmd/lhsmd/agent/fileid"
+	pb "github.com/intel-hpdd/lemur/pdm"
+	"github.com/intel-hpdd/logging/alert"
+	"github.com/intel-hpdd/logging/audit"
+	"github.com/intel-hpdd/logging/debug"
 
-	"github.intel.com/hpdd/lustre/fs"
-	"github.intel.com/hpdd/lustre/hsm"
-	"github.intel.com/hpdd/lustre/llapi"
+	"github.com/intel-hpdd/go-lustre/fs"
+	"github.com/intel-hpdd/go-lustre/hsm"
+	"github.com/intel-hpdd/go-lustre/llapi"
 )
 
 type (

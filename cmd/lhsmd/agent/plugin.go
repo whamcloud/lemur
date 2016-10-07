@@ -16,10 +16,10 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.intel.com/hpdd/lemur/cmd/lhsmd/config"
-	"github.intel.com/hpdd/logging/alert"
-	"github.intel.com/hpdd/logging/audit"
-	"github.intel.com/hpdd/logging/debug"
+	"github.com/intel-hpdd/lemur/cmd/lhsmd/config"
+	"github.com/intel-hpdd/logging/alert"
+	"github.com/intel-hpdd/logging/audit"
+	"github.com/intel-hpdd/logging/debug"
 )
 
 var backoff = []time.Duration{

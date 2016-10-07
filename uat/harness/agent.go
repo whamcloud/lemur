@@ -19,12 +19,12 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/pkg/errors"
 
-	"github.intel.com/hpdd/lemur/cmd/lhsmd/agent"
-	defaults "github.intel.com/hpdd/lemur/cmd/lhsmd/config"
-	"github.intel.com/hpdd/logging/alert"
-	"github.intel.com/hpdd/logging/debug"
-	"github.intel.com/hpdd/lustre/fs/spec"
-	"github.intel.com/hpdd/lustre/pkg/mntent"
+	"github.com/intel-hpdd/lemur/cmd/lhsmd/agent"
+	defaults "github.com/intel-hpdd/lemur/cmd/lhsmd/config"
+	"github.com/intel-hpdd/logging/alert"
+	"github.com/intel-hpdd/logging/debug"
+	"github.com/intel-hpdd/go-lustre/fs/spec"
+	"github.com/intel-hpdd/go-lustre/pkg/mntent"
 )
 
 const (

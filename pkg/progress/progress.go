@@ -9,8 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.intel.com/hpdd/logging/alert"
-	"github.intel.com/hpdd/logging/debug"
+	"github.com/intel-hpdd/logging/alert"
+	"github.com/intel-hpdd/logging/debug"
 )
 
 // The default buffer size in io.copyBuffer() is 32KB -- this is the

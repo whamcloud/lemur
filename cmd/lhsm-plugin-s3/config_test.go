@@ -10,10 +10,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.intel.com/hpdd/lemur/cmd/lhsmd/config"
-	"github.intel.com/hpdd/lemur/dmplugin"
-	"github.intel.com/hpdd/lemur/internal/testhelpers"
-	"github.intel.com/hpdd/lemur/pkg/fsroot"
+	"github.com/intel-hpdd/lemur/cmd/lhsmd/config"
+	"github.com/intel-hpdd/lemur/dmplugin"
+	"github.com/intel-hpdd/lemur/internal/testhelpers"
+	"github.com/intel-hpdd/lemur/pkg/fsroot"
 )
 
 func TestS3LoadConfig(t *testing.T) {

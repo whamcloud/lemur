@@ -12,8 +12,8 @@ import (
 	"os/user"
 	"path"
 
-	"github.intel.com/hpdd/logging/alert"
-	"github.intel.com/hpdd/logging/debug"
+	"github.com/intel-hpdd/logging/alert"
+	"github.com/intel-hpdd/logging/debug"
 
 	"github.com/hashicorp/hcl"
 	"github.com/pkg/errors"

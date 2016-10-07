@@ -5,8 +5,8 @@
 package fsroot
 
 import (
-	"github.intel.com/hpdd/lustre/fs"
-	"github.intel.com/hpdd/lustre/pkg/mntent"
+	"github.com/intel-hpdd/go-lustre/fs"
+	"github.com/intel-hpdd/go-lustre/pkg/mntent"
 )
 
 type (
