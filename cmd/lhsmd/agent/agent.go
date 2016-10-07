@@ -1,3 +1,7 @@
+// Copyright (c) 2016 Intel Corporation. All rights reserved.
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file.
+
 /*
 Package agent implements a Parallel Data Mover to copy or migrate data between
 various storage systems. It supports multliple types of sources and
