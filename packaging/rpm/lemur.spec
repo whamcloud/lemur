@@ -10,8 +10,8 @@ Vendor: Intel Corporation
 Source: %{pkg_prefix}-%{version}.tar.gz
 Source1: lhsmd.conf
 Source2: lhsmd.service
-License: MIT
-Summary: INSERT PRODUCT NAME HERE - Lustre HSM Agent
+License: GPLv2
+Summary: Lustre HSM Tools - Lustre HSM Agent
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 
 BuildRequires: golang >= 1.6
@@ -24,9 +24,8 @@ The Lustre HSM Agent provides a backend-agnostic HSM Agent for brokering
 communications between a Lustre filesystem's HSM coordinator and
 backend-specific data movers.
 
-# FIXME: This stuff still links against liblustreapi.
 %package -n %{pkg_prefix}-data-movers
-Summary: INSERT PRODUCT NAME HERE - HSM Data Movers
+Summary: Lustre HSM Tools - HSM Data Movers
 License: Apache
 Requires: %{pkg_prefix}-hsm-agent = %{version}
 
@@ -37,8 +36,8 @@ mover fulfills data movement requests on behalf of the HSM Agent.
 
 # Links against liblustreapi.
 %package -n %{pkg_prefix}-testing
-Summary: INSERT PRODUCT NAME HERE - Testing Collateral
-License: GPL
+Summary: Lustre HSM Tools - Testing Collateral
+License: GPLv2
 Requires: %{pkg_prefix}-hsm-agent = %{version} %{pkg_prefix}-data-movers = %{version}
 
 %description -n %{pkg_prefix}-testing
@@ -48,8 +47,8 @@ installations.
 # TODO: This has to be GPL because it links against liblustreapi. Can we
 # fix that?
 %package -n ldmc
-Summary: INSERT PRODUCT NAME HERE - Data Movement Control
-License: GPL
+Summary: Lustre HSM Tools - Data Movement Control
+License: GPLv2
 Requires: lustre >= %{?MIN_LUSTRE_VERSION}%{?!MIN_LUSTRE_VERSION:2.6.0}
 
 %description -n ldmc
