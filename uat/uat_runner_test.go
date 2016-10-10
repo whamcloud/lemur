@@ -5,6 +5,7 @@
 package uat
 
 import (
+	"log"
 	"os"
 	"testing"
 
@@ -17,7 +18,7 @@ var raceBinPath = "."
 func TestMain(m *testing.M) {
 	// Run the features tests from the compiled-in location.
 	if err := os.Chdir(runDir); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	// Prefix the path so that we can find our race-compiled binaries.

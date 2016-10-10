@@ -119,9 +119,10 @@ install: $(INSTALLED_TARGETS) $(INSTALLED_MAN_TARGETS)
 local-install:
 	$(MAKE) install PREFIX=usr/local
 
+
 $(NAME)-uat-runner: uat/*.go
 	cd uat && \
-	go test -c -o $(PWD)/$@ -ldflags="-X '_$(PWD)/uat.runDir=$(subst $(BUILDROOT),,$(dir $(PREFIX)/$(UAT_FEATURES_DEST)))' -X '_$(PWD)/uat.raceBinPath=$(subst $(BUILDROOT),,$(PREFIX)/$(UAT_RACE_TARGETS_DEST))'"
+	go test -c -o $(PWD)/$@ -ldflags="-X 'github.com/intel-hpdd/lemur/uat.runDir=$(subst $(BUILDROOT),,$(dir $(PREFIX)/$(UAT_FEATURES_DEST)))' -X 'github.com/intel-hpdd/lemur/uat.raceBinPath=$(subst $(BUILDROOT),,$(PREFIX)/$(UAT_RACE_TARGETS_DEST))'"
 
 uat-install: $(NAME)-uat-runner $(INSTALLED_RACE_TARGETS) $(INSTALLED_FEATURES)
 	install -m 755 $(NAME)-uat-runner $(PREFIX)/$(UAT_RACE_TARGETS_DEST)
