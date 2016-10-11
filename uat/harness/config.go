@@ -1,7 +1,3 @@
-// Copyright (c) 2016 Intel Corporation. All rights reserved.
-// Use of this source code is governed by a MIT-style
-// license that can be found in the LICENSE file.
-
 package harness
 
 import (
@@ -11,7 +7,7 @@ import (
 	"os"
 	"os/user"
 	"path"
-
+	"strconv"
 	"github.com/intel-hpdd/logging/alert"
 	"github.com/intel-hpdd/logging/debug"
 
@@ -21,7 +17,7 @@ import (
 
 const (
 	// UATConfigFile is the name of the harness configuration file
-	UATConfigFile = ".lhsmd-test"
+	UATConfigFile = ".lhsmd-config"
 
 	// UATConfigEnvVar is the name of the optional environment variable that
 	// may be set to specify config location
@@ -38,9 +34,19 @@ type Config struct {
 	AWSAccessKeyID     string `hcl:"aws_access_key_id" json:"aws_access_key_id"`
 	AWSSecretAccessKey string `hcl:"aws_secret_access_key" json:"aws_secret_access_key"`
 	S3Region           string `hcl:"s3_region" json:"s3_region"`
-	S3Endpoint         string `hcl:"s3_endpoint" json:"s3_endpoint"`
 	S3Bucket           string `hcl:"s3_bucket" json:"s3_bucket"`
 	S3Prefix           string `hcl:"s3_prefix" json:"s3_prefix"`
+	AliAccessKeyID     string `hcl:"ali_access_key_id" json:"ali_access_key_id"`
+        AliAccessKeySecret string `hcl:"ali_access_key_secret" json:"ali_access_key_secret"`
+	AliBucket           string `hcl:"ali_bucket" json:"ali_bucket"`
+        AliPrefix           string `hcl:"ali_prefix" json:"ali_prefix"`	
+	AliRegion           string `hcl:"ali_region" json:"ali_region"`	
+	AliEndpoint           string `hcl:"ali_endpoint" json:"ali_endpoint"`	
+	MyArchiveID           string `hcl:"archiveid" json:"archiveid"`
+	MyTimeout           string `hcl:"timeout" json:"timeout"`	
+	Myproxy           string `hcl:"myproxy" json:"myproxy"`	
+	Partsize           string `hcl:"partsize" json:"partsize"`
+        Routines           string `hcl:"routines" json:"routines"`	
 }
 
 // Merge combines this config's values with the other config's values
@@ -65,21 +71,73 @@ func (c *Config) Merge(other *Config) *Config {
 		result.S3Region = other.S3Region
 	}
 
-	result.S3Endpoint = c.S3Endpoint
-	if other.S3Endpoint != "" {
-		result.S3Endpoint = other.S3Endpoint
-	}
-
 	result.S3Bucket = c.S3Bucket
 	if other.S3Bucket != "" {
 		result.S3Bucket = other.S3Bucket
 	}
-
+	
 	result.S3Prefix = c.S3Prefix
 	if other.S3Prefix != "" {
 		result.S3Prefix = other.S3Prefix
 	}
+	
+	result.AliBucket = c.AliBucket
+        if other.AliBucket != "" {
+                result.AliBucket = other.AliBucket
+        }
 
+        result.AliPrefix = c.AliPrefix
+        if other.AliPrefix != "" {
+                result.AliPrefix = other.AliPrefix
+        }
+
+	result.AliRegion = c.AliRegion
+        if other.AliRegion != "" {
+                result.AliRegion = other.AliRegion
+        }
+		
+	result.AliEndpoint = c.AliEndpoint
+        if other.AliEndpoint != "" {
+                result.AliEndpoint = other.AliEndpoint
+        }
+	
+	result.Myproxy = c.Myproxy
+        if other.Myproxy != "" {
+                result.Myproxy = other.Myproxy
+        }
+	
+
+	result.MyArchiveID = c.MyArchiveID
+        if other.MyArchiveID != "" {
+                result.MyArchiveID = other.MyArchiveID
+        }
+	//error handling 
+	iTemp, err := strconv.ParseInt(result.MyArchiveID,10,64)
+	if err != nil {
+		result.MyArchiveID = "1"
+	}
+	
+	if (iTemp < 1 || iTemp > 32) {
+		result.MyArchiveID = "1"
+	}
+
+	result.MyTimeout = c.MyTimeout
+        if other.MyTimeout != "" {
+                result.MyTimeout = other.MyTimeout
+        }
+	
+	iTemp, err = strconv.ParseInt(result.MyTimeout,10,64)
+        if err != nil {
+                result.MyTimeout = "-1"
+		iTemp = -1
+        }
+	
+	if (iTemp == -1 || iTemp == 0)	{
+		result.MyTimeout = "1000000000"
+	}
+	
+
+	debug.Printf("result.S3Prefix-%s,c.S3Prefix-%s",result.S3Prefix,c.S3Prefix)
 	result.AWSAccessKeyID = c.AWSAccessKeyID
 	if other.AWSAccessKeyID != "" {
 		result.AWSAccessKeyID = other.AWSAccessKeyID
@@ -89,6 +147,46 @@ func (c *Config) Merge(other *Config) *Config {
 	if other.AWSSecretAccessKey != "" {
 		result.AWSSecretAccessKey = other.AWSSecretAccessKey
 	}
+
+	result.AliAccessKeyID = c.AliAccessKeyID
+        if other.AliAccessKeyID != "" {
+                result.AliAccessKeyID = other.AliAccessKeyID
+        }
+
+        result.AliAccessKeySecret = c.AliAccessKeySecret
+        if other.AliAccessKeySecret != "" {
+                result.AliAccessKeySecret = other.AliAccessKeySecret
+        }	
+
+	result.Partsize = c.Partsize
+        if other.Partsize != "" {
+                result.Partsize = other.Partsize
+        }
+	
+	iTemp, err = strconv.ParseInt(result.Partsize,10,64)
+        if err != nil {
+                result.Partsize = "1"
+        }
+
+        if (iTemp <= 0) {
+                result.Partsize = "1"
+        }
+
+
+        result.Routines = c.Routines
+        if other.Routines != "" {
+                result.Routines = other.Routines
+        }
+
+	iTemp, err = strconv.ParseInt(result.Routines,10,64)
+        if err != nil {
+                result.Routines = "1"
+        }
+
+        if (iTemp <= 0) {
+                result.Routines = "1"
+        }
+
 
 	return result
 }

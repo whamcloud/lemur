@@ -1,7 +1,3 @@
-// Copyright (c) 2016 Intel Corporation. All rights reserved.
-// Use of this source code is governed by a MIT-style
-// license that can be found in the LICENSE file.
-
 package harness
 
 import (
@@ -32,6 +28,16 @@ type (
 		// These are per-scenario, unless otherwise configured
 		S3Bucket string
 		S3Prefix string
+		S3Region string	
+		AliRegion string
+		AliBucket string
+		AliPrefix string
+		AliEndpoint string
+		MyArchiveID string
+		MyTimeout string
+		Myproxy string
+		Partsize string
+		Routines string
 
 		cleanupFunctions []cleanupFn
 		workdir          string
@@ -108,6 +114,7 @@ func (s *ScenarioContext) createWorkdir() {
 
 	s.AddCleanup(func() error {
 		debug.Printf("Cleaning up %s", s.workdir)
+		return nil
 		return os.RemoveAll(s.workdir)
 	})
 }
@@ -118,7 +125,7 @@ func (s *ScenarioContext) Workdir() string {
 	s.setup.Do(func() {
 		s.createWorkdir()
 	})
-
+	debug.Printf("s.workdir-%s",s.workdir)
 	return s.workdir
 }
 

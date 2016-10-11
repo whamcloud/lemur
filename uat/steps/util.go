@@ -1,14 +1,9 @@
-// Copyright (c) 2016 Intel Corporation. All rights reserved.
-// Use of this source code is governed by a MIT-style
-// license that can be found in the LICENSE file.
-
 package steps
 
 import (
 	"fmt"
 	"path"
 	"time"
-
 	"github.com/intel-hpdd/logging/debug"
 
 	"github.com/mjmac/go-ps" // until PR is merged (hopefully)
@@ -17,7 +12,8 @@ import (
 
 const (
 	// DefaultTimeout is the default waitFor timeout, in seconds
-	DefaultTimeout = 10 * time.Second
+	
+	DefaultTimeout = 100* time.Second
 
 	// StatusUpdateTimeout is the timeout for a file status update
 	StatusUpdateTimeout = DefaultTimeout * 6
@@ -78,7 +74,7 @@ func waitFor(waitFn func() error, timeout time.Duration) error {
 	go func() {
 		// This will poll with an increasing intervals
 		// and then decreasing intervals as the timeout approaches
-		duration := 100 * time.Millisecond
+		duration := time.Duration(100 * time.Millisecond)
 		started := time.Now()
 		for {
 			// prevent this goroutine from running forever
@@ -95,7 +91,7 @@ func waitFor(waitFn func() error, timeout time.Duration) error {
 			// Reduce pause duration if timeout is imminent
 			if duration > timeout-time.Since(started) {
 				debug.Printf("timeout: %v elapsed: %v reduce timeout from %v to %v",
-					timeout,
+					time.Duration(timeout),
 					time.Since(started),
 					duration,
 					(timeout-time.Since(started))/2)

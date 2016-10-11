@@ -1,7 +1,3 @@
-// Copyright (c) 2016 Intel Corporation. All rights reserved.
-// Use of this source code is governed by a MIT-style
-// license that can be found in the LICENSE file.
-
 package harness
 
 import (
@@ -13,6 +9,7 @@ import (
 	"github.com/intel-hpdd/logging/debug"
 )
 
+
 // LfsDriver returns an instance of the lfs driver
 func LfsDriver() HsmDriver {
 	return &lfsDriver{}
@@ -21,6 +18,7 @@ func LfsDriver() HsmDriver {
 type lfsDriver struct {
 	binPath string
 }
+
 
 func (lfs *lfsDriver) run(args ...string) ([]byte, error) {
 	if lfs.binPath == "" {
@@ -32,7 +30,7 @@ func (lfs *lfsDriver) run(args ...string) ([]byte, error) {
 
 	// TODO: Capture stdout/err
 	// TODO: run with timeout
-	return exec.Command(lfs.binPath, args...).Output() // #nosec
+	return exec.Command(lfs.binPath, args...).Output()
 }
 
 func (lfs *lfsDriver) GetState(filePath string) (HsmState, error) {
@@ -47,7 +45,7 @@ func (lfs *lfsDriver) GetState(filePath string) (HsmState, error) {
 	if len(matches) != 3 {
 		return HsmUnknown, errors.Errorf("Unable to parse status from %q", out)
 	}
-
+	
 	switch string(matches[2]) {
 	case "":
 		return HsmUnmanaged, nil
@@ -62,8 +60,9 @@ func (lfs *lfsDriver) GetState(filePath string) (HsmState, error) {
 	}
 }
 
-func (lfs *lfsDriver) Archive(filePath string) error {
-	_, err := lfs.run("hsm_archive", "--archive", "1", filePath)
+func (lfs *lfsDriver) Archive(filePath string, MyArchiveID string) error {
+	debug.Printf("lfs-Archive-filePath-%s-MyArchiveID-%s",filePath, MyArchiveID)
+	_, err := lfs.run("hsm_archive", "--archive", MyArchiveID, filePath)
 	return err
 }
 
@@ -79,5 +78,10 @@ func (lfs *lfsDriver) Remove(filePath string) error {
 
 func (lfs *lfsDriver) Release(filePath string) error {
 	_, err := lfs.run("hsm_release", filePath)
+	if err != nil {
+		debug.Printf("lfs-release-filePath-%s-error:%s",filePath,err)
+	} else {
+		debug.Printf("lfs-release-filePath-%s",filePath)
+	}
 	return err
 }

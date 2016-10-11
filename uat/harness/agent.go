@@ -1,7 +1,3 @@
-// Copyright (c) 2016 Intel Corporation. All rights reserved.
-// Use of this source code is governed by a MIT-style
-// license that can be found in the LICENSE file.
-
 package harness
 
 import (
@@ -18,7 +14,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/pkg/errors"
-
 	"github.com/intel-hpdd/lemur/cmd/lhsmd/agent"
 	defaults "github.com/intel-hpdd/lemur/cmd/lhsmd/config"
 	"github.com/intel-hpdd/logging/alert"
@@ -26,6 +21,7 @@ import (
 	"github.com/intel-hpdd/go-lustre/fs/spec"
 	"github.com/intel-hpdd/go-lustre/pkg/mntent"
 )
+
 
 const (
 	// HsmAgentCfgKey refers to this context's agent config file
@@ -69,12 +65,14 @@ func (p *harnessConfigProvider) Retrieve() (credentials.Value, error) {
 	}, nil
 }
 
+
 func (p *harnessConfigProvider) IsExpired() bool {
 	return false
 }
 
 // ConfigureAgent creates or updates the Context's agent config
 func ConfigureAgent(ctx *ScenarioContext) error {
+
 	cd, err := getClientDeviceForMount(ctx.Config.LustrePath)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to get client device for %s", ctx.Config.LustrePath)
@@ -118,10 +116,10 @@ func WriteAgentConfig(ctx *ScenarioContext) error {
 	}
 
 	cfgDir := path.Dir(cfgFile)
-	if err := os.MkdirAll(cfgDir, 0700); err != nil {
+	if err := os.MkdirAll(cfgDir, 0755); err != nil {
 		return errors.Wrap(err, "Failed to create agent config dir")
 	}
-	return ioutil.WriteFile(cfgFile, []byte(ctx.AgentDriver.ac.String()), 0600)
+	return ioutil.WriteFile(cfgFile, []byte(ctx.AgentDriver.ac.String()), 0644)
 }
 
 // StartAgent starts the configured agent
@@ -131,7 +129,34 @@ func StartAgent(ctx *ScenarioContext) error {
 	}
 
 	ctx.AgentDriver.started = true
+
+	//after client booting, /var/run/lhsmd folder will disapper, so need to check it
+
+	if !isDirExists("/var/run/lhsmd") {
+		err := os.MkdirAll("/var/run/lhsmd", 0700)
+		if err != nil {
+				debug.Printf("Failed to create /var/run/lhsmd")
+		} else {
+				//it should be OK
+				debug.Printf("Succeeded to create/var/run/lhsmd")
+		}
+	} else {
+		debug.Printf("/var/run/lhsmd exists")
+	}
+
 	return ctx.AgentDriver.cmd.Start()
+}
+
+
+func isDirExists(path string) bool {
+    fi, err := os.Stat(path)
+ 
+    if err != nil {
+        return os.IsExist(err)
+    } else {
+        return fi.IsDir()
+    }
+ 
 }
 
 func newAgentCmd(ctx *ScenarioContext) (*exec.Cmd, error) {
@@ -153,7 +178,7 @@ func newAgentCmd(ctx *ScenarioContext) (*exec.Cmd, error) {
 	if ctx.Config.EnableAgentDebug {
 		agentArgs = append(agentArgs, "-debug")
 	}
-	cmd := exec.Command(HsmAgentBinary, agentArgs...) // #nosec
+	cmd := exec.Command(HsmAgentBinary, agentArgs...)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 
@@ -208,16 +233,17 @@ func writePosixMoverConfig(ctx *ScenarioContext, name string) error {
 
 	cfgFile := ctx.Workdir() + "/etc/lhsmd/" + name
 	cfgDir := path.Dir(cfgFile)
-	if err := os.MkdirAll(cfgDir, 0700); err != nil {
+	if err := os.MkdirAll(cfgDir, 0755); err != nil {
 		return errors.Wrap(err, "Failed to create plugin config dir")
 	}
 
-	return ioutil.WriteFile(cfgFile, []byte(cfg), 0600)
+	return ioutil.WriteFile(cfgFile, []byte(cfg), 0644)
 }
 
 func writeS3MoverConfig(ctx *ScenarioContext, name string) error {
 	var awsKey string
 	var awsSecret string
+	debug.Printf("writeS3MoverConfig")
 
 	// Get AWS credentials from the environment or via explicit
 	// harness configuration.
@@ -242,6 +268,9 @@ func writeS3MoverConfig(ctx *ScenarioContext, name string) error {
 	// Start with configured defaults
 	ctx.S3Bucket = ctx.Config.S3Bucket
 	ctx.S3Prefix = ctx.Config.S3Prefix
+	ctx.S3Region = ctx.Config.S3Region
+	ctx.MyArchiveID = ctx.Config.MyArchiveID
+	ctx.MyTimeout = ctx.Config.MyTimeout
 
 	if ctx.Config.S3Bucket == "" {
 		var err error
@@ -252,45 +281,89 @@ func writeS3MoverConfig(ctx *ScenarioContext, name string) error {
 		debug.Printf("Created S3 bucket: %s", ctx.S3Bucket)
 		ctx.AddCleanup(cleanupS3Bucket(ctx))
 	} else if ctx.Config.S3Prefix == "" {
-		ctx.S3Prefix = path.Base(ctx.Workdir())
+//		ctx.S3Prefix = path.Base(ctx.Workdir())
+		ctx.S3Prefix = "testprefix"
 		debug.Printf("Using %s for S3 prefix", ctx.S3Prefix)
-		ctx.AddCleanup(cleanupS3Prefix(ctx))
+//		ctx.AddCleanup(cleanupS3Prefix(ctx))
 	}
 
 	// TODO: Make configuration of credentials optional.
 	cfg := fmt.Sprintf(`region = "%s"
-endpoint = "%s"
 aws_access_key_id = "%s"
 aws_secret_access_key = "%s"
-
+timeout = "%s"
 archive "one" {
-	id = 1
+	id = "%s"
 	bucket = "%s"
 	prefix = "%s"
-}`, ctx.Config.S3Region, ctx.Config.S3Endpoint, awsKey, awsSecret, ctx.S3Bucket, ctx.S3Prefix)
+}`, ctx.S3Region, awsKey, awsSecret,ctx.MyTimeout,ctx.MyArchiveID, ctx.S3Bucket, ctx.S3Prefix)
 
 	cfgFile := ctx.Workdir() + "/etc/lhsmd/" + name
 	cfgDir := path.Dir(cfgFile)
-	if err := os.MkdirAll(cfgDir, 0700); err != nil {
+	if err := os.MkdirAll(cfgDir, 0755); err != nil {
 		return errors.Wrap(err, "Failed to create plugin config dir")
 	}
 
-	return ioutil.WriteFile(cfgFile, []byte(cfg), 0600)
+	return ioutil.WriteFile(cfgFile, []byte(cfg), 0644)
 }
 
-func s3Svc(region string, endpoint string) *s3.S3 {
-	// TODO: Allow more per-archive configuration options?
-	cfg := aws.NewConfig().WithRegion(region)
-	if endpoint != "" {
-		cfg.WithEndpoint(endpoint)
-		cfg.WithS3ForcePathStyle(true)
+func writeAliMoverConfig(ctx *ScenarioContext, name string) error {
+	var aliKey string
+	var aliSecret string
+	debug.Printf("writeAliMoverConfig")
+	
+	aliKey = ctx.Config.AliAccessKeyID
+	aliSecret = ctx.Config.AliAccessKeySecret
+	if aliKey == "" || aliSecret == "" {
+		return fmt.Errorf("Unable to get Ali credentials from environment or harness config")
 	}
-	// cfg.WithLogLevel(aws.LogDebug)
-	return s3.New(session.New(cfg))
+
+	// Start with configured defaults
+	ctx.AliBucket = ctx.Config.AliBucket
+	ctx.AliPrefix = ctx.Config.AliPrefix
+	ctx.AliRegion = ctx.Config.AliRegion
+	ctx.AliEndpoint = ctx.Config.AliEndpoint	
+	ctx.MyArchiveID = ctx.Config.MyArchiveID
+	ctx.MyTimeout = ctx.Config.MyTimeout
+	ctx.Myproxy = ctx.Config.Myproxy
+	ctx.Partsize = ctx.Config.Partsize
+	ctx.Routines = ctx.Config.Routines
+
+	if ctx.Config.AliBucket == "" {
+		return fmt.Errorf("please set ali_bucket in config")
+	} else if ctx.Config.AliPrefix == "" {
+		return fmt.Errorf("please set ali_prefix in config")
+		
+	}
+
+
+	// TODO: Make configuration of credentials optional.
+	cfg := fmt.Sprintf(`
+ali_endpoint = "%s"
+ali_access_key_id = "%s"
+ali_access_key_secret = "%s"
+timeout = "%s"
+myproxy = "%s"
+partsize = "%s"
+routines = "%s"
+archive "one" {
+	id = "%s"
+	bucket = "%s"
+	prefix = "%s"
+}`, ctx.AliEndpoint, aliKey, aliSecret, ctx.MyTimeout, ctx.Myproxy, ctx.Partsize, ctx.Routines, ctx.MyArchiveID, ctx.AliBucket, ctx.AliPrefix)
+
+	cfgFile := ctx.Workdir() + "/etc/lhsmd/" + name
+	cfgDir := path.Dir(cfgFile)
+	if err := os.MkdirAll(cfgDir, 0755); err != nil {
+		return errors.Wrap(err, "Failed to create plugin config dir")
+	}
+
+	return ioutil.WriteFile(cfgFile, []byte(cfg), 0644)
 }
+
 
 func createS3Bucket(ctx *ScenarioContext) (string, error) {
-	svc := s3Svc(ctx.Config.S3Region, ctx.Config.S3Endpoint)
+	svc := s3.New(session.New(aws.NewConfig().WithRegion(ctx.Config.S3Region)))
 	bucket, err := svc.CreateBucket(&s3.CreateBucketInput{
 		Bucket: aws.String(path.Base(ctx.Workdir())),
 	})
@@ -301,30 +374,25 @@ func createS3Bucket(ctx *ScenarioContext) (string, error) {
 }
 
 func cleanupS3Prefix(ctx *ScenarioContext) cleanupFn {
+	svc := s3.New(session.New(aws.NewConfig().WithRegion(ctx.Config.S3Region)))
+	doi := &s3.DeleteObjectInput{
+		Bucket: aws.String(ctx.S3Bucket),
+		Key:    aws.String(ctx.S3Prefix),
+	}
 	return func() error {
 		debug.Printf("Cleaning up %s/%s...", ctx.S3Bucket, ctx.S3Prefix)
 		if err := deleteObjects(ctx); err != nil {
 			return errors.Wrap(err, "Failed to delete test prefix objects in cleanup")
 		}
 
-		err := deleteObject(ctx, ctx.S3Prefix)
+		_, err := svc.DeleteObject(doi)
 		return errors.Wrap(err, "Failed to delete test prefix in cleanup")
 	}
 
 }
 
-func deleteObject(ctx *ScenarioContext, key string) error {
-	svc := s3Svc(ctx.Config.S3Region, ctx.Config.S3Endpoint)
-	doi := &s3.DeleteObjectInput{
-		Bucket: aws.String(ctx.S3Bucket),
-		Key:    aws.String(key),
-	}
-	_, err := svc.DeleteObject(doi)
-	return errors.Wrap(err, key)
-}
-
 func deleteObjects(ctx *ScenarioContext) error {
-	svc := s3Svc(ctx.Config.S3Region, ctx.Config.S3Endpoint)
+	svc := s3.New(session.New(aws.NewConfig().WithRegion(ctx.Config.S3Region)))
 	loi := &s3.ListObjectsInput{
 		Bucket: aws.String(ctx.S3Bucket),
 		Prefix: aws.String(ctx.S3Prefix),
@@ -339,18 +407,22 @@ func deleteObjects(ctx *ScenarioContext) error {
 		return nil
 	}
 
-	// Not all S3 backends support DeleteObjects, so do this the hard way.
+	deleteInput := &s3.Delete{}
 	for _, obj := range out.Contents {
-		err = deleteObject(ctx, *obj.Key)
-		if err != nil {
-			return errors.Wrap(err, "Failed to delete")
-		}
+		deleteInput.Objects = append(deleteInput.Objects, &s3.ObjectIdentifier{Key: obj.Key})
 	}
-	return nil
+	doi := &s3.DeleteObjectsInput{
+		Bucket: aws.String(ctx.S3Bucket),
+		Delete: deleteInput,
+	}
+	_, err = svc.DeleteObjects(doi)
+
+	return errors.Wrap(err, "Failed to delete objects")
 }
 
 func cleanupS3Bucket(ctx *ScenarioContext) cleanupFn {
-	svc := s3Svc(ctx.Config.S3Region, ctx.Config.S3Endpoint)
+	svc := s3.New(session.New(aws.NewConfig().WithRegion(ctx.Config.S3Region)))
+
 	dbi := &s3.DeleteBucketInput{
 		Bucket: aws.String(ctx.S3Bucket),
 	}
@@ -373,6 +445,8 @@ func writeMoverConfig(ctx *ScenarioContext, name string) error {
 		return writePosixMoverConfig(ctx, name)
 	case "lhsm-plugin-s3":
 		return writeS3MoverConfig(ctx, name)
+	case "lhsm-plugin-ali":
+                return writeAliMoverConfig(ctx, name)
 	default:
 		return fmt.Errorf("Unknown data mover in test: %s", name)
 	}

@@ -1,16 +1,11 @@
-// Copyright (c) 2016 Intel Corporation. All rights reserved.
-// Use of this source code is governed by a MIT-style
-// license that can be found in the LICENSE file.
-
 package steps
 
 import (
 	"io/ioutil"
 	"path/filepath"
 	"strings"
-
+	"github.com/intel-hpdd/logging/debug"
 	"github.com/pkg/errors"
-	"github.com/intel-hpdd/logging/alert"
 	"github.com/intel-hpdd/go-lustre/fs"
 	"github.com/intel-hpdd/go-lustre/pkg/mntent"
 )
@@ -28,7 +23,7 @@ func hsmIsInState(expected string) error {
 		return errors.Wrap(err, "Failed to Glob() HSM control file")
 	}
 	if len(hsmControls) == 0 {
-		alert.Warn("No MDT found on this system; can't verify coordinator state")
+//		alert.Warn("No MDT found on this system; can't verify coordinator state")
 		return nil
 	}
 	if len(hsmControls) > 1 {
@@ -55,13 +50,14 @@ func iHaveALustreFilesystem() error {
 		}
 		return nil
 	}
-
+	
 	entries, err := mntent.GetEntriesByType("lustre")
 	if err != nil {
 		return errors.Wrap(err, "Failed to get Lustre mounts")
 	}
 
 	for _, entry := range entries {
+		debug.Printf("entry.Dir:%s",entry.Dir)
 		if _, err := fs.MountRoot(entry.Dir); err == nil {
 			ctx.Config.LustrePath = entry.Dir
 			return nil

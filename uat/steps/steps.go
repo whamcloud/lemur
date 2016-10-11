@@ -1,11 +1,7 @@
-// Copyright (c) 2016 Intel Corporation. All rights reserved.
-// Use of this source code is governed by a MIT-style
-// license that can be found in the LICENSE file.
-
 package steps
 
 // HSMTestFileKey is the prefix/key used to generate and refer to the test file
-const HSMTestFileKey = "HSM-test-file"
+var HSMTestFileKey = "HSM-file"
 
 // Bleah. This is what godog expects, though.
 type handlerFn interface{}
