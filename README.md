@@ -1,5 +1,13 @@
-# lemur
-HPDD HSM Agent and Data Movers for Lustre
+# HPDD HSM Agent and Data Movers for Lustre
+
+Lemur is new, open source implementation of HSM tools for the [Lustre Filesystem](http://lustre.org) based on this
+[design](https://wiki.hpdd.intel.com/display/PUB/HSM+Agent+Design). This project
+is developed by the Intel High Performance Data Division, one of the main
+contributors to the Lustre Filesystem. We welcome community involvement and
+contributions. If you would like to raise an issue or file a bug, please use the
+LMR project on our community [Jira
+server](https://jira.hpdd.intel.com/browse/LMR) instead of Github issues.
+
 
 ## Build
 
