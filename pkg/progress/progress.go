@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/intel-hpdd/logging/alert"
-	"github.com/intel-hpdd/logging/debug"
 )
 
 // The default buffer size in io.copyBuffer() is 32KB -- this is the
@@ -40,9 +39,17 @@ type (
 		src ReaderAtSeeker
 	}
 
-	// Writer wraps an io.WriterAt and periodically invokes the
+	// Writer wraps an io.Writer and periodically invokes the
 	// supplied callback to provide progress updates.
 	Writer struct {
+		progressUpdater
+
+		dst io.Writer
+	}
+
+	// WriterAt wraps an io.WriterAt and periodically invokes the
+	// supplied callback to provide progress updates.
+	WriterAt struct {
 		progressUpdater
 
 		dst io.WriterAt
@@ -69,7 +76,6 @@ func (p *progressUpdater) startUpdates(updateEvery time.Duration, f progressFunc
 					}
 					lastTotal = copied
 				case <-p.done:
-					debug.Print("Shutting down updater goroutine")
 					return
 				}
 			}
@@ -143,11 +149,34 @@ func NewReader(src ReaderAtSeeker, updateEvery time.Duration, f progressFunc) *R
 	return r
 }
 
+// Write writes len(p) bytes from p to the underlying data stream at
+// offset off. It returns the number of bytes written from p (0 <= n <= len(p))
+// and any error encountered that caused the write to stop early. WriteAt
+// must return a non-nil error if it returns n < len(p).
+func (w *Writer) Write(p []byte) (int, error) {
+	n, err := w.dst.Write(p)
+
+	atomic.AddUint64(&w.bytesCopied, uint64(n))
+	// debug.Printf("wrote %d bytes", n)
+	return n, err
+
+}
+
+// NewWriter returns a new Writer
+func NewWriter(dst io.Writer, updateEvery time.Duration, f progressFunc) *Writer {
+	w := &Writer{
+		dst: dst,
+	}
+	w.startUpdates(updateEvery, f)
+
+	return w
+}
+
 // WriteAt writes len(p) bytes from p to the underlying data stream at
 // offset off. It returns the number of bytes written from p (0 <= n <= len(p))
 // and any error encountered that caused the write to stop early. WriteAt
 // must return a non-nil error if it returns n < len(p).
-func (w *Writer) WriteAt(p []byte, off int64) (int, error) {
+func (w *WriterAt) WriteAt(p []byte, off int64) (int, error) {
 	n, err := w.dst.WriteAt(p, off)
 
 	atomic.AddUint64(&w.bytesCopied, uint64(n))
@@ -155,9 +184,9 @@ func (w *Writer) WriteAt(p []byte, off int64) (int, error) {
 	return n, err
 }
 
-// NewWriter returns a new Writer
-func NewWriter(dst io.WriterAt, updateEvery time.Duration, f progressFunc) *Writer {
-	w := &Writer{
+// NewWriterAt returns a new Writer
+func NewWriterAt(dst io.WriterAt, updateEvery time.Duration, f progressFunc) *WriterAt {
+	w := &WriterAt{
 		dst: dst,
 	}
 	w.startUpdates(updateEvery, f)

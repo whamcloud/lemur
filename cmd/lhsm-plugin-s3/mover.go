@@ -176,7 +176,7 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	progressFunc := func(offset, length uint64) error {
 		return action.Update(offset, length, uint64(dstSize))
 	}
-	progressWriter := progress.NewWriter(dst, updateInterval, progressFunc)
+	progressWriter := progress.NewWriterAt(dst, updateInterval, progressFunc)
 	defer progressWriter.StopUpdates()
 
 	downloader := m.newDownloader()

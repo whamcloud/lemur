@@ -5,6 +5,7 @@
 package posix
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,14 +15,14 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-	"github.com/pborman/uuid"
-	"github.com/pkg/errors"
-	"github.com/rcrowley/go-metrics"
 	"github.com/intel-hpdd/lemur/dmplugin"
 	"github.com/intel-hpdd/lemur/pkg/progress"
 	"github.com/intel-hpdd/logging/alert"
 	"github.com/intel-hpdd/logging/audit"
 	"github.com/intel-hpdd/logging/debug"
+	"github.com/pborman/uuid"
+	"github.com/pkg/errors"
+	"github.com/rcrowley/go-metrics"
 )
 
 var rate metrics.Meter
@@ -70,7 +71,7 @@ type (
 	// FileID is used to identify a file in the backend
 	FileID struct {
 		UUID string
-		Sum  string
+		Sum  string `json:",omitempty"`
 	}
 )
 
@@ -113,34 +114,37 @@ func newFileID() string {
 }
 
 // CopyWithProgress initiates a movement of data with progress updates
-func CopyWithProgress(dst io.WriterAt, src io.ReaderAt, start uint64, length uint64, action dmplugin.Action) (uint64, error) {
-	var blockSize uint64 = 10 * 1024 * 1024 // FIXME: parameterize
-
+func CopyWithProgress(dst io.Writer, src io.Reader, length int64, action dmplugin.Action) (uint64, error) {
 	progressFunc := func(offset, n uint64) error {
-		return action.Update(offset, n, length)
+		return action.Update(offset, n, uint64(length))
 	}
 	progressWriter := progress.NewWriter(dst, updateInterval, progressFunc)
 	defer progressWriter.StopUpdates()
 
-	offset := start
-	for offset < start+length {
-		n, err := CopyAt(progressWriter, src, offset, blockSize)
-		offset += n
-		if n < blockSize && err == io.EOF {
-			break
-		}
+	n, err := io.Copy(progressWriter, src)
 
-		if err != nil {
-			return offset, err
-		}
-	}
-	return offset, nil
+	return uint64(n), err
 }
 
 // ChecksumConfig returns the mover's checksum configuration
 // Returns a pointer so the caller can modify the config.
 func (m *Mover) ChecksumConfig() *ChecksumConfig {
 	return &m.Checksums
+}
+
+// ChecksumEnabled returns true if user has enabled checksum calculation.
+func (m *Mover) ChecksumEnabled() bool {
+	return !m.Checksums.Disabled
+}
+
+// ChecksumWriter returns an instance of its namesake.
+func (m *Mover) ChecksumWriter(dst io.Writer) (cw ChecksumWriter) {
+	if m.ChecksumEnabled() {
+		cw = NewSha1HashWriter(dst)
+	} else {
+		cw = NewNoopHashWriter(dst)
+	}
+	return
 }
 
 // Destination returns the path to archived file.
@@ -163,47 +167,67 @@ func (m *Mover) Start() {
 	debug.Printf("%s started", m.Name)
 }
 
+func actualLength(action dmplugin.Action, fp *os.File) (int64, error) {
+	var length int64
+	if action.Length() == math.MaxUint64 {
+		fi, err := fp.Stat()
+		if err != nil {
+			return 0, errors.Wrap(err, "stat failed")
+		}
+
+		length = fi.Size() - int64(action.Offset())
+	} else {
+		// TODO: Sanity check length + offset with actual file size?
+		length = int64(action.Length())
+	}
+	return length, nil
+}
+
+func archiveReader(action dmplugin.Action, fp *os.File) (io.Reader, int64, error) {
+	length, err := actualLength(action, fp)
+	if err != nil {
+		return nil, 0, errors.Wrap(err, "actualLength failed")
+	}
+
+	var r io.Reader = fp
+	if action.Offset() > 0 || action.Length() != math.MaxUint64 {
+		r = io.NewSectionReader(fp, int64(action.Offset()), length)
+	}
+
+	return bufio.NewReaderSize(r, 1024*1024), length, nil
+
+}
+
 // Archive fulfills an HSM Archive request
 func (m *Mover) Archive(action dmplugin.Action) error {
-	debug.Printf("%s id:%d archive %s", m.Name, action.ID(), action.PrimaryPath())
+	debug.Printf("%s id:%d ARCHIVE %s", m.Name, action.ID(), action.PrimaryPath())
 	rate.Mark(1)
 	start := time.Now()
 
-	fileID := newFileID()
-
+	// Initialize Reader for Lustre file
 	src, err := os.Open(action.PrimaryPath())
 	if err != nil {
-		return errors.Wrapf(err, "%s: open failed", action.PrimaryPath())
+		return errors.Wrapf(err, "%s: open primary failed", action.PrimaryPath())
 	}
 	defer src.Close()
 
+	rdr, length, err := archiveReader(action, src)
+	if err != nil {
+		return errors.Wrap(err, "archiveReader failed")
+	}
+
+	// Initialize Writer for backing file
+	fileID := newFileID()
 	dst, err := os.Create(m.Destination(fileID))
 	if err != nil {
-		return errors.Wrapf(err, "%s: create failed", m.Destination(fileID))
+		return errors.Wrapf(err, "%s: create backing file failed", m.Destination(fileID))
 	}
 	defer dst.Close()
 
-	var cw ChecksumWriter
-	if !m.Checksums.Disabled {
-		cw = NewSha1HashWriter(dst)
-	} else {
-		cw = NewNoopHashWriter(dst)
-	}
+	cw := m.ChecksumWriter(dst)
 
-	var length uint64
-	if action.Length() == math.MaxUint64 {
-		fi, err2 := src.Stat()
-		if err2 != nil {
-			return errors.Wrap(err, "stat failed")
-		}
-
-		length = uint64(fi.Size()) - action.Offset()
-	} else {
-		// TODO: Sanity check length + offset with actual file size?
-		length = action.Length()
-	}
-
-	n, err := CopyWithProgress(cw, src, action.Offset(), length, action)
+	// Copy
+	n, err := CopyWithProgress(cw, rdr, length, action)
 	if err != nil {
 		debug.Printf("copy error %v read %d expected %d", err, n, length)
 		return errors.Wrap(err, "copy failed")
@@ -252,10 +276,11 @@ func ParseFileID(buf []byte) (*FileID, error) {
 
 // Restore fulfills an HSM Restore request
 func (m *Mover) Restore(action dmplugin.Action) error {
-	debug.Printf("%s id:%d restore %s %s", m.Name, action.ID(), action.PrimaryPath(), action.FileID())
+	debug.Printf("%s id:%d RESTORE %s %s", m.Name, action.ID(), action.PrimaryPath(), action.FileID())
 	rate.Mark(1)
 	start := time.Now()
 
+	// Initialize Reader for backing file
 	if action.FileID() == nil {
 		return errors.New("Missing file_id")
 	}
@@ -263,39 +288,33 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	if err != nil {
 		return errors.Wrap(err, "parse file id")
 	}
+
 	src, err := os.Open(m.Destination(id.UUID))
 	if err != nil {
 		return errors.Wrapf(err, "%s: open failed", m.Destination(id.UUID))
 	}
 	defer src.Close()
 
+	rdr := bufio.NewReaderSize(src, 1024*1024)
+
+	// Initialize Writer for restore file on Lustre
 	dst, err := os.OpenFile(action.WritePath(), os.O_WRONLY, 0644)
 	if err != nil {
 		return errors.Wrapf(err, "%s open write failed", action.WritePath())
 	}
 	defer dst.Close()
 
-	var cw ChecksumWriter
-	if id.Sum != "" && !m.Checksums.DisableCompareOnRestore {
-		cw = NewSha1HashWriter(dst)
-	} else {
-		cw = NewNoopHashWriter(dst)
+	length, err := actualLength(action, dst)
+	if err != nil {
+		return errors.Wrap(err, "actualLength")
 	}
 
-	var length uint64
-	if action.Length() == math.MaxUint64 {
-		fi, err2 := src.Stat()
-		if err2 != nil {
-			return errors.Wrap(err, "stat failed")
-		}
+	dst.Seek(int64(action.Offset()), 0)
 
-		length = uint64(fi.Size()) - action.Offset()
-	} else {
-		// TODO: Sanity check length + offset with actual file size?
-		length = action.Length()
-	}
+	cw := m.ChecksumWriter(dst)
 
-	n, err := CopyWithProgress(cw, src, action.Offset(), length, action)
+	// Copy
+	n, err := CopyWithProgress(cw, rdr, length, action)
 	if err != nil {
 		debug.Printf("copy error %v read %d expected %d", err, n, length)
 		return errors.Wrap(err, "copy failed")
@@ -318,7 +337,7 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 
 // Remove fulfills an HSM Remove request
 func (m *Mover) Remove(action dmplugin.Action) error {
-	debug.Printf("%s: remove %s %s", m.Name, action.PrimaryPath(), action.FileID())
+	debug.Printf("%s id:%d REMOVE %s %s", m.Name, action.ID(), action.PrimaryPath(), action.FileID())
 	rate.Mark(1)
 	if action.FileID() == nil {
 		return errors.New("Missing file_id")
