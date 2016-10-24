@@ -7,6 +7,7 @@ package posix_test
 import (
 	"math"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/pborman/uuid"
@@ -15,6 +16,7 @@ import (
 	"github.com/intel-hpdd/lemur/cmd/lhsm-plugin-posix/posix"
 	"github.com/intel-hpdd/lemur/dmplugin"
 	"github.com/intel-hpdd/lemur/internal/testhelpers"
+	"github.com/intel-hpdd/logging/debug"
 )
 
 func testArchive(t *testing.T, mover *posix.Mover, path string, offset uint64, length uint64, fileID []byte, data []byte) *dmplugin.TestAction {
@@ -44,6 +46,7 @@ func testRestore(t *testing.T, mover *posix.Mover, offset uint64, length uint64,
 }
 
 func testRestoreFail(t *testing.T, mover *posix.Mover, offset uint64, length uint64, fileID []byte, data []byte, outer error) *dmplugin.TestAction {
+	debug.Printf("restore %s", fileID)
 	tfile, cleanFile := testhelpers.TempFile(t, 0)
 	defer cleanFile()
 	action := dmplugin.NewTestAction(t, tfile, offset, length, fileID, data)
@@ -62,6 +65,11 @@ func testDestinationFile(t *testing.T, mover *posix.Mover, buf []byte) string {
 	}
 
 	return mover.Destination(fileID.UUID)
+}
+
+func defaultChecksum(cfg *posix.ArchiveConfig) *posix.ArchiveConfig {
+	cfg.Checksums = &posix.DefaultChecksums
+	return cfg
 }
 
 func TestPosixArchive(t *testing.T) {
@@ -95,9 +103,6 @@ func TestPosixArchiveMaxSize(t *testing.T) {
 }
 
 func TestPosixArchiveDefaultChecksum(t *testing.T) {
-	defaultChecksum := func(cfg *posix.ChecksumConfig) *posix.ChecksumConfig {
-		return cfg.Merge(nil)
-	}
 	WithPosixMover(t, defaultChecksum, func(t *testing.T, mover *posix.Mover) {
 		var length uint64 = 100
 		tfile, cleanFile := testhelpers.TempFile(t, length)
@@ -107,11 +112,30 @@ func TestPosixArchiveDefaultChecksum(t *testing.T) {
 		testRestore(t, mover, 0, length, action.FileID(), nil)
 	})
 }
+func TestPosixArchiveDefaultChecksumCompress(t *testing.T) {
+	enableCompress := func(cfg *posix.ArchiveConfig) *posix.ArchiveConfig {
+		return cfg.Merge(&posix.ArchiveConfig{
+			Compression: "on"})
+
+	}
+	WithPosixMover(t, enableCompress, func(t *testing.T, mover *posix.Mover) {
+		var length uint64 = 100
+		tfile, cleanFile := testhelpers.TempFile(t, length)
+		defer cleanFile()
+
+		action := testArchive(t, mover, tfile, 0, length, nil, nil)
+		fileID, err := posix.ParseFileID(action.FileID())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if filepath.Ext(fileID.UUID) != ".gz" {
+			t.Fatal(errors.New("file not compressed"))
+		}
+		testRestore(t, mover, 0, length, action.FileID(), nil)
+	})
+}
 
 func TestPosixArchiveRestoreBrokenFileID(t *testing.T) {
-	defaultChecksum := func(cfg *posix.ChecksumConfig) *posix.ChecksumConfig {
-		return cfg.Merge(nil)
-	}
 	WithPosixMover(t, defaultChecksum, func(t *testing.T, mover *posix.Mover) {
 		var length uint64 = 100
 		tfile, cleanFile := testhelpers.TempFile(t, length)
@@ -143,9 +167,6 @@ func TestPosixArchiveRestoreBrokenFileID(t *testing.T) {
 }
 
 func TestPosixArchiveRestoreError(t *testing.T) {
-	defaultChecksum := func(cfg *posix.ChecksumConfig) *posix.ChecksumConfig {
-		return cfg.Merge(nil)
-	}
 	WithPosixMover(t, defaultChecksum, func(t *testing.T, mover *posix.Mover) {
 		var length uint64 = 100
 		tfile, cleanFile := testhelpers.TempFile(t, length)
@@ -176,10 +197,12 @@ func TestPosixArchiveRestoreError(t *testing.T) {
 }
 
 func TestPosixArchiveNoChecksum(t *testing.T) {
-	disableChecksum := func(cfg *posix.ChecksumConfig) *posix.ChecksumConfig {
-		return cfg.Merge(&posix.ChecksumConfig{Disabled: true})
-	}
+	disableChecksum := func(cfg *posix.ArchiveConfig) *posix.ArchiveConfig {
+		return cfg.Merge(&posix.ArchiveConfig{
+			Compression: "off",
+			Checksums:   &posix.ChecksumConfig{Disabled: true}})
 
+	}
 	WithPosixMover(t, disableChecksum, func(t *testing.T, mover *posix.Mover) {
 		var length uint64 = 1000000
 		tfile, cleanFile := testhelpers.TempFile(t, length)
@@ -200,12 +223,22 @@ func TestPosixArchiveNoChecksum(t *testing.T) {
 	})
 }
 
+func combine(fnlist ...func(*posix.ArchiveConfig) *posix.ArchiveConfig) func(*posix.ArchiveConfig) *posix.ArchiveConfig {
+	return func(v *posix.ArchiveConfig) *posix.ArchiveConfig {
+		for _, fn := range fnlist {
+			v = fn(v)
+		}
+		return v
+	}
+}
 func TestPosixArchiveNoChecksumRestore(t *testing.T) {
-	disableChecksum := func(cfg *posix.ChecksumConfig) *posix.ChecksumConfig {
-		return cfg.Merge(&posix.ChecksumConfig{DisableCompareOnRestore: true})
+	updateConf := func(cfg *posix.ArchiveConfig) *posix.ArchiveConfig {
+		return cfg.Merge(&posix.ArchiveConfig{
+			Compression: "off",
+			Checksums:   &posix.ChecksumConfig{DisableCompareOnRestore: true}})
 	}
 
-	WithPosixMover(t, disableChecksum, func(t *testing.T, mover *posix.Mover) {
+	WithPosixMover(t, updateConf, func(t *testing.T, mover *posix.Mover) {
 		var length uint64 = 1000000
 		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
@@ -285,19 +318,22 @@ func TestPosixRemove(t *testing.T) {
 	})
 }
 
-func WithPosixMover(t *testing.T, updateConfig func(*posix.ChecksumConfig) *posix.ChecksumConfig,
+func WithPosixMover(t *testing.T, updateConfig func(*posix.ArchiveConfig) *posix.ArchiveConfig,
 	tester func(t *testing.T, mover *posix.Mover)) {
+
+	config := new(posix.ArchiveConfig)
+	config.Name = "posix-test"
 
 	defer testhelpers.ChdirTemp(t)()
 	archiveDir, cleanArchive := testhelpers.TempDir(t)
 	defer cleanArchive()
 
-	var config *posix.ChecksumConfig
+	config.Root = archiveDir
 	if updateConfig != nil {
-		config = updateConfig(nil)
+		config = updateConfig(config)
 	}
 
-	mover, err := posix.NewMover("posix-test", archiveDir, config)
+	mover, err := posix.NewMover(config)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -31,6 +31,11 @@ These are the configuration options available.
      `root`
      :     The base directory of the archive. Must be accessible on the mover node.
 
+     `compression`
+     :     If set to "on", all data will be compressed when written to the backend. Compressed
+           data objects will be automatically uncompressed during restore even if this option has been 
+           subsequently disabled.
+
      `checksums`
      :    By default, data checksums are created when a file is archived and validated on restore.
           These options can be used to disable checksums entirely or just disable restore validation (useful
@@ -51,7 +56,8 @@ A sample S3 plugin configuration with one archive:
 
         archive "posix-test" {
            id = 1
-           root = "/tmp/archive"   
+           root = "/tmp/archive"
+           compression = "off"
            checksums {
                 disabled = false
            }

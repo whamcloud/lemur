@@ -6,12 +6,15 @@ package posix
 
 import (
 	"bufio"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
 	"math"
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -54,18 +57,34 @@ func init() {
 const updateInterval = 10 * time.Second
 
 type (
+
+	// ArchiveConfig is configuration for one mover.
+	ArchiveConfig struct {
+		Name        string          `hcl:",key"`
+		ID          int             `hcl:"id"`
+		Root        string          `hcl:"root"`
+		Compression string          `hcl:"compression"`
+		Checksums   *ChecksumConfig `hcl:"checksums"`
+	}
+
+	// ArchiveSet is a list of mover configs.
+	ArchiveSet []*ArchiveConfig
+
 	// ChecksumConfig defines the configured behavior for file
 	// checksumming in the POSIX data mover
 	ChecksumConfig struct {
 		Disabled                bool `hcl:"disabled"`
 		DisableCompareOnRestore bool `hcl:"disable_compare_on_restore"`
 	}
+	// CompressionOption value determines  if data compression is enabled.
+	CompressionOption int
 
 	// Mover is a POSIX data mover
 	Mover struct {
-		Name       string
-		ArchiveDir string
-		Checksums  ChecksumConfig
+		Name        string
+		ArchiveDir  string
+		Compression CompressionOption
+		Checksums   ChecksumConfig
 	}
 
 	// FileID is used to identify a file in the backend
@@ -75,10 +94,91 @@ type (
 	}
 )
 
+const (
+	// CompressOff disables data compression
+	CompressOff CompressionOption = iota
+	// CompressOn enables data compression
+	CompressOn
+	// CompressAuto enables compression when a compressible file is detection
+	CompressAuto
+)
+
 var (
 	// DefaultChecksums are enabled
 	DefaultChecksums ChecksumConfig
 )
+
+func (a *ArchiveConfig) String() string {
+	return fmt.Sprintf("%d:%s", a.ID, a.Root)
+}
+
+// CheckValid determines if the archive configuration is a valid one.
+func (a *ArchiveConfig) CheckValid() error {
+	var errs []string
+
+	if a.Root == "" {
+		errs = append(errs, fmt.Sprintf("Archive %s: archive root not set", a.Name))
+	}
+
+	if a.ID < 1 {
+		errs = append(errs, fmt.Sprintf("Archive %s: archive id not set", a.Name))
+	}
+
+	if len(errs) > 0 {
+		return errors.Errorf("Errors: %s", strings.Join(errs, ", "))
+	}
+
+	return nil
+}
+
+// CompressionOption parses Compression config parameter
+func (a *ArchiveConfig) CompressionOption() CompressionOption {
+	switch a.Compression {
+	case "on":
+		return CompressOn
+	case "off":
+		return CompressOff
+	case "auto":
+		return CompressOn // TODO: implement auto compresion
+	default:
+		return CompressOff
+	}
+}
+
+// Merge the two configs and return a copy.
+// Does not return nil, even if both a and other are nil.
+func (a *ArchiveConfig) Merge(other *ArchiveConfig) *ArchiveConfig {
+	var result ArchiveConfig
+	if a != nil {
+		result = *a
+	}
+	if other != nil {
+		if other.Name != "" {
+			result.Name = other.Name
+		}
+		if other.Root != "" {
+			result.Root = other.Root
+		}
+		if other.Compression != "" {
+			result.Compression = other.Compression
+		}
+		result.Checksums = result.Checksums.Merge(other.Checksums)
+	} else {
+		// Ensure we have a new copy of Checksums
+		result.Checksums = result.Checksums.Merge(nil)
+	}
+	return &result
+}
+
+// Merge the two sets. Actually just returns the other one if set
+// otherwise it returns the original set.
+// TODO: actually merge the sets here
+func (as ArchiveSet) Merge(other ArchiveSet) ArchiveSet {
+	if len(other) > 0 {
+		return other
+	}
+	return as
+}
 
 // Merge the two configurations. Returns a copy of
 // other if it is not nil, otherwise retuns a copy of c.
@@ -97,15 +197,16 @@ func (c *ChecksumConfig) Merge(other *ChecksumConfig) *ChecksumConfig {
 }
 
 // NewMover returns a new *Mover
-func NewMover(name string, dir string, checksums *ChecksumConfig) (*Mover, error) {
-	if dir == "" {
+func NewMover(config *ArchiveConfig) (*Mover, error) {
+	if config.Root == "" {
 		return nil, errors.Errorf("Invalid mover config: ArchiveDir is unset")
 	}
 
 	return &Mover{
-		Name:       name,
-		ArchiveDir: dir,
-		Checksums:  *DefaultChecksums.Merge(checksums),
+		Name:        config.Name,
+		ArchiveDir:  config.Root,
+		Compression: config.CompressionOption(),
+		Checksums:   *DefaultChecksums.Merge(config.Checksums),
 	}, nil
 }
 
@@ -216,15 +317,32 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 		return errors.Wrap(err, "archiveReader failed")
 	}
 
+	// If auto-compression enabled, determine "compressibility"
+	enableZip := true
+	if m.Compression != CompressOn {
+		enableZip = false
+	}
+
 	// Initialize Writer for backing file
 	fileID := newFileID()
+	if enableZip {
+		fileID += ".gz"
+	}
+
 	dst, err := os.Create(m.Destination(fileID))
 	if err != nil {
 		return errors.Wrapf(err, "%s: create backing file failed", m.Destination(fileID))
 	}
 	defer dst.Close()
 
-	cw := m.ChecksumWriter(dst)
+	var cw ChecksumWriter
+	if enableZip {
+		zip := gzip.NewWriter(dst)
+		defer zip.Close()
+		cw = m.ChecksumWriter(zip)
+	} else {
+		cw = m.ChecksumWriter(dst)
+	}
 
 	// Copy
 	n, err := CopyWithProgress(cw, rdr, length, action)
@@ -289,13 +407,28 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 		return errors.Wrap(err, "parse file id")
 	}
 
+	enableUnzip := false
+	if filepath.Ext(id.UUID) == ".gz" {
+		debug.Printf("%s: id:%d decompressing %s", m.Name, action.ID(), id.UUID)
+		enableUnzip = true
+	}
+
 	src, err := os.Open(m.Destination(id.UUID))
 	if err != nil {
 		return errors.Wrapf(err, "%s: open failed", m.Destination(id.UUID))
 	}
 	defer src.Close()
 
-	rdr := bufio.NewReaderSize(src, 1024*1024)
+	var rdr io.Reader = bufio.NewReaderSize(src, 1024*1024)
+
+	if enableUnzip {
+		unzip, er2 := gzip.NewReader(rdr)
+		if er2 != nil {
+			return errors.Wrap(er2, "gzip NewReader failed")
+		}
+		defer unzip.Close()
+		rdr = unzip
+	}
 
 	// Initialize Writer for restore file on Lustre
 	dst, err := os.OpenFile(action.WritePath(), os.O_WRONLY, 0644)

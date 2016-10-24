@@ -29,8 +29,8 @@ func TestPosixLoadConfig(t *testing.T) {
 
 	expected := &posixConfig{
 		NumThreads: 42,
-		Archives: archiveSet{
-			&archiveConfig{
+		Archives: posix.ArchiveSet{
+			&posix.ArchiveConfig{
 				Name: "1",
 				ID:   1,
 				Root: "/tmp/archives/1",
@@ -83,8 +83,8 @@ func TestPosixMergedConfig(t *testing.T) {
 
 	expected := &posixConfig{
 		NumThreads: 42,
-		Archives: archiveSet{
-			&archiveConfig{
+		Archives: posix.ArchiveSet{
+			&posix.ArchiveConfig{
 				Name: "1",
 				ID:   1,
 				Root: "/tmp/archives/1",
@@ -109,7 +109,7 @@ func TestPosixArchiveValidation(t *testing.T) {
 	}
 
 	for _, archive := range loaded.Archives {
-		if err := archive.checkValid(); err != nil {
+		if err := archive.CheckValid(); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -125,7 +125,7 @@ func TestPosixArchiveValidation2(t *testing.T) {
 	}
 
 	for _, archive := range loaded.Archives {
-		if err := archive.checkValid(); err == nil {
+		if err := archive.CheckValid(); err == nil {
 			t.Fatalf("expected %s to fail validation", archive)
 		}
 	}
@@ -157,20 +157,20 @@ func TestPosixChecksumConfig(t *testing.T) {
 	}
 
 	expected := &posixConfig{
-		Archives: archiveSet{
-			&archiveConfig{
+		Archives: posix.ArchiveSet{
+			&posix.ArchiveConfig{
 				Name:      "1",
 				ID:        1,
 				Root:      "/tmp/archives/1",
 				Checksums: checksumConfigs[1],
 			},
-			&archiveConfig{
+			&posix.ArchiveConfig{
 				Name:      "2",
 				ID:        2,
 				Root:      "/tmp/archives/2",
 				Checksums: checksumConfigs[2],
 			},
-			&archiveConfig{
+			&posix.ArchiveConfig{
 				Name:      "3",
 				ID:        3,
 				Root:      "/tmp/archives/3",
@@ -206,7 +206,7 @@ func TestPosixChecksumConfig(t *testing.T) {
 	}
 
 	for _, a := range loaded.Archives {
-		mover, err := posix.NewMover(a.Name, a.Root, a.Checksums)
+		mover, err := posix.NewMover(a)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}

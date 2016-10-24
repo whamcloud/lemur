@@ -5,11 +5,9 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"path"
-	"strings"
 	"syscall"
 
 	"github.com/pkg/errors"
@@ -22,18 +20,9 @@ import (
 )
 
 type (
-	archiveConfig struct {
-		Name      string                `hcl:",key"`
-		ID        int                   `hcl:"id"`
-		Root      string                `hcl:"root"`
-		Checksums *posix.ChecksumConfig `hcl:"checksums"`
-	}
-
-	archiveSet []*archiveConfig
-
 	posixConfig struct {
 		NumThreads int                   `hcl:"num_threads"`
-		Archives   archiveSet            `hcl:"archive"`
+		Archives   posix.ArchiveSet      `hcl:"archive"`
 		Checksums  *posix.ChecksumConfig `hcl:"checksums"`
 	}
 )
@@ -42,45 +31,18 @@ func (c *posixConfig) String() string {
 	return dmplugin.DisplayConfig(c)
 }
 
-func (a *archiveConfig) String() string {
-	return fmt.Sprintf("%d:%s", a.ID, a.Root)
-}
-
-func (a *archiveConfig) checkValid() error {
-	var errs []string
-
-	if a.Root == "" {
-		errs = append(errs, fmt.Sprintf("Archive %s: archive root not set", a.Name))
-	}
-
-	if a.ID < 1 {
-		errs = append(errs, fmt.Sprintf("Archive %s: archive id not set", a.Name))
-	}
-
-	if len(errs) > 0 {
-		return errors.Errorf("Errors: %s", strings.Join(errs, ", "))
-	}
-
-	return nil
-}
-
 func (c *posixConfig) Merge(other *posixConfig) *posixConfig {
 	result := new(posixConfig)
 
-	result.NumThreads = c.NumThreads
 	if other.NumThreads > 0 {
 		result.NumThreads = other.NumThreads
+	} else {
+		result.NumThreads = c.NumThreads
+
 	}
 
-	result.Archives = c.Archives
-	if len(other.Archives) > 0 {
-		result.Archives = other.Archives
-	}
-
-	result.Checksums = c.Checksums
-	if other.Checksums != nil {
-		result.Checksums = result.Checksums.Merge(other.Checksums)
-	}
+	result.Archives = c.Archives.Merge(other.Archives)
+	result.Checksums = c.Checksums.Merge(other.Checksums)
 
 	return result
 }
@@ -97,7 +59,7 @@ func start(plugin *dmplugin.Plugin, cfg *posixConfig) {
 	})
 
 	for _, a := range cfg.Archives {
-		mover, err := posix.NewMover(a.Name, a.Root, a.Checksums)
+		mover, err := posix.NewMover(a)
 		if err != nil {
 			alert.Abort(errors.Wrap(err, "Unable to create new POSIX mover"))
 		}
@@ -148,7 +110,7 @@ func main() {
 
 	for _, archive := range cfg.Archives {
 		debug.Print(archive)
-		if err := archive.checkValid(); err != nil {
+		if err := archive.CheckValid(); err != nil {
 			alert.Abort(errors.Wrap(err, "Invalid configuration"))
 		}
 	}

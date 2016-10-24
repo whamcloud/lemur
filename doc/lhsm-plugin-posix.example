@@ -10,4 +10,10 @@
 # archive  "s3-test" {
 #    id = 2                     # Must be unique to this endpoint
 #    root = "/path/to/archvie"  # The base directory of the archive
+#    compression = "off"        # Enable data compression with "on"
+#
+#    checksums {
+#         disabled = false       # Generating checksums is enabled by default
+#         disable_compare_on_restore = false # Ignore existing checksums during restore
+#    }
 # }
