@@ -142,7 +142,7 @@ func init() {
 
 func s3Svc(region string, endpoint string) *s3.S3 {
 	// TODO: Allow more per-archive configuration options?
-	cfg := aws.NewConfig().WithRegion(region).WithLogLevel(aws.LogDebug)
+	cfg := aws.NewConfig().WithRegion(region)
 	if endpoint != "" {
 		cfg.WithEndpoint(endpoint)
 		cfg.WithS3ForcePathStyle(true)
