@@ -7,7 +7,7 @@ VERSION := $(shell git describe --tags --always --dirty | tr '-' '_')
 BUILDDATE := $(shell date -u +"%B %d, %Y")
 GOVERSION := $(shell go version)
 PKG_RELEASE ?= 1
-PROJECT_URL := "https://github.intel.comcom/hpdd/$(NAME)"
+PROJECT_URL := "https://github.com/intel-hpdd/$(NAME)"
 LDFLAGS := -X 'main.version=$(VERSION)'
 FEATURE_TESTS := uat/features
 
