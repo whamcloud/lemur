@@ -2,7 +2,7 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 
-package posix
+package checksum
 
 import (
 	"crypto/sha1"
@@ -14,21 +14,21 @@ import (
 )
 
 type (
-	// ChecksumWriter wraps an io.WriterAt and updates the checksum
+	// Writer wraps an io.WriterAt and updates the checksum
 	// with every write.
-	ChecksumWriter interface {
+	Writer interface {
 		io.Writer
 		Sum() []byte
 	}
 
-	// Sha1HashWriter implements ChecksumWriter and uses the SHA1
+	// Sha1HashWriter implements Writer and uses the SHA1
 	// algorithm to calculate the file checksum
 	Sha1HashWriter struct {
 		dest  io.Writer
 		cksum hash.Hash
 	}
 
-	// NoopHashWriter implements ChecksumWriter but doesn't
+	// NoopHashWriter implements Writer but doesn't
 	// actually calculate a checksum
 	NoopHashWriter struct {
 		dest io.Writer
@@ -36,7 +36,7 @@ type (
 )
 
 // NewSha1HashWriter returns a new Sha1HashWriter
-func NewSha1HashWriter(dest io.Writer) ChecksumWriter {
+func NewSha1HashWriter(dest io.Writer) Writer {
 	return &Sha1HashWriter{
 		dest:  dest,
 		cksum: sha1.New(),
@@ -58,7 +58,7 @@ func (hw *Sha1HashWriter) Sum() []byte {
 }
 
 // NewNoopHashWriter returns a new NoopHashWriter
-func NewNoopHashWriter(dest io.Writer) ChecksumWriter {
+func NewNoopHashWriter(dest io.Writer) Writer {
 	return &NoopHashWriter{
 		dest: dest,
 	}

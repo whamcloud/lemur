@@ -17,6 +17,7 @@ import (
 	"github.com/intel-hpdd/lemur/cmd/lhsm-plugin-posix/posix"
 	"github.com/intel-hpdd/lemur/dmplugin"
 	"github.com/intel-hpdd/lemur/internal/testhelpers"
+	"github.com/intel-hpdd/lemur/pkg/checksum"
 	"github.com/intel-hpdd/logging/debug"
 )
 
@@ -91,7 +92,7 @@ func TestPosixExtents(t *testing.T) {
 			t.Fatal(err)
 		}
 		actualSize := uint64(st.Size())
-		startSum, err := posix.FileSha1Sum(tfile)
+		startSum, err := checksum.FileSha1Sum(tfile)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -124,7 +125,7 @@ func TestPosixExtents(t *testing.T) {
 			}
 		}
 
-		endSum, err := posix.FileSha1Sum(tfile)
+		endSum, err := checksum.FileSha1Sum(tfile)
 		if err != nil {
 			t.Fatal(err)
 		}

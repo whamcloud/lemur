@@ -19,6 +19,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/intel-hpdd/lemur/dmplugin"
+	"github.com/intel-hpdd/lemur/pkg/checksum"
 	"github.com/intel-hpdd/lemur/pkg/progress"
 	"github.com/intel-hpdd/logging/alert"
 	"github.com/intel-hpdd/logging/audit"
@@ -239,11 +240,11 @@ func (m *Mover) ChecksumEnabled() bool {
 }
 
 // ChecksumWriter returns an instance of its namesake.
-func (m *Mover) ChecksumWriter(dst io.Writer) (cw ChecksumWriter) {
+func (m *Mover) ChecksumWriter(dst io.Writer) (cw checksum.Writer) {
 	if m.ChecksumEnabled() {
-		cw = NewSha1HashWriter(dst)
+		cw = checksum.NewSha1HashWriter(dst)
 	} else {
-		cw = NewNoopHashWriter(dst)
+		cw = checksum.NewNoopHashWriter(dst)
 	}
 	return
 }
@@ -335,7 +336,7 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 	}
 	defer dst.Close()
 
-	var cw ChecksumWriter
+	var cw checksum.Writer
 	if enableZip {
 		zip := gzip.NewWriter(dst)
 		defer zip.Close()
