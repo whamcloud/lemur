@@ -5,6 +5,7 @@
 package posix_test
 
 import (
+	"bytes"
 	"math"
 	"os"
 	"path/filepath"
@@ -72,6 +73,68 @@ func defaultChecksum(cfg *posix.ArchiveConfig) *posix.ArchiveConfig {
 	return cfg
 }
 
+func TestPosixExtents(t *testing.T) {
+	WithPosixMover(t, nil, func(t *testing.T, mover *posix.Mover) {
+		type extent struct {
+			id     []byte
+			offset uint64
+			length uint64
+		}
+		var extents []extent
+		var maxExtent uint64 = 1024 * 1024
+		var fileSize uint64 = 20*1024*1024 + 42
+		tfile, cleanFile := testhelpers.TempFile(t, fileSize)
+		defer cleanFile()
+
+		st, err := os.Stat(tfile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		actualSize := uint64(st.Size())
+		startSum, err := posix.FileSha1Sum(tfile)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for offset := uint64(0); offset < actualSize; offset += maxExtent {
+			length := maxExtent
+			if offset+maxExtent > actualSize {
+				length = actualSize - offset
+			}
+			aa := dmplugin.NewTestAction(t, tfile, offset, length, nil, nil)
+			if err := mover.Archive(aa); err != nil {
+				t.Fatal(err)
+			}
+			extents = append(extents, extent{aa.FileID(), offset, length})
+
+			debug.Printf("%d/%d/%d: %s", offset, offset+length, actualSize, aa.FileID())
+		}
+
+		// Zap the test file like it was released before restoring
+		// the data.
+		if err := os.Truncate(tfile, 0); err != nil {
+			t.Fatal(err)
+		}
+
+		for _, extent := range extents {
+			ra := dmplugin.NewTestAction(t, tfile, extent.offset, extent.length, extent.id, nil)
+
+			if err := mover.Restore(ra); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		endSum, err := posix.FileSha1Sum(tfile)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if !bytes.Equal(endSum, startSum) {
+			t.Fatalf("dest sum (%x) != source sum (%x)", endSum, startSum)
+		}
+	})
+}
+
 func TestPosixArchive(t *testing.T) {
 	WithPosixMover(t, nil, func(t *testing.T, mover *posix.Mover) {
 		// trigger two updates (at current interval of 10MB
@@ -112,6 +175,7 @@ func TestPosixArchiveDefaultChecksum(t *testing.T) {
 		testRestore(t, mover, 0, length, action.FileID(), nil)
 	})
 }
+
 func TestPosixArchiveDefaultChecksumCompress(t *testing.T) {
 	enableCompress := func(cfg *posix.ArchiveConfig) *posix.ArchiveConfig {
 		return cfg.Merge(&posix.ArchiveConfig{
@@ -231,6 +295,7 @@ func combine(fnlist ...func(*posix.ArchiveConfig) *posix.ArchiveConfig) func(*po
 		return v
 	}
 }
+
 func TestPosixArchiveNoChecksumRestore(t *testing.T) {
 	updateConf := func(cfg *posix.ArchiveConfig) *posix.ArchiveConfig {
 		return cfg.Merge(&posix.ArchiveConfig{
