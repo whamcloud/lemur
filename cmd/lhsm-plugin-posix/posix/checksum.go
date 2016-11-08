@@ -8,6 +8,7 @@ import (
 	"crypto/sha1"
 	"hash"
 	"io"
+	"os"
 
 	"github.com/pkg/errors"
 )
@@ -71,4 +72,21 @@ func (hw *NoopHashWriter) Write(b []byte) (int, error) {
 // Sum returns a dummy checksum
 func (hw *NoopHashWriter) Sum() []byte {
 	return []byte{}
+}
+
+// FileSha1Sum returns the SHA1 checksum for the supplied file path
+func FileSha1Sum(filePath string) ([]byte, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to open %s for checksum", filePath)
+	}
+	defer file.Close()
+
+	hash := sha1.New()
+	_, err = io.Copy(hash, file)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to compute checksum for %s")
+	}
+
+	return hash.Sum(nil), nil
 }
