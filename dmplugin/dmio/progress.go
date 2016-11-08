@@ -2,7 +2,7 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 
-package progress
+package dmio
 
 import (
 	"io"
@@ -19,37 +19,30 @@ const ckSumSig = 32 * 1024
 type (
 	progressFunc func(uint64, uint64) error
 
-	// ReaderAtSeeker groups the io.ReaderAt and io.Seeker interfaces
-	ReaderAtSeeker interface {
-		io.ReaderAt
-		io.Reader
-		io.Seeker
-	}
-
 	progressUpdater struct {
 		done        chan struct{}
 		bytesCopied uint64
 	}
 
-	// Reader wraps an io.ReaderAt and periodically invokes the
+	// ProgressReader wraps an io.ReaderAt and periodically invokes the
 	// supplied callback to provide progress updates.
-	Reader struct {
+	ProgressReader struct {
 		progressUpdater
 
-		src ReaderAtSeeker
+		src io.ReadSeeker
 	}
 
-	// Writer wraps an io.Writer and periodically invokes the
+	// ProgressWriter wraps an io.Writer and periodically invokes the
 	// supplied callback to provide progress updates.
-	Writer struct {
+	ProgressWriter struct {
 		progressUpdater
 
 		dst io.Writer
 	}
 
-	// WriterAt wraps an io.WriterAt and periodically invokes the
+	// ProgressWriterAt wraps an io.WriterAt and periodically invokes the
 	// supplied callback to provide progress updates.
-	WriterAt struct {
+	ProgressWriterAt struct {
 		progressUpdater
 
 		dst io.WriterAt
@@ -89,12 +82,12 @@ func (p *progressUpdater) StopUpdates() {
 }
 
 // Seek calls the wrapped Seeker's Seek
-func (r *Reader) Seek(offset int64, whence int) (int64, error) {
+func (r *ProgressReader) Seek(offset int64, whence int) (int64, error) {
 	return r.src.Seek(offset, whence)
 }
 
 // Read calls internal Read and tracks how many bytes were read.
-func (r *Reader) Read(p []byte) (n int, err error) {
+func (r *ProgressReader) Read(p []byte) (n int, err error) {
 	n, err = r.src.Read(p)
 	atomic.AddUint64(&r.bytesCopied, uint64(n))
 	return
@@ -124,7 +117,7 @@ func (r *Reader) Read(p []byte) (n int, err error) {
 // input source. It returns the number of bytes read (0 <= n <= len(p)) and
 // any error encountered.
 /*
-func (r *Reader) ReadAt(p []byte, off int64) (int, error) {
+func (r *ProgressReader) ReadAt(p []byte, off int64) (int, error) {
 	n, err := r.src.ReadAt(p, off)
 
 	// Stupid hack to work around double-counting for progress updates.
@@ -138,9 +131,9 @@ func (r *Reader) ReadAt(p []byte, off int64) (int, error) {
 }
 */
 
-// NewReader returns a new Reader
-func NewReader(src ReaderAtSeeker, updateEvery time.Duration, f progressFunc) *Reader {
-	r := &Reader{
+// NewProgressReader returns a new *ProgressReader
+func NewProgressReader(src io.ReadSeeker, updateEvery time.Duration, f progressFunc) *ProgressReader {
+	r := &ProgressReader{
 		src: src,
 	}
 
@@ -153,7 +146,7 @@ func NewReader(src ReaderAtSeeker, updateEvery time.Duration, f progressFunc) *R
 // offset off. It returns the number of bytes written from p (0 <= n <= len(p))
 // and any error encountered that caused the write to stop early. WriteAt
 // must return a non-nil error if it returns n < len(p).
-func (w *Writer) Write(p []byte) (int, error) {
+func (w *ProgressWriter) Write(p []byte) (int, error) {
 	n, err := w.dst.Write(p)
 
 	atomic.AddUint64(&w.bytesCopied, uint64(n))
@@ -162,9 +155,9 @@ func (w *Writer) Write(p []byte) (int, error) {
 
 }
 
-// NewWriter returns a new Writer
-func NewWriter(dst io.Writer, updateEvery time.Duration, f progressFunc) *Writer {
-	w := &Writer{
+// NewProgressWriter returns a new *ProgressWriter
+func NewProgressWriter(dst io.Writer, updateEvery time.Duration, f progressFunc) *ProgressWriter {
+	w := &ProgressWriter{
 		dst: dst,
 	}
 	w.startUpdates(updateEvery, f)
@@ -176,7 +169,7 @@ func NewWriter(dst io.Writer, updateEvery time.Duration, f progressFunc) *Writer
 // offset off. It returns the number of bytes written from p (0 <= n <= len(p))
 // and any error encountered that caused the write to stop early. WriteAt
 // must return a non-nil error if it returns n < len(p).
-func (w *WriterAt) WriteAt(p []byte, off int64) (int, error) {
+func (w *ProgressWriterAt) WriteAt(p []byte, off int64) (int, error) {
 	n, err := w.dst.WriteAt(p, off)
 
 	atomic.AddUint64(&w.bytesCopied, uint64(n))
@@ -184,9 +177,9 @@ func (w *WriterAt) WriteAt(p []byte, off int64) (int, error) {
 	return n, err
 }
 
-// NewWriterAt returns a new Writer
-func NewWriterAt(dst io.WriterAt, updateEvery time.Duration, f progressFunc) *WriterAt {
-	w := &WriterAt{
+// NewProgressWriterAt returns a new *ProgressWriterAt
+func NewProgressWriterAt(dst io.WriterAt, updateEvery time.Duration, f progressFunc) *ProgressWriterAt {
+	w := &ProgressWriterAt{
 		dst: dst,
 	}
 	w.startUpdates(updateEvery, f)

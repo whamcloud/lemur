@@ -20,7 +20,6 @@ import (
 	"github.com/intel-hpdd/lemur/dmplugin"
 	"github.com/intel-hpdd/lemur/dmplugin/dmio"
 	"github.com/intel-hpdd/lemur/pkg/checksum"
-	"github.com/intel-hpdd/lemur/pkg/progress"
 	"github.com/intel-hpdd/logging/alert"
 	"github.com/intel-hpdd/logging/audit"
 	"github.com/intel-hpdd/logging/debug"
@@ -220,7 +219,7 @@ func CopyWithProgress(dst io.Writer, src io.Reader, length int64, action dmplugi
 	progressFunc := func(offset, n uint64) error {
 		return action.Update(offset, n, uint64(length))
 	}
-	progressWriter := progress.NewWriter(dst, updateInterval, progressFunc)
+	progressWriter := dmio.NewProgressWriter(dst, updateInterval, progressFunc)
 	defer progressWriter.StopUpdates()
 
 	n, err := io.Copy(progressWriter, src)

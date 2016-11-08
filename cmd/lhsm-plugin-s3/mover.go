@@ -17,7 +17,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/intel-hpdd/lemur/dmplugin"
-	"github.com/intel-hpdd/lemur/pkg/progress"
+	"github.com/intel-hpdd/lemur/dmplugin/dmio"
 	"github.com/intel-hpdd/logging/alert"
 	"github.com/intel-hpdd/logging/debug"
 	"github.com/pborman/uuid"
@@ -91,24 +91,19 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 	rate.Mark(1)
 	start := time.Now()
 
-	src, err := os.Open(action.PrimaryPath())
-	if err != nil {
-		return errors.Wrapf(err, "%s: open failed", action.PrimaryPath())
-	}
-	defer src.Close()
-
-	fi, err := src.Stat()
-	if err != nil {
-		return errors.Wrap(err, "stat failed")
-	}
-
 	fileID := newFileID()
 	fileKey := m.destination(fileID)
-	size := fi.Size()
-	progressFunc := func(offset, length uint64) error {
-		return action.Update(offset, length, uint64(size))
+
+	rdr, total, err := dmio.NewActionReader(action)
+	if err != nil {
+		return errors.Wrapf(err, "Could not create archive reader for %s", action)
 	}
-	progressReader := progress.NewReader(src, updateInterval, progressFunc)
+	defer rdr.Close()
+
+	progressFunc := func(offset, length uint64) error {
+		return action.Update(offset, length, uint64(total))
+	}
+	progressReader := dmio.NewProgressReader(rdr, updateInterval, progressFunc)
 	defer progressReader.StopUpdates()
 
 	uploader := m.newUploader()
@@ -125,7 +120,7 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 		return errors.Wrap(err, "upload failed")
 	}
 
-	debug.Printf("%s id:%d Archived %d bytes in %v from %s to %s", m.name, action.ID(), fi.Size(),
+	debug.Printf("%s id:%d Archived %d bytes in %v from %s to %s", m.name, action.ID(), total,
 		time.Since(start),
 		action.PrimaryPath(),
 		out.Location)
@@ -137,7 +132,7 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 	}
 
 	action.SetFileID([]byte(u.String()))
-	action.SetActualLength(uint64(fi.Size()))
+	action.SetActualLength(uint64(total))
 	return nil
 }
 
@@ -176,7 +171,7 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	progressFunc := func(offset, length uint64) error {
 		return action.Update(offset, length, uint64(dstSize))
 	}
-	progressWriter := progress.NewWriterAt(dst, updateInterval, progressFunc)
+	progressWriter := dmio.NewProgressWriterAt(dst, updateInterval, progressFunc)
 	defer progressWriter.StopUpdates()
 
 	downloader := m.newDownloader()
