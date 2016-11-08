@@ -102,7 +102,7 @@ func (a *TestAction) SetFileID(id []byte) {
 // SetActualLength sets the action's actual file length
 func (a *TestAction) SetActualLength(length uint64) {
 	if a.length != math.MaxUint64 && length != a.length {
-		a.t.Fatalf("actual length does not match original %d !=%d", length, a.length)
+		a.t.Fatalf("actual length does not match original %d != %d", length, a.length)
 	}
 	a.ActualLength = int(length)
 }

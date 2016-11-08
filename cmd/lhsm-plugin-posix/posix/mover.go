@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -19,6 +18,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/intel-hpdd/lemur/dmplugin"
+	"github.com/intel-hpdd/lemur/dmplugin/dmio"
 	"github.com/intel-hpdd/lemur/pkg/checksum"
 	"github.com/intel-hpdd/lemur/pkg/progress"
 	"github.com/intel-hpdd/logging/alert"
@@ -269,37 +269,6 @@ func (m *Mover) Start() {
 	debug.Printf("%s started", m.Name)
 }
 
-func actualLength(action dmplugin.Action, fp *os.File) (int64, error) {
-	var length int64
-	if action.Length() == math.MaxUint64 {
-		fi, err := fp.Stat()
-		if err != nil {
-			return 0, errors.Wrap(err, "stat failed")
-		}
-
-		length = fi.Size() - int64(action.Offset())
-	} else {
-		// TODO: Sanity check length + offset with actual file size?
-		length = int64(action.Length())
-	}
-	return length, nil
-}
-
-func archiveReader(action dmplugin.Action, fp *os.File) (io.Reader, int64, error) {
-	length, err := actualLength(action, fp)
-	if err != nil {
-		return nil, 0, errors.Wrap(err, "actualLength failed")
-	}
-
-	var r io.Reader = fp
-	if action.Offset() > 0 || action.Length() != math.MaxUint64 {
-		r = io.NewSectionReader(fp, int64(action.Offset()), length)
-	}
-
-	return bufio.NewReaderSize(r, 1024*1024), length, nil
-
-}
-
 // Archive fulfills an HSM Archive request
 func (m *Mover) Archive(action dmplugin.Action) error {
 	debug.Printf("%s id:%d ARCHIVE %s", m.Name, action.ID(), action.PrimaryPath())
@@ -307,16 +276,11 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 	start := time.Now()
 
 	// Initialize Reader for Lustre file
-	src, err := os.Open(action.PrimaryPath())
+	rdr, total, err := dmio.NewBufferedActionReader(action)
 	if err != nil {
-		return errors.Wrapf(err, "%s: open primary failed", action.PrimaryPath())
+		return errors.Wrapf(err, "Could not create archive reader for %s", action)
 	}
-	defer src.Close()
-
-	rdr, length, err := archiveReader(action, src)
-	if err != nil {
-		return errors.Wrap(err, "archiveReader failed")
-	}
+	defer rdr.Close()
 
 	// If auto-compression enabled, determine "compressibility"
 	enableZip := true
@@ -346,9 +310,9 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 	}
 
 	// Copy
-	n, err := CopyWithProgress(cw, rdr, length, action)
+	n, err := CopyWithProgress(cw, rdr, total, action)
 	if err != nil {
-		debug.Printf("copy error %v read %d expected %d", err, n, length)
+		debug.Printf("copy error %v read %d expected %d", err, n, total)
 		return errors.Wrap(err, "copy failed")
 	}
 
@@ -420,7 +384,7 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	}
 	defer src.Close()
 
-	var rdr io.Reader = bufio.NewReaderSize(src, 1024*1024)
+	var rdr io.Reader = bufio.NewReaderSize(src, dmio.BufferSize)
 
 	if enableUnzip {
 		unzip, er2 := gzip.NewReader(rdr)
@@ -438,9 +402,9 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	}
 	defer dst.Close()
 
-	length, err := actualLength(action, dst)
+	length, err := dmio.ActualLength(action, dst)
 	if err != nil {
-		return errors.Wrap(err, "actualLength")
+		return errors.Wrap(err, "Unable to determine actual file length")
 	}
 
 	dst.Seek(int64(action.Offset()), 0)

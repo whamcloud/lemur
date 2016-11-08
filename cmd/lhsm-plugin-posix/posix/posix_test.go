@@ -83,7 +83,7 @@ func TestPosixExtents(t *testing.T) {
 		}
 		var extents []extent
 		var maxExtent uint64 = 1024 * 1024
-		var fileSize uint64 = 20*1024*1024 + 42
+		var fileSize uint64 = 4*1024*1024 + 42
 		tfile, cleanFile := testhelpers.TempFile(t, fileSize)
 		defer cleanFile()
 
@@ -131,7 +131,7 @@ func TestPosixExtents(t *testing.T) {
 		}
 
 		if !bytes.Equal(endSum, startSum) {
-			t.Fatalf("dest sum (%x) != source sum (%x)", endSum, startSum)
+			t.Fatalf("end sum (%x) != start sum (%x)", endSum, startSum)
 		}
 	})
 }
