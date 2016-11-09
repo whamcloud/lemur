@@ -14,6 +14,15 @@ import (
 var BufferSize = 1024 * 1024
 
 type (
+	statter interface {
+		Stat() (os.FileInfo, error)
+	}
+
+	writerWriterAt interface {
+		io.WriterAt
+		io.Writer
+	}
+
 	// ActionReader wraps an io.SectionReader and also implements
 	// io.Closer by closing the embedded io.Closer.
 	ActionReader struct {
@@ -26,6 +35,15 @@ type (
 	BufferedActionReader struct {
 		br     *bufio.Reader
 		closer io.Closer
+	}
+
+	// ActionWriter wraps an io.WriterAt but imposes a base offset
+	// determined by the action's extent.
+	ActionWriter struct {
+		baseOffset int64
+		wwa        writerWriterAt
+		statter    statter
+		closer     io.Closer
 	}
 )
 
@@ -54,10 +72,31 @@ func (bar *BufferedActionReader) Read(p []byte) (int, error) {
 	return bar.br.Read(p)
 }
 
+// Close calls the embedded io.Closer's Close()
+func (aw *ActionWriter) Close() error {
+	return aw.closer.Close()
+}
+
+// WriteAt calls the embedded io.WriterAt's WriteAt(), with the
+// offset adjusted by the base offset.
+func (aw *ActionWriter) WriteAt(p []byte, off int64) (int, error) {
+	return aw.wwa.WriteAt(p, aw.baseOffset+off)
+}
+
+// Write calls the embedded io.Writer's Write().
+func (aw *ActionWriter) Write(p []byte) (int, error) {
+	return aw.wwa.Write(p)
+}
+
+// Stat calls the embedded statter's Stat().
+func (aw *ActionWriter) Stat() (os.FileInfo, error) {
+	return aw.statter.Stat()
+}
+
 // ActualLength returns the length embedded in the action if it is not
 // Inf (i.e. when it's an extent). Otherwise, interpret it as EOF
 // and stat the actual file to determine the length on disk.
-func ActualLength(action dmplugin.Action, fp *os.File) (int64, error) {
+func ActualLength(action dmplugin.Action, fp statter) (int64, error) {
 	var length int64
 	if action.Length() == math.MaxUint64 {
 		fi, err := fp.Stat()
@@ -91,7 +130,7 @@ func NewBufferedActionReader(action dmplugin.Action) (*BufferedActionReader, int
 func NewActionReader(action dmplugin.Action) (*ActionReader, int64, error) {
 	src, err := os.Open(action.PrimaryPath())
 	if err != nil {
-		return nil, 0, errors.Wrapf(err, "Failed to open %s for archive", action.PrimaryPath())
+		return nil, 0, errors.Wrapf(err, "Failed to open %s for read", action.PrimaryPath())
 	}
 
 	length, err := ActualLength(action, src)
@@ -103,4 +142,22 @@ func NewActionReader(action dmplugin.Action) (*ActionReader, int64, error) {
 		sr:     io.NewSectionReader(src, int64(action.Offset()), length),
 		closer: src,
 	}, length, nil
+}
+
+// NewActionWriter returns an *ActionWriter for the supplied action.
+func NewActionWriter(action dmplugin.Action) (*ActionWriter, error) {
+	dst, err := os.OpenFile(action.WritePath(), os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to open %s for write", action.WritePath())
+	}
+
+	// Set up for simple Write()
+	dst.Seek(int64(action.Offset()), 0)
+
+	return &ActionWriter{
+		baseOffset: int64(action.Offset()),
+		wwa:        dst,
+		statter:    dst,
+		closer:     dst,
+	}, nil
 }

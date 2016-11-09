@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bytes"
 	"math"
 	"os"
 	"testing"
@@ -12,6 +13,8 @@ import (
 
 	"github.com/intel-hpdd/lemur/dmplugin"
 	"github.com/intel-hpdd/lemur/internal/testhelpers"
+	"github.com/intel-hpdd/lemur/pkg/checksum"
+	"github.com/intel-hpdd/logging/debug"
 )
 
 func testArchive(t *testing.T, mover *Mover, path string, offset uint64, length uint64, fileID []byte, data []byte) *dmplugin.TestAction {
@@ -60,6 +63,70 @@ func testDestinationFile(t *testing.T, mover *Mover, buf []byte) string {
 	return mover.Destination(fileID.UUID)
 }
 */
+
+func TestS3Extents(t *testing.T) {
+	WithS3Mover(t, nil, func(t *testing.T, mover *Mover) {
+		type extent struct {
+			id     []byte
+			offset uint64
+			length uint64
+		}
+		var extents []extent
+		var maxExtent uint64 = 1024 * 1024
+		var fileSize uint64 = 4*1024*1024 + 42
+		tfile, cleanFile := testhelpers.TempFile(t, fileSize)
+		defer cleanFile()
+
+		st, err := os.Stat(tfile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		actualSize := uint64(st.Size())
+		startSum, err := checksum.FileSha1Sum(tfile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		debug.Printf("%s actual size: %d", tfile, actualSize)
+
+		for offset := uint64(0); offset < actualSize; offset += maxExtent {
+			length := maxExtent
+			if offset+maxExtent > actualSize {
+				length = actualSize - offset
+			}
+			aa := dmplugin.NewTestAction(t, tfile, offset, length, nil, nil)
+			if err := mover.Archive(aa); err != nil {
+				t.Fatal(err)
+			}
+			extents = append(extents, extent{aa.FileID(), offset, length})
+
+			debug.Printf("ARCHIVE %d/%d/%d: %s", offset, offset+length, actualSize, aa.FileID())
+		}
+
+		// Zap the test file like it was released before restoring
+		// the data.
+		if err := os.Truncate(tfile, 0); err != nil {
+			t.Fatal(err)
+		}
+		for _, extent := range extents {
+			ra := dmplugin.NewTestAction(t, tfile, extent.offset, extent.length, extent.id, nil)
+
+			if err := mover.Restore(ra); err != nil {
+				t.Fatal(err)
+			}
+
+			debug.Printf("RESTORE %d/%d/%d: %s", extent.offset, extent.offset+extent.length, actualSize, ra.FileID())
+		}
+
+		endSum, err := checksum.FileSha1Sum(tfile)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if !bytes.Equal(endSum, startSum) {
+			t.Fatalf("end sum (%x) != start sum (%x)", endSum, startSum)
+		}
+	})
+}
 
 func TestS3Archive(t *testing.T) {
 	WithS3Mover(t, nil, func(t *testing.T, mover *Mover) {

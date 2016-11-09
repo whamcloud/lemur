@@ -7,7 +7,6 @@ package main
 import (
 	"fmt"
 	"net/url"
-	"os"
 	"path"
 	"time"
 
@@ -156,15 +155,14 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	})
 
 	if err != nil {
-		return errors.Errorf("s3.HeadObject() on %s failed: %s", srcObj, err)
+		return errors.Wrapf(err, "s3.HeadObject() on %s failed", srcObj)
 	}
 	debug.Printf("obj %s, size %d", srcObj, *out.ContentLength)
 
 	dstSize := *out.ContentLength
-	dstPath := action.WritePath()
-	dst, err := os.OpenFile(dstPath, os.O_WRONLY, 0644)
+	dst, err := dmio.NewActionWriter(action)
 	if err != nil {
-		return errors.Errorf("Couldn't open %s for write: %s", dstPath, err)
+		return errors.Wrapf(err, "Couldn't create ActionWriter for %s", action)
 	}
 	defer dst.Close()
 

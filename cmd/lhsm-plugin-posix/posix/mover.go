@@ -395,9 +395,9 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	}
 
 	// Initialize Writer for restore file on Lustre
-	dst, err := os.OpenFile(action.WritePath(), os.O_WRONLY, 0644)
+	dst, err := dmio.NewActionWriter(action)
 	if err != nil {
-		return errors.Wrapf(err, "%s open write failed", action.WritePath())
+		return errors.Wrapf(err, "Failed to create ActionWriter for %s", action)
 	}
 	defer dst.Close()
 
@@ -405,8 +405,6 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	if err != nil {
 		return errors.Wrap(err, "Unable to determine actual file length")
 	}
-
-	dst.Seek(int64(action.Offset()), 0)
 
 	cw := m.ChecksumWriter(dst)
 
