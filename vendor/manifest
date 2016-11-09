@@ -193,14 +193,6 @@
 			"notests": true
 		},
 		{
-			"importpath": "github.com/mjmac/go-ps",
-			"repository": "https://github.com/mjmac/go-ps",
-			"vcs": "git",
-			"revision": "a2485d5683a03742c047901ac298a8c29108296c",
-			"branch": "master",
-			"notests": true
-		},
-		{
 			"importpath": "github.com/pborman/uuid",
 			"repository": "https://github.com/pborman/uuid",
 			"vcs": "git",
