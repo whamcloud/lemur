@@ -33,8 +33,12 @@ These are the configuration options available.
 
      `compression`
      :     If set to "on", all data will be compressed when written to the backend. Compressed
-           data objects will be automatically uncompressed during restore even if this option has been 
+           data objects will be automatically uncompressed during restore even if this option has been
            subsequently disabled.
+           If set to "auto", then a small portion of each file will be compressed to determine
+           if the file should be compressed or not. If the initial check yields better than 30%
+           compression, the the file will be compressed. This still an experimental feature
+           and will likely need further refinement and optimization.
 
      `checksums`
      :    By default, data checksums are created when a file is archived and validated on restore.

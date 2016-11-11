@@ -20,6 +20,7 @@ import (
 	"github.com/intel-hpdd/lemur/dmplugin"
 	"github.com/intel-hpdd/lemur/dmplugin/dmio"
 	"github.com/intel-hpdd/lemur/pkg/checksum"
+	"github.com/intel-hpdd/lemur/pkg/zipcheck"
 	"github.com/intel-hpdd/logging/alert"
 	"github.com/intel-hpdd/logging/audit"
 	"github.com/intel-hpdd/logging/debug"
@@ -139,7 +140,7 @@ func (a *ArchiveConfig) CompressionOption() CompressionOption {
 	case "off":
 		return CompressOff
 	case "auto":
-		return CompressOn // TODO: implement auto compresion
+		return CompressAuto
 	default:
 		return CompressOff
 	}
@@ -282,9 +283,19 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 	defer rdr.Close()
 
 	// If auto-compression enabled, determine "compressibility"
-	enableZip := true
-	if m.Compression != CompressOn {
-		enableZip = false
+	enableZip := false
+	switch m.Compression {
+	case CompressOn:
+		enableZip = true
+	case CompressAuto:
+		reduction, e2 := zipcheck.AnalyzeFile(action.PrimaryPath())
+		if e2 != nil {
+			return errors.Wrapf(e2, "AnalyzeFile failed")
+		}
+		if reduction > 30.0 {
+			debug.Printf("%s id:%d ZIP %s estimate %0.1f%% reduction", m.Name, action.ID(), action.PrimaryPath(), reduction)
+			enableZip = true
+		}
 	}
 
 	// Initialize Writer for backing file
