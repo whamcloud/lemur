@@ -14,8 +14,12 @@ package llapi
 //
 import "C"
 import (
+	"math"
 	"syscall"
 	"unsafe"
+
+	lustre "github.com/intel-hpdd/go-lustre"
+	"github.com/pkg/errors"
 )
 
 func isError(rc C.int, err error) error {
@@ -26,6 +30,21 @@ func isError(rc C.int, err error) error {
 		return syscall.Errno(-rc)
 	}
 	return nil
+}
+
+func safeInt64(in uint64) (out int64, err error) {
+	// The coordinator uses this value to signify EOF.
+	if in == math.MaxUint64 {
+		out = lustre.MaxExtentLength
+		return
+	}
+
+	out = int64(in)
+	if out < 0 {
+		err = errors.Errorf("%d overflows int64", in)
+	}
+
+	return
 }
 
 // GetVersion returns the version of lustre installed on the host.

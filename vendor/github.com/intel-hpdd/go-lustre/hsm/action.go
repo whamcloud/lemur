@@ -9,11 +9,11 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/intel-hpdd/logging/alert"
 	"github.com/intel-hpdd/go-lustre"
 	"github.com/intel-hpdd/go-lustre/fs"
 	"github.com/intel-hpdd/go-lustre/llapi"
 	"github.com/intel-hpdd/go-lustre/status"
+	"github.com/intel-hpdd/logging/alert"
 	"golang.org/x/sys/unix"
 )
 
@@ -125,16 +125,16 @@ type (
 
 	// ActionHandle is an HSM action that is currently being processed
 	ActionHandle interface {
-		Progress(offset uint64, length uint64, totalLength uint64, flags int) error
-		End(offset uint64, length uint64, flags int, errval int) error
+		Progress(offset, length, totalLength int64, flags int) error
+		End(offset, length int64, flags int, errval int) error
 		Action() llapi.HsmAction
 		Fid() *lustre.Fid
 		Cookie() uint64
 		DataFid() (*lustre.Fid, error)
 		Fd() (int, error)
-		Offset() uint64
+		Offset() int64
 		ArchiveID() uint
-		Length() uint64
+		Length() int64
 		String() string
 		Data() []byte
 	}
@@ -222,8 +222,8 @@ func (ai *actionItem) FailImmediately(errval int) {
 	aih.End(0, 0, 0, errval)
 }
 
-func lengthStr(length uint64) string {
-	if length == ^uint64(0) {
+func lengthStr(length int64) string {
+	if length == lustre.MaxExtentLength {
 		return "EOF"
 	}
 	return fmt.Sprintf("%d", length)
@@ -234,7 +234,7 @@ func (ai *actionItem) String() string {
 }
 
 // Progress reports current progress of an action.
-func (ai *actionItem) Progress(offset uint64, length uint64, totalLength uint64, flags int) error {
+func (ai *actionItem) Progress(offset, length, totalLength int64, flags int) error {
 	ai.mu.Lock()
 	defer ai.mu.Unlock()
 	return llapi.HsmActionProgress(ai.hcap, offset, length, totalLength, flags)
@@ -242,7 +242,7 @@ func (ai *actionItem) Progress(offset uint64, length uint64, totalLength uint64,
 
 // End completes an action with specified status.
 // No more requests should be made on this action after calling this.
-func (ai *actionItem) End(offset uint64, length uint64, flags int, errval int) error {
+func (ai *actionItem) End(offset, length int64, flags int, errval int) error {
 	ai.mu.Lock()
 	defer ai.mu.Unlock()
 	return llapi.HsmActionEnd(&ai.hcap, offset, length, flags, errval)
@@ -274,13 +274,13 @@ func (ai *actionItem) Fd() (int, error) {
 }
 
 // Offset returns the offset for the action.
-func (ai *actionItem) Offset() uint64 {
-	return uint64(ai.hai.Extent.Offset)
+func (ai *actionItem) Offset() int64 {
+	return ai.hai.Extent.Offset
 }
 
 // Length returns the length of the action request.
-func (ai *actionItem) Length() uint64 {
-	return uint64(ai.hai.Extent.Length)
+func (ai *actionItem) Length() int64 {
+	return ai.hai.Extent.Length
 }
 
 // Data returns the additional request data.

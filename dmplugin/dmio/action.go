@@ -3,9 +3,9 @@ package dmio
 import (
 	"bufio"
 	"io"
-	"math"
 	"os"
 
+	lustre "github.com/intel-hpdd/go-lustre"
 	"github.com/intel-hpdd/lemur/dmplugin"
 	"github.com/pkg/errors"
 )
@@ -98,7 +98,7 @@ func (aw *ActionWriter) Stat() (os.FileInfo, error) {
 // and stat the actual file to determine the length on disk.
 func ActualLength(action dmplugin.Action, fp statter) (int64, error) {
 	var length int64
-	if action.Length() == math.MaxUint64 {
+	if action.Length() == lustre.MaxExtentLength {
 		fi, err := fp.Stat()
 		if err != nil {
 			return 0, errors.Wrap(err, "stat failed")

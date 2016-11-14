@@ -62,12 +62,21 @@ func GetHsmCurrentAction(filePath string) (*HsmCurrentAction, error) {
 		return nil, fmt.Errorf("Got %d from llapi_hsm_current_action, expected 0", rc)
 	}
 
+	offset, err := safeInt64(uint64(hca.hca_location.offset))
+	if err != nil {
+		return nil, err
+	}
+	length, err := safeInt64(uint64(hca.hca_location.length))
+	if err != nil {
+		return nil, err
+	}
+
 	return &HsmCurrentAction{
 		Action: HsmUserAction(hca.hca_action),
 		State:  HsmProgressState(hca.hca_state),
 		Location: &HsmExtent{
-			Offset: uint64(hca.hca_location.offset),
-			Length: uint64(hca.hca_location.length),
+			Offset: offset,
+			Length: length,
 		},
 	}, nil
 }

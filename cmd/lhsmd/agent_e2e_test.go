@@ -18,6 +18,10 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/intel-hpdd/go-lustre"
+	"github.com/intel-hpdd/go-lustre/fs"
+	"github.com/intel-hpdd/go-lustre/hsm"
+	"github.com/intel-hpdd/go-lustre/llapi"
 	"github.com/intel-hpdd/lemur/cmd/lhsmd/agent"
 	"github.com/intel-hpdd/lemur/cmd/lhsmd/agent/fileid"
 	"github.com/intel-hpdd/lemur/cmd/lhsmd/config"
@@ -25,10 +29,6 @@ import (
 	"github.com/intel-hpdd/lemur/dmplugin"
 	"github.com/intel-hpdd/lemur/pkg/fsroot"
 	"github.com/intel-hpdd/logging/debug"
-	"github.com/intel-hpdd/go-lustre"
-	"github.com/intel-hpdd/go-lustre/fs"
-	"github.com/intel-hpdd/go-lustre/hsm"
-	"github.com/intel-hpdd/go-lustre/llapi"
 )
 
 const (
@@ -58,7 +58,7 @@ type (
 
 	testMoverData struct {
 		FileID      []byte
-		Length      uint64
+		Length      int64
 		Errval      int
 		UpdateCount int
 	}
@@ -83,8 +83,8 @@ func (t *testMover) Archive(a dmplugin.Action) error {
 	}
 
 	if data.UpdateCount > 0 {
-		var offset uint64
-		length := data.Length / uint64(data.UpdateCount)
+		var offset int64
+		length := data.Length / int64(data.UpdateCount)
 		for i := 0; i < data.UpdateCount; i++ {
 			a.Update(offset, length, data.Length)
 			offset += length
@@ -110,8 +110,8 @@ func (t *testMover) Restore(a dmplugin.Action) error {
 	}
 
 	if data.UpdateCount > 0 {
-		var offset uint64
-		length := data.Length / uint64(data.UpdateCount)
+		var offset int64
+		length := data.Length / int64(data.UpdateCount)
 		for i := 0; i < data.UpdateCount; i++ {
 			a.Update(offset, length, data.Length)
 			offset += length
@@ -140,8 +140,8 @@ func (t *testMover) Remove(a dmplugin.Action) error {
 	}
 
 	if data.UpdateCount > 0 {
-		var offset uint64
-		length := data.Length / uint64(data.UpdateCount)
+		var offset int64
+		length := data.Length / int64(data.UpdateCount)
 		for i := 0; i < data.UpdateCount; i++ {
 			a.Update(offset, length, data.Length)
 			offset += length

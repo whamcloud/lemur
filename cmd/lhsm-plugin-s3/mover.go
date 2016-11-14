@@ -99,8 +99,8 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 	}
 	defer rdr.Close()
 
-	progressFunc := func(offset, length uint64) error {
-		return action.Update(offset, length, uint64(total))
+	progressFunc := func(offset, length int64) error {
+		return action.Update(offset, length, total)
 	}
 	progressReader := dmio.NewProgressReader(rdr, updateInterval, progressFunc)
 	defer progressReader.StopUpdates()
@@ -131,7 +131,7 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 	}
 
 	action.SetFileID([]byte(u.String()))
-	action.SetActualLength(uint64(total))
+	action.SetActualLength(total)
 	return nil
 }
 
@@ -166,8 +166,8 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	}
 	defer dst.Close()
 
-	progressFunc := func(offset, length uint64) error {
-		return action.Update(offset, length, uint64(dstSize))
+	progressFunc := func(offset, length int64) error {
+		return action.Update(offset, length, dstSize)
 	}
 	progressWriter := dmio.NewProgressWriterAt(dst, updateInterval, progressFunc)
 	defer progressWriter.StopUpdates()
@@ -186,7 +186,7 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 		time.Since(start),
 		srcObj,
 		action.PrimaryPath())
-	action.SetActualLength(uint64(n))
+	action.SetActualLength(n)
 	return nil
 }
 

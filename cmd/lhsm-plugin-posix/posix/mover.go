@@ -216,16 +216,16 @@ func newFileID() string {
 }
 
 // CopyWithProgress initiates a movement of data with progress updates
-func CopyWithProgress(dst io.Writer, src io.Reader, length int64, action dmplugin.Action) (uint64, error) {
-	progressFunc := func(offset, n uint64) error {
-		return action.Update(offset, n, uint64(length))
+func CopyWithProgress(dst io.Writer, src io.Reader, length int64, action dmplugin.Action) (int64, error) {
+	progressFunc := func(offset, n int64) error {
+		return action.Update(offset, n, length)
 	}
 	progressWriter := dmio.NewProgressWriter(dst, updateInterval, progressFunc)
 	defer progressWriter.StopUpdates()
 
 	n, err := io.Copy(progressWriter, src)
 
-	return uint64(n), err
+	return n, err
 }
 
 // ChecksumConfig returns the mover's checksum configuration

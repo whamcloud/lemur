@@ -172,7 +172,7 @@
 			"importpath": "github.com/intel-hpdd/go-lustre",
 			"repository": "https://github.com/intel-hpdd/go-lustre.git",
 			"vcs": "git",
-			"revision": "a52f5bb5c56dd0b8d8cededc72e2d58889b0b09e",
+			"revision": "803b5cdb916be53effef5ac87b074fe60d3d472e",
 			"branch": "master",
 			"notests": true
 		},

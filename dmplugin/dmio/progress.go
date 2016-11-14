@@ -17,11 +17,11 @@ import (
 const ckSumSig = 32 * 1024
 
 type (
-	progressFunc func(uint64, uint64) error
+	progressFunc func(int64, int64) error
 
 	progressUpdater struct {
 		done        chan struct{}
-		bytesCopied uint64
+		bytesCopied int64
 	}
 
 	// ProgressReader wraps an io.ReaderAt and periodically invokes the
@@ -57,12 +57,12 @@ func (p *progressUpdater) startUpdates(updateEvery time.Duration, f progressFunc
 	p.done = make(chan struct{})
 
 	if updateEvery > 0 && f != nil {
-		var lastTotal uint64
+		var lastTotal int64
 		go func() {
 			for {
 				select {
 				case <-time.After(updateEvery):
-					copied := atomic.LoadUint64(&p.bytesCopied)
+					copied := atomic.LoadInt64(&p.bytesCopied)
 					if err := f(lastTotal, copied-lastTotal); err != nil {
 						alert.Warnf("Error received from updater callback: %s", err)
 						// Should we return here?
@@ -89,7 +89,7 @@ func (r *ProgressReader) Seek(offset int64, whence int) (int64, error) {
 // Read calls internal Read and tracks how many bytes were read.
 func (r *ProgressReader) Read(p []byte) (n int, err error) {
 	n, err = r.src.Read(p)
-	atomic.AddUint64(&r.bytesCopied, uint64(n))
+	atomic.AddInt64(&r.bytesCopied, int64(n))
 	return
 }
 
@@ -124,7 +124,7 @@ func (r *ProgressReader) ReadAt(p []byte, off int64) (int, error) {
 	// Each file is read twice -- once for checksumming, then again
 	// to actually transfer the data.
 	if n != ckSumSig {
-		atomic.AddUint64(&r.bytesCopied, uint64(n))
+		atomic.AddInt64(&r.bytesCopied, n)
 	}
 
 	return n, err
@@ -149,7 +149,7 @@ func NewProgressReader(src io.ReadSeeker, updateEvery time.Duration, f progressF
 func (w *ProgressWriter) Write(p []byte) (int, error) {
 	n, err := w.dst.Write(p)
 
-	atomic.AddUint64(&w.bytesCopied, uint64(n))
+	atomic.AddInt64(&w.bytesCopied, int64(n))
 	// debug.Printf("wrote %d bytes", n)
 	return n, err
 
@@ -172,7 +172,7 @@ func NewProgressWriter(dst io.Writer, updateEvery time.Duration, f progressFunc)
 func (w *ProgressWriterAt) WriteAt(p []byte, off int64) (int, error) {
 	n, err := w.dst.WriteAt(p, off)
 
-	atomic.AddUint64(&w.bytesCopied, uint64(n))
+	atomic.AddInt64(&w.bytesCopied, int64(n))
 
 	return n, err
 }

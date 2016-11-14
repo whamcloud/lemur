@@ -59,8 +59,8 @@ type (
 
 	// HsmExtent is range of data in a file.
 	HsmExtent struct {
-		Offset uint64
-		Length uint64
+		Offset int64
+		Length int64
 	}
 )
 
@@ -169,13 +169,22 @@ func HsmCopytoolRecv(hcp *HsmCopytoolPrivate) (*HsmActionList, error) {
 
 	hai = C.hai_first(hal)
 	for i := 0; i < int(hal.hal_count); i++ {
+		offset, err := safeInt64(uint64(hai.hai_extent.offset))
+		if err != nil {
+			return nil, err
+		}
+		length, err := safeInt64(uint64(hai.hai_extent.length))
+		if err != nil {
+			return nil, err
+		}
+
 		item := HsmActionItem{
 			hai:    *hai,
 			Action: HsmAction(hai.hai_action),
 			Fid:    fromCFid(&hai.hai_fid),
 			Extent: &HsmExtent{
-				Offset: uint64(hai.hai_extent.offset),
-				Length: uint64(hai.hai_extent.length),
+				Offset: offset,
+				Length: length,
 			},
 			Cookie: uint64(hai.hai_cookie),
 			Data:   fetchData(hai),
@@ -213,7 +222,7 @@ func HsmActionBegin(hcp *HsmCopytoolPrivate, hai *HsmActionItem, mdtIndex int, o
 // on the file before the timeout window ends (defaults to 1 hour), the the action
 // will be cancelled and reassigned to a different agent. (TODO: confirm actual CDT
 // behavior on timeout)
-func HsmActionProgress(hcap *HsmCopyActionPrivate, offset, length, totalLength uint64, flags int) error {
+func HsmActionProgress(hcap *HsmCopyActionPrivate, offset, length, totalLength int64, flags int) error {
 	extent := C.struct_hsm_extent{
 		offset: C.__u64(offset),
 		length: C.__u64(length),
@@ -226,7 +235,7 @@ func HsmActionProgress(hcap *HsmCopyActionPrivate, offset, length, totalLength u
 // the layout of the temporary data file is swapped with the actual file, and the group
 // lock is dropped so applications can read the file. Ensure all data being written to the
 // data file has been flushed before call End.
-func HsmActionEnd(hcap **HsmCopyActionPrivate, offset, length uint64, flags, errVal int) error {
+func HsmActionEnd(hcap **HsmCopyActionPrivate, offset, length int64, flags, errVal int) error {
 	h := (*C.struct_hsm_copyaction_private)(*hcap)
 	*hcap = nil
 	extent := C.struct_hsm_extent{

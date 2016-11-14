@@ -6,7 +6,6 @@ package posix_test
 
 import (
 	"bytes"
-	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,6 +13,7 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 
+	lustre "github.com/intel-hpdd/go-lustre"
 	"github.com/intel-hpdd/lemur/cmd/lhsm-plugin-posix/posix"
 	"github.com/intel-hpdd/lemur/dmplugin"
 	"github.com/intel-hpdd/lemur/internal/testhelpers"
@@ -21,7 +21,7 @@ import (
 	"github.com/intel-hpdd/logging/debug"
 )
 
-func testArchive(t *testing.T, mover *posix.Mover, path string, offset uint64, length uint64, fileID []byte, data []byte) *dmplugin.TestAction {
+func testArchive(t *testing.T, mover *posix.Mover, path string, offset int64, length int64, fileID []byte, data []byte) *dmplugin.TestAction {
 	action := dmplugin.NewTestAction(t, path, offset, length, fileID, data)
 	if err := mover.Archive(action); err != nil {
 		t.Fatal(err)
@@ -37,7 +37,7 @@ func testRemove(t *testing.T, mover *posix.Mover, fileID []byte, data []byte) *d
 	return action
 }
 
-func testRestore(t *testing.T, mover *posix.Mover, offset uint64, length uint64, fileID []byte, data []byte) *dmplugin.TestAction {
+func testRestore(t *testing.T, mover *posix.Mover, offset int64, length int64, fileID []byte, data []byte) *dmplugin.TestAction {
 	tfile, cleanFile := testhelpers.TempFile(t, 0)
 	defer cleanFile()
 	action := dmplugin.NewTestAction(t, tfile, offset, length, fileID, data)
@@ -47,7 +47,7 @@ func testRestore(t *testing.T, mover *posix.Mover, offset uint64, length uint64,
 	return action
 }
 
-func testRestoreFail(t *testing.T, mover *posix.Mover, offset uint64, length uint64, fileID []byte, data []byte, outer error) *dmplugin.TestAction {
+func testRestoreFail(t *testing.T, mover *posix.Mover, offset int64, length int64, fileID []byte, data []byte, outer error) *dmplugin.TestAction {
 	debug.Printf("restore %s", fileID)
 	tfile, cleanFile := testhelpers.TempFile(t, 0)
 	defer cleanFile()
@@ -78,12 +78,12 @@ func TestPosixExtents(t *testing.T) {
 	WithPosixMover(t, nil, func(t *testing.T, mover *posix.Mover) {
 		type extent struct {
 			id     []byte
-			offset uint64
-			length uint64
+			offset int64
+			length int64
 		}
 		var extents []extent
-		var maxExtent uint64 = 1024 * 1024
-		var fileSize uint64 = 4*1024*1024 + 42
+		var maxExtent int64 = 1024 * 1024
+		var fileSize int64 = 4*1024*1024 + 42
 		tfile, cleanFile := testhelpers.TempFile(t, fileSize)
 		defer cleanFile()
 
@@ -91,13 +91,13 @@ func TestPosixExtents(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		actualSize := uint64(st.Size())
+		actualSize := st.Size()
 		startSum, err := checksum.FileSha1Sum(tfile)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		for offset := uint64(0); offset < actualSize; offset += maxExtent {
+		for offset := int64(0); offset < actualSize; offset += maxExtent {
 			length := maxExtent
 			if offset+maxExtent > actualSize {
 				length = actualSize - offset
@@ -139,7 +139,7 @@ func TestPosixExtents(t *testing.T) {
 func TestPosixArchive(t *testing.T) {
 	WithPosixMover(t, nil, func(t *testing.T, mover *posix.Mover) {
 		// trigger two updates (at current interval of 10MB
-		var length uint64 = 20 * 1024 * 1024
+		var length int64 = 20 * 1024 * 1024
 		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
@@ -156,19 +156,19 @@ func TestPosixArchive(t *testing.T) {
 
 func TestPosixArchiveMaxSize(t *testing.T) {
 	WithPosixMover(t, nil, func(t *testing.T, mover *posix.Mover) {
-		var length uint64 = 1000000
+		var length int64 = 1000000
 		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
-		// we received maxuint64 from coordinator, so test this as well
-		action := testArchive(t, mover, tfile, 0, math.MaxUint64, nil, nil)
-		testRestore(t, mover, 0, math.MaxUint64, action.FileID(), nil)
+		// we received MaxExtentLength from coordinator, so test this as well
+		action := testArchive(t, mover, tfile, 0, lustre.MaxExtentLength, nil, nil)
+		testRestore(t, mover, 0, lustre.MaxExtentLength, action.FileID(), nil)
 	})
 }
 
 func TestPosixArchiveDefaultChecksum(t *testing.T) {
 	WithPosixMover(t, defaultChecksum, func(t *testing.T, mover *posix.Mover) {
-		var length uint64 = 100
+		var length int64 = 100
 		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
@@ -184,7 +184,7 @@ func TestPosixArchiveDefaultChecksumCompress(t *testing.T) {
 
 	}
 	WithPosixMover(t, enableCompress, func(t *testing.T, mover *posix.Mover) {
-		var length uint64 = 100
+		var length int64 = 100
 		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
@@ -202,7 +202,7 @@ func TestPosixArchiveDefaultChecksumCompress(t *testing.T) {
 
 func TestPosixArchiveRestoreBrokenFileID(t *testing.T) {
 	WithPosixMover(t, defaultChecksum, func(t *testing.T, mover *posix.Mover) {
-		var length uint64 = 100
+		var length int64 = 100
 		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
@@ -233,14 +233,14 @@ func TestPosixArchiveRestoreBrokenFileID(t *testing.T) {
 
 func TestPosixArchiveRestoreError(t *testing.T) {
 	WithPosixMover(t, defaultChecksum, func(t *testing.T, mover *posix.Mover) {
-		var length uint64 = 100
+		var length int64 = 100
 		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
-		// we received maxuint64 from coordinator, so test this as well
+		// we received MaxExtentLength from coordinator, so test this as well
 		action := testArchive(t, mover, tfile, 0, length, nil, nil)
 
-		failRestore := func(t *testing.T, mover *posix.Mover, offset uint64, length uint64, fileID []byte, data []byte) *dmplugin.TestAction {
+		failRestore := func(t *testing.T, mover *posix.Mover, offset int64, length int64, fileID []byte, data []byte) *dmplugin.TestAction {
 			tfile, cleanFile := testhelpers.TempFile(t, 0)
 			defer cleanFile()
 			os.Chmod(tfile, 0444)
@@ -269,12 +269,12 @@ func TestPosixArchiveNoChecksum(t *testing.T) {
 
 	}
 	WithPosixMover(t, disableChecksum, func(t *testing.T, mover *posix.Mover) {
-		var length uint64 = 1000000
+		var length int64 = 1000000
 		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
-		action := testArchive(t, mover, tfile, 0, math.MaxUint64, nil, nil)
-		// we received maxuint64 from coordinator, so test this as well
+		action := testArchive(t, mover, tfile, 0, lustre.MaxExtentLength, nil, nil)
+		// we received MaxExtentLength from coordinator, so test this as well
 
 		fileID, err := posix.ParseFileID(action.FileID())
 		if err != nil {
@@ -284,7 +284,7 @@ func TestPosixArchiveNoChecksum(t *testing.T) {
 		testhelpers.CorruptFile(t, mover.Destination(fileID.UUID))
 
 		// Successfully restore corrupt data
-		testRestore(t, mover, 0, math.MaxUint64, action.FileID(), nil)
+		testRestore(t, mover, 0, lustre.MaxExtentLength, action.FileID(), nil)
 	})
 }
 
@@ -305,12 +305,12 @@ func TestPosixArchiveNoChecksumRestore(t *testing.T) {
 	}
 
 	WithPosixMover(t, updateConf, func(t *testing.T, mover *posix.Mover) {
-		var length uint64 = 1000000
+		var length int64 = 1000000
 		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
-		action := testArchive(t, mover, tfile, 0, math.MaxUint64, nil, nil)
-		// we received maxuint64 from coordinator, so test this as well
+		action := testArchive(t, mover, tfile, 0, lustre.MaxExtentLength, nil, nil)
+		// we received MaxExtentLength from coordinator, so test this as well
 
 		fileID, err := posix.ParseFileID(action.FileID())
 		if err != nil {
@@ -319,29 +319,29 @@ func TestPosixArchiveNoChecksumRestore(t *testing.T) {
 
 		testhelpers.CorruptFile(t, mover.Destination(fileID.UUID))
 		// Successfully restore corrupt data
-		testRestore(t, mover, 0, math.MaxUint64, action.FileID(), nil)
+		testRestore(t, mover, 0, lustre.MaxExtentLength, action.FileID(), nil)
 	})
 }
 
 func TestPosixArchiveChecksumAfter(t *testing.T) {
 	WithPosixMover(t, nil, func(t *testing.T, mover *posix.Mover) {
-		var length uint64 = 1000000
+		var length int64 = 1000000
 		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
-		// we received maxuint64 from coordinator, so test this as well
-		action := testArchive(t, mover, tfile, 0, math.MaxUint64, nil, nil)
+		// we received MaxExtentLength from coordinator, so test this as well
+		action := testArchive(t, mover, tfile, 0, lustre.MaxExtentLength, nil, nil)
 		// Disable checksum generation but should still check existing checksums
 		mover.ChecksumConfig().Disabled = true
 		testhelpers.CorruptFile(t, testDestinationFile(t, mover, action.FileID()))
 		// Don't  restore corrupt data
-		testRestoreFail(t, mover, 0, math.MaxUint64, action.FileID(), nil, errors.New(""))
+		testRestoreFail(t, mover, 0, lustre.MaxExtentLength, action.FileID(), nil, errors.New(""))
 	})
 }
 
 func TestPosixCorruptArchive(t *testing.T) {
 	WithPosixMover(t, nil, func(t *testing.T, mover *posix.Mover) {
-		var length uint64 = 1000000
+		var length int64 = 1000000
 		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
@@ -362,7 +362,7 @@ func TestPosixCorruptArchive(t *testing.T) {
 
 func TestPosixRemove(t *testing.T) {
 	WithPosixMover(t, nil, func(t *testing.T, mover *posix.Mover) {
-		var length uint64 = 1000000
+		var length int64 = 1000000
 		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 

@@ -11,9 +11,9 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/intel-hpdd/logging/debug"
 	"github.com/intel-hpdd/go-lustre"
 	"github.com/intel-hpdd/go-lustre/llapi"
+	"github.com/intel-hpdd/logging/debug"
 )
 
 type (
@@ -44,9 +44,9 @@ type (
 	// received by the test handle.
 	TestProgressUpdate struct {
 		Cookie   uint64
-		Offset   uint64
-		Length   uint64
-		Total    uint64
+		Offset   int64
+		Length   int64
+		Total    int64
 		Flags    int
 		Errval   int
 		Complete bool
@@ -144,7 +144,7 @@ func (r *TestRequest) ProgressUpdates() chan *TestProgressUpdate {
 }
 
 // Progress updates current state of data transfer request.
-func (r *TestRequest) Progress(offset, length, total uint64, flags int) error {
+func (r *TestRequest) Progress(offset, length, total int64, flags int) error {
 	r.handleProgressReceived <- &TestProgressUpdate{
 		Cookie: r.cookie,
 		Offset: offset,
@@ -156,7 +156,7 @@ func (r *TestRequest) Progress(offset, length, total uint64, flags int) error {
 }
 
 // End completes an HSM actions with success or failure status.
-func (r *TestRequest) End(offset, length uint64, flags int, errval int) error {
+func (r *TestRequest) End(offset, length int64, flags int, errval int) error {
 	r.handleProgressReceived <- &TestProgressUpdate{
 		Cookie:   r.cookie,
 		Offset:   offset,
@@ -191,12 +191,12 @@ func (r *TestRequest) Fd() (int, error) {
 }
 
 // Offset is the starting offset for a data transfer.
-func (r *TestRequest) Offset() uint64 {
+func (r *TestRequest) Offset() int64 {
 	return 0
 }
 
 // Length is lenght of data transfer that begins at Offset.
-func (r *TestRequest) Length() uint64 {
+func (r *TestRequest) Length() int64 {
 	return 0
 }
 

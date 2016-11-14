@@ -95,8 +95,8 @@ type ActionItem struct {
 	Op          Command `protobuf:"varint,2,opt,name=op,enum=pdm.Command" json:"op,omitempty"`
 	PrimaryPath string  `protobuf:"bytes,3,opt,name=primary_path,json=primaryPath" json:"primary_path,omitempty"`
 	WritePath   string  `protobuf:"bytes,4,opt,name=write_path,json=writePath" json:"write_path,omitempty"`
-	Offset      uint64  `protobuf:"varint,5,opt,name=offset" json:"offset,omitempty"`
-	Length      uint64  `protobuf:"varint,6,opt,name=length" json:"length,omitempty"`
+	Offset      int64   `protobuf:"varint,5,opt,name=offset" json:"offset,omitempty"`
+	Length      int64   `protobuf:"varint,6,opt,name=length" json:"length,omitempty"`
 	FileId      []byte  `protobuf:"bytes,7,opt,name=file_id,json=fileId,proto3" json:"file_id,omitempty"`
 	Data        []byte  `protobuf:"bytes,8,opt,name=data,proto3" json:"data,omitempty"`
 }
@@ -110,8 +110,8 @@ type ActionStatus struct {
 	Id        uint64  `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
 	Completed bool    `protobuf:"varint,2,opt,name=completed" json:"completed,omitempty"`
 	Error     int32   `protobuf:"varint,3,opt,name=error" json:"error,omitempty"`
-	Offset    uint64  `protobuf:"varint,4,opt,name=offset" json:"offset,omitempty"`
-	Length    uint64  `protobuf:"varint,5,opt,name=length" json:"length,omitempty"`
+	Offset    int64   `protobuf:"varint,4,opt,name=offset" json:"offset,omitempty"`
+	Length    int64   `protobuf:"varint,5,opt,name=length" json:"length,omitempty"`
 	Handle    *Handle `protobuf:"bytes,6,opt,name=handle" json:"handle,omitempty"`
 	FileId    []byte  `protobuf:"bytes,7,opt,name=file_id,json=fileId,proto3" json:"file_id,omitempty"`
 	Flags     int32   `protobuf:"varint,8,opt,name=flags" json:"flags,omitempty"`

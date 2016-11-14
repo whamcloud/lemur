@@ -26,8 +26,8 @@ type (
 		minFileCount         int
 		maxFilesPerDirectory int
 		minFilesPerDirectory int
-		maxFileSize          uint64
-		minFileSize          uint64
+		maxFileSize          int64
+		minFileSize          int64
 
 		fidGenerator <-chan *lustre.Fid
 		records      recordChannel
@@ -125,7 +125,7 @@ func OptJobMinFilesPerDirectory(count int) func(*simJob) error {
 }
 
 // OptJobMaxFileSize sets the maximum file size for the job
-func OptJobMaxFileSize(size uint64) func(*simJob) error {
+func OptJobMaxFileSize(size int64) func(*simJob) error {
 	return func(j *simJob) error {
 		j.maxFileSize = size
 		return nil
@@ -133,7 +133,7 @@ func OptJobMaxFileSize(size uint64) func(*simJob) error {
 }
 
 // OptJobMinFileSize sets the minimum file size for the job
-func OptJobMinFileSize(size uint64) func(*simJob) error {
+func OptJobMinFileSize(size int64) func(*simJob) error {
 	return func(j *simJob) error {
 		j.minFileSize = size
 		return nil

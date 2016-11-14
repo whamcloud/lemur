@@ -6,18 +6,18 @@ package main
 
 import (
 	"bytes"
-	"math"
 	"os"
 	"testing"
 	"time"
 
+	lustre "github.com/intel-hpdd/go-lustre"
 	"github.com/intel-hpdd/lemur/dmplugin"
 	"github.com/intel-hpdd/lemur/internal/testhelpers"
 	"github.com/intel-hpdd/lemur/pkg/checksum"
 	"github.com/intel-hpdd/logging/debug"
 )
 
-func testArchive(t *testing.T, mover *Mover, path string, offset uint64, length uint64, fileID []byte, data []byte) *dmplugin.TestAction {
+func testArchive(t *testing.T, mover *Mover, path string, offset int64, length int64, fileID []byte, data []byte) *dmplugin.TestAction {
 	action := dmplugin.NewTestAction(t, path, offset, length, fileID, data)
 	if err := mover.Archive(action); err != nil {
 		t.Fatal(err)
@@ -33,7 +33,7 @@ func testRemove(t *testing.T, mover *Mover, fileID []byte, data []byte) *dmplugi
 	return action
 }
 
-func testRestore(t *testing.T, mover *Mover, offset uint64, length uint64, fileID []byte, data []byte) *dmplugin.TestAction {
+func testRestore(t *testing.T, mover *Mover, offset int64, length int64, fileID []byte, data []byte) *dmplugin.TestAction {
 	tfile, cleanFile := testhelpers.TempFile(t, 0)
 	defer cleanFile()
 	action := dmplugin.NewTestAction(t, tfile, offset, length, fileID, data)
@@ -43,7 +43,7 @@ func testRestore(t *testing.T, mover *Mover, offset uint64, length uint64, fileI
 	return action
 }
 
-func testRestoreFail(t *testing.T, mover *Mover, offset uint64, length uint64, fileID []byte, data []byte) *dmplugin.TestAction {
+func testRestoreFail(t *testing.T, mover *Mover, offset int64, length int64, fileID []byte, data []byte) *dmplugin.TestAction {
 	tfile, cleanFile := testhelpers.TempFile(t, 0)
 	defer cleanFile()
 	action := dmplugin.NewTestAction(t, tfile, offset, length, fileID, data)
@@ -68,12 +68,12 @@ func TestS3Extents(t *testing.T) {
 	WithS3Mover(t, nil, func(t *testing.T, mover *Mover) {
 		type extent struct {
 			id     []byte
-			offset uint64
-			length uint64
+			offset int64
+			length int64
 		}
 		var extents []extent
-		var maxExtent uint64 = 1024 * 1024
-		var fileSize uint64 = 4*1024*1024 + 42
+		var maxExtent int64 = 1024 * 1024
+		var fileSize int64 = 4*1024*1024 + 42
 		tfile, cleanFile := testhelpers.TempFile(t, fileSize)
 		defer cleanFile()
 
@@ -81,14 +81,14 @@ func TestS3Extents(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		actualSize := uint64(st.Size())
+		actualSize := st.Size()
 		startSum, err := checksum.FileSha1Sum(tfile)
 		if err != nil {
 			t.Fatal(err)
 		}
 		debug.Printf("%s actual size: %d", tfile, actualSize)
 
-		for offset := uint64(0); offset < actualSize; offset += maxExtent {
+		for offset := int64(0); offset < actualSize; offset += maxExtent {
 			length := maxExtent
 			if offset+maxExtent > actualSize {
 				length = actualSize - offset
@@ -131,7 +131,7 @@ func TestS3Extents(t *testing.T) {
 func TestS3Archive(t *testing.T) {
 	WithS3Mover(t, nil, func(t *testing.T, mover *Mover) {
 		// trigger two updates (at current interval of 10MB
-		var length uint64 = 20 * 1024 * 1024
+		var length int64 = 20 * 1024 * 1024
 		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
@@ -159,13 +159,13 @@ func TestS3Archive(t *testing.T) {
 
 func TestS3ArchiveMaxSize(t *testing.T) {
 	WithS3Mover(t, nil, func(t *testing.T, mover *Mover) {
-		var length uint64 = 1000000
+		var length int64 = 1000000
 		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
-		// we received maxuint64 from coordinator, so test this as well
-		action := testArchive(t, mover, tfile, 0, math.MaxUint64, nil, nil)
-		testRestore(t, mover, 0, math.MaxUint64, action.FileID(), nil)
+		// we received MaxExtentLength from coordinator, so test this as well
+		action := testArchive(t, mover, tfile, 0, lustre.MaxExtentLength, nil, nil)
+		testRestore(t, mover, 0, lustre.MaxExtentLength, action.FileID(), nil)
 		testRemove(t, mover, action.FileID(), nil)
 	})
 }
@@ -178,12 +178,12 @@ func TestS3ArchiveNoChecksum(t *testing.T) {
 	}
 
 	WithS3Mover(t, disableChecksum, func(t *testing.T, mover *Mover) {
-		var length uint64 = 1000000
+		var length int64 = 1000000
 		tfile, cleanFile := testTempFile(t, length)
 		defer cleanFile()
 
-		action := testArchive(t, mover, tfile, 0, math.MaxUint64, nil, nil)
-		// we received maxuint64 from coordinator, so test this as well
+		action := testArchive(t, mover, tfile, 0, lustre.MaxExtentLength, nil, nil)
+		// we received MaxExtentLength from coordinator, so test this as well
 
 		fileID, err := posix.ParseFileID(action.FileID())
 		if err != nil {
@@ -193,7 +193,7 @@ func TestS3ArchiveNoChecksum(t *testing.T) {
 		testCorruptFile(t, mover.Destination(fileID.UUID))
 
 		// Successfully restore corrupt data
-		testRestore(t, mover, 0, math.MaxUint64, action.FileID(), nil)
+		testRestore(t, mover, 0, lustre.MaxExtentLength, action.FileID(), nil)
 	})
 }
 
@@ -204,12 +204,12 @@ func TestS3ArchiveNoChecksumRestore(t *testing.T) {
 	}
 
 	WithS3Mover(t, disableChecksum, func(t *testing.T, mover *Mover) {
-		var length uint64 = 1000000
+		var length int64 = 1000000
 		tfile, cleanFile := testTempFile(t, length)
 		defer cleanFile()
 
-		action := testArchive(t, mover, tfile, 0, math.MaxUint64, nil, nil)
-		// we received maxuint64 from coordinator, so test this as well
+		action := testArchive(t, mover, tfile, 0, lustre.MaxExtentLength, nil, nil)
+		// we received MaxExtentLength from coordinator, so test this as well
 
 		fileID, err := posix.ParseFileID(action.FileID())
 		if err != nil {
@@ -218,23 +218,23 @@ func TestS3ArchiveNoChecksumRestore(t *testing.T) {
 
 		testCorruptFile(t, mover.Destination(fileID.UUID))
 		// Successfully restore corrupt data
-		testRestore(t, mover, 0, math.MaxUint64, action.FileID(), nil)
+		testRestore(t, mover, 0, lustre.MaxExtentLength, action.FileID(), nil)
 	})
 }
 
 func TestS3ArchiveChecksumAfter(t *testing.T) {
 	WithS3Mover(t, nil, func(t *testing.T, mover *Mover) {
-		var length uint64 = 1000000
+		var length int64 = 1000000
 		tfile, cleanFile := testTempFile(t, length)
 		defer cleanFile()
 
-		// we received maxuint64 from coordinator, so test this as well
-		action := testArchive(t, mover, tfile, 0, math.MaxUint64, nil, nil)
+		// we received MaxExtentLength from coordinator, so test this as well
+		action := testArchive(t, mover, tfile, 0, lustre.MaxExtentLength, nil, nil)
 		// Disable checksum generation but should still check existing checksums
 		mover.ChecksumConfig().Disabled = true
 		testCorruptFile(t, testDestinationFile(t, mover, action.FileID()))
 		// Don't  restore corrupt data
-		testRestoreFail(t, mover, 0, math.MaxUint64, action.FileID(), nil)
+		testRestoreFail(t, mover, 0, lustre.MaxExtentLength, action.FileID(), nil)
 	})
 }
 */
@@ -242,7 +242,7 @@ func TestS3ArchiveChecksumAfter(t *testing.T) {
 /*
 func TestS3CorruptArchive(t *testing.T) {
 	WithS3Mover(t, nil, func(t *testing.T, mover *Mover) {
-		var length uint64 = 1000000
+		var length int64 = 1000000
 		tfile, cleanFile := testTempFile(t, length)
 		defer cleanFile()
 
@@ -263,7 +263,7 @@ func TestS3CorruptArchive(t *testing.T) {
 */
 func TestS3Remove(t *testing.T) {
 	WithS3Mover(t, nil, func(t *testing.T, mover *Mover) {
-		var length uint64 = 1000000
+		var length int64 = 1000000
 		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 

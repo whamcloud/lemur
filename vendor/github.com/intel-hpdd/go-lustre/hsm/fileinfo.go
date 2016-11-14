@@ -177,7 +177,7 @@ type CurrentFileAction struct {
 	state  llapi.HsmProgressState
 
 	Path        string
-	BytesCopied uint64
+	BytesCopied int64
 }
 
 // Action returns a string representation of the current action

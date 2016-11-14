@@ -44,19 +44,19 @@ type (
 		status       chan *pb.ActionStatus
 		item         *pb.ActionItem
 		fileID       []byte
-		actualLength *uint64
+		actualLength *int64
 	}
 
 	// Action defines an interface for dm actions
 	Action interface {
 		// Update sends an action status update
-		Update(offset, length, max uint64) error
+		Update(offset, length, max int64) error
 		// ID returns the action item's ID
 		ID() uint64
 		// Offset returns the current offset of the action item
-		Offset() uint64
+		Offset() int64
 		// Length returns the expected length of the action item's file
-		Length() uint64
+		Length() int64
 		// Data returns a byte slice of the action item's data
 		Data() []byte
 		// PrimaryPath returns the action item's primary file path
@@ -71,7 +71,7 @@ type (
 		SetFileID(id []byte)
 
 		// SetActualLength sets the action's actual file length
-		SetActualLength(length uint64)
+		SetActualLength(length int64)
 	}
 
 	// Mover defines an interface for data mover implementations
@@ -120,7 +120,7 @@ func (a *dmAction) String() string {
 }
 
 // Update sends an action status update
-func (a *dmAction) Update(offset, length, max uint64) error {
+func (a *dmAction) Update(offset, length, max int64) error {
 	a.status <- &pb.ActionStatus{
 		Id:     a.item.Id,
 		Offset: offset,
@@ -179,12 +179,12 @@ func (a *dmAction) ID() uint64 {
 }
 
 // Offset returns the current offset of the action item
-func (a *dmAction) Offset() uint64 {
+func (a *dmAction) Offset() int64 {
 	return a.item.Offset
 }
 
 // Length returns the expected length of the action item's file
-func (a *dmAction) Length() uint64 {
+func (a *dmAction) Length() int64 {
 	return a.item.Length
 }
 
@@ -214,7 +214,7 @@ func (a *dmAction) SetFileID(id []byte) {
 }
 
 // SetActualLength sets the action's actual file length
-func (a *dmAction) SetActualLength(length uint64) {
+func (a *dmAction) SetActualLength(length int64) {
 	a.actualLength = &length
 }
 

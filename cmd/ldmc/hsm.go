@@ -200,7 +200,7 @@ func getPathStatus(c *cli.Context, filePath string) (string, error) {
 					return "", errors.Wrapf(err, "Failed to stat() %s", filePath)
 				}
 				fmt.Fprintf(&buf, "(%s/%s)",
-					humanize.IBytes(a.BytesCopied),
+					humanize.IBytes(uint64(a.BytesCopied)),
 					humanize.IBytes(uint64(st.Size())))
 			}
 		}

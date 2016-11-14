@@ -33,8 +33,8 @@ message ActionItem {
     Command op = 2; 
     string primary_path = 3; // Path to primary file (for metadata or reading)
     string write_path = 4; // Path for writing data (for restore)
-    uint64 offset = 5; // Start IO at offset
-    uint64 length = 6; // Number of bytes to copy
+    int64 offset = 5; // Start IO at offset
+    int64 length = 6; // Number of bytes to copy
     bytes file_id = 7; // Archive ID of file (provided with Restore command)
     bytes data = 8; // Arbitrary data passed to action. Data Mover specific.
 }
@@ -43,8 +43,8 @@ message ActionStatus {
     uint64 id = 1; // Unique identifier for action
     bool  completed = 2; // True if this is last update
     int32  error = 3; // Non-zero indicates an error
-    uint64 offset = 4; 
-    uint64  length = 5;
+    int64 offset = 4;
+    int64  length = 5;
     Handle handle = 6;
     bytes file_id = 7; // Included with completion of Archive
     int32 flags = 8; // Additial flags (used for errors only?)

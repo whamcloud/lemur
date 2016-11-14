@@ -54,15 +54,15 @@ func ChdirTemp(t *testing.T) func() {
 }
 
 // Fill writes size amount of bytes to the file.
-func Fill(t *testing.T, fp io.Writer, size uint64) {
-	var bs uint64 = 1024 * 1024
+func Fill(t *testing.T, fp io.Writer, size int64) {
+	var bs int64 = 1024 * 1024
 	buf := make([]byte, bs)
 
 	for i := 0; i < len(buf); i++ {
 		buf[i] = byte(i)
 	}
 
-	for i := uint64(0); i < size; i += bs {
+	for i := int64(0); i < size; i += bs {
 		if size < bs {
 			bs = size
 		}
@@ -91,7 +91,7 @@ func CorruptFile(t *testing.T, path string) {
 
 // TempFile creates a temporary file. If size is >0 then that amount of bytes
 // will be written to the file.
-func TempFile(t *testing.T, size uint64) (string, func()) {
+func TempFile(t *testing.T, size int64) (string, func()) {
 	fp, err := ioutil.TempFile(".", testPrefix)
 	if err != nil {
 		t.Fatal(err)
