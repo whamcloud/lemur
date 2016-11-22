@@ -29,7 +29,7 @@ rpm: docker-rpm
 docker-rpm: docker
 	rm -fr $(CURDIR)/output
 	mkdir -p $(CURDIR)/output/{BUILD,BUILDROOT,RPMS/{noarch,x86_64},SPECS,SRPMS}
-	docker run --rm -v $(CURDIR):/source -v $(CURDIR)/output:/root/rpmbuild lemur-rpm-build
+	docker run --rm -v $(CURDIR):/source:z -v $(CURDIR)/output:/root/rpmbuild:z lemur-rpm-build
 
 local-rpm:
 	$(MAKE) -C packaging/rpm NAME=$(NAME) VERSION=$(VERSION) RELEASE=$(PKG_RELEASE) URL=$(PROJECT_URL)
