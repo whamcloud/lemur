@@ -16,7 +16,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 
 BuildRequires: golang >= 1.6
 BuildRequires: pandoc
-Requires: lustre >= %{?MIN_LUSTRE_VERSION}%{?!MIN_LUSTRE_VERSION:2.6.0}
+Requires: lustre-client >= %{?MIN_LUSTRE_VERSION}%{?!MIN_LUSTRE_VERSION:2.6.0}
 %{?systemd_requires}
 
 %description
@@ -49,7 +49,7 @@ installations.
 %package -n ldmc
 Summary: Lustre HSM Tools - Data Movement Control
 License: GPLv2
-Requires: lustre >= %{?MIN_LUSTRE_VERSION}%{?!MIN_LUSTRE_VERSION:2.6.0}
+Requires: lustre-client >= %{?MIN_LUSTRE_VERSION}%{?!MIN_LUSTRE_VERSION:2.6.0}
 
 %description -n ldmc
 CLI for Lustre data movement control.
