@@ -244,14 +244,14 @@ func TestPosixArchiveRestoreError(t *testing.T) {
 			tfile, cleanFile := testhelpers.TempFile(t, 0)
 			defer cleanFile()
 			os.Chmod(tfile, 0444)
-			action := dmplugin.NewTestAction(t, tfile, offset, length, fileID, data)
+			action := dmplugin.NewTestAction(t, tfile+".oops", offset, length, fileID, data)
 			if err := mover.Restore(action); err != nil {
-				if !os.IsPermission(errors.Cause(err)) {
+				if !os.IsNotExist(errors.Cause(err)) {
 					t.Fatalf("Unexpected failure: %v", err)
 				}
 			} else {
 				fi, _ := os.Stat(tfile)
-				t.Fatalf("Expected permission failure: %s mode:0%o", fi.Name(), fi.Mode())
+				t.Fatalf("Expected ENOENT failure: %s mode:0%o", fi.Name(), fi.Mode())
 			}
 
 			return action
