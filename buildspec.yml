@@ -3,6 +3,7 @@ version: 0.1
 phases:
   pre_build:
     commands:
+      - echo Pre-build started on `date`
       - mkdir -p $GOPATH/src/github.com/intel-hpdd/lemur && cp -a . $_ && cd $_ && rm -fr vendor/github.com/intel-hpdd/logging/debug/examples && rm -fr uat && go get -v ./... && go get -v github.com/fortytw2/leaktest && go test -v $(go list ./... | egrep -v '(*vendor/*|*uat/*)' )
   build:
     commands:
