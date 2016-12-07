@@ -1,19 +1,26 @@
 version: 0.1
 
+environment_variables:
+  plaintext:
+    TOPDIR: "/tmp/rpmbuild"
+
 phases:
   pre_build:
     commands:
       - echo Pre-build started on `date`
+      - rm -fr $TOPDIR
+      - mkdir -p $TOPDIR/{RPMS/{x86_64,noarch},SRPMS,BUILD,BUILDROOT,SPECS,SOURCES}
       - mkdir -p $GOPATH/src/github.com/intel-hpdd/lemur && cp -a . $_ && cd $_ && rm -fr vendor/github.com/intel-hpdd/logging/debug/examples && rm -fr uat && go get -v ./... && go get -v github.com/fortytw2/leaktest && go test -v $(go list ./... | egrep -v '(*vendor/*|*uat/*)' )
   build:
     commands:
       - echo Build started on `date`
-      - make local-rpm
+      - make local-rpm TOPDIR=$TOPDIR
+      - make -C packaging/rpm repo TOPDIR=$TOPDIR
+      - cd $TOPDIR/RPMS && zip -r /tmp/repo.zip .
   post_build:
     commands:
       - echo Build completed on `date`
 artifacts:
   files:
-    - /root/rpmbuild/RPMS/x86_64/*.rpm
-    - /root/rpmbuild/SRPMS/*.src.rpm
+    - /tmp/repo.zip
   discard-paths: yes
