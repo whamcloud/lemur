@@ -38,7 +38,7 @@ message ActionItem {
     bytes file_id = 7; // Archive ID of file (provided with Restore command) DEPRECATED
     bytes data = 8; // Arbitrary data passed to action. Data Mover specific.
     string uuid = 9; // trusted.lhsm_uuid if set
-    string hash = 10; // trusted.lhsm_hash if set
+    bytes hash = 10; // trusted.lhsm_hash if set
     string url = 12; // trusted.lhsm_url if set
 }
 
@@ -52,7 +52,7 @@ message ActionStatus {
     bytes file_id = 7; // Included with completion of Archive DEPRECATED
     int32 flags = 8; // Additial flags (used for errors only?)
     string uuid = 9; // Included with completion of Archive
-    string hash = 10; // Included with completion of Archive
+    bytes hash = 10; // Included with completion of Archive
     string url = 11; // Included with completion of Archive
 }
 
