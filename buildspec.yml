@@ -22,5 +22,5 @@ phases:
       - echo Build completed on `date`
 artifacts:
   files:
-    - /tmp/rpmbuild/RPMS/*
+    - /tmp/repo.zip
   discard-paths: yes
