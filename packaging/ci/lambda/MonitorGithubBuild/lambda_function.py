@@ -3,19 +3,16 @@
 import json
 import boto3
 import traceback
-import re
 import os
 
-from base64 import b64decode
 from dateutil import parser
 from datetime import datetime as dt
 from dateutil.tz import tzlocal
 
-from lemur_ci import pipeline
-from github import Github
-from github.GithubObject import NotSet
+from lemur_ci import pipeline, commit_status
 
 s3 = boto3.client('s3')
+sns = boto3.client('sns')
 
 def lambda_handler(event, context):
     try:
@@ -40,20 +37,22 @@ def lambda_handler(event, context):
 
         if 'continuationToken' not in job.data:
             # Get the pipeline config so that we can check the source object
-            # metadata
+            # metadata.
+            # NB: This is somewhat racy -- If a new commit comes in before
+            # we have a chance to do this, we'll get the wrong commit
+            # metadata. There must be a better way to communicate
+            # between pipeline stages!
             stages = pl.stages
             sourceConfig = stages['Source']['actions'][0]['configuration']
             sourceMeta = s3.head_object(Bucket=sourceConfig['S3Bucket'], Key=sourceConfig['S3ObjectKey'])['Metadata']
             sourceUrl = sourceMeta['source_html_url']
+            sourceRevision = sourceMeta['source_revision']
 
         # Get the pipeline states in order to figure out where we are
         states = pl.states
 
         # NB: There can only be 1 source action in the source stage
         sourceAction = [s for s in states['Source']['actionStates'] if 'currentRevision' in s][0]
-        (sourceScheme, sourceHost, sourceOrgOrUser, sourceRepo) = re.match(r'^(https?://)([^/]+)/([^/]+)/([^/]+)$', sourceUrl).groups()
-        if sourceRevision is None:
-            sourceRevision = sourceMeta['source_revision']
         if sourceStartTime is None and 'latestExecution' in sourceAction:
             sourceStartTime = sourceAction['latestExecution']['lastStatusChange']
 
@@ -62,7 +61,7 @@ def lambda_handler(event, context):
 
         now = dt.now().replace(tzinfo=tzlocal())
         state = 'pending'
-        targetUrl = NotSet
+        targetUrl = None
         if lastBuild['lastStatusChange'] > sourceStartTime:
             if 'externalExecutionUrl' in lastBuild:
                 targetUrl = lastBuild['externalExecutionUrl']
@@ -78,18 +77,17 @@ def lambda_handler(event, context):
             # for the build to finish.
             return pipeline.continue_job_later(job.id, token, "Waiting for build to %s" % ("start" if lastBuild['status'] != 'InProgress' else "finish"))
             
-        authToken = boto3.client('kms').decrypt(CiphertextBlob=b64decode(os.environ['GITHUB_TOKEN']))['Plaintext']
-        g = Github(authToken, base_url=sourceScheme+'api.'+sourceHost)
-        u = g.get_user()
-        repo = None
-        if u.login == sourceOrgOrUser:
-            repo = u.get_repo(sourceRepo)
-        else:
-            o = g.get_organization(sourceOrgOrUser)
-            repo = o.get_repo(sourceRepo)
-
-        commit = repo.get_commit(sourceRevision)
-        print commit.create_status(state, description="CodePipeline job %s status: %s" % (job.id, state), target_url=targetUrl, context="continuous-integration/aws-codepipeline")
+        message = commit_status.Message(
+            repoUrl=sourceUrl,
+            sha=sourceRevision,
+            state=state,
+            context="lemur-ci/build",
+            statusUrl=targetUrl
+        )
+        print sns.publish(
+            TopicArn=os.environ['STATUS_TOPIC_ARN'],
+            Message=message.json
+        )
         if state == 'pending':
             token = dict(
                 previous_job_id = job.id,
@@ -98,7 +96,7 @@ def lambda_handler(event, context):
                 sourceRevision = sourceRevision
             )
             return pipeline.continue_job_later(job.id, token, "Waiting for build to start")
-        pipeline.put_job_success(job.id, 'Notified %s/%s' % (repo.full_name, sourceRevision))
+        pipeline.put_job_success(job.id, 'Notified %s/%s of success' % (sourceUrl, sourceRevision))
 
     except Exception as e:
         # If any other exceptions which we didn't expect are raised
