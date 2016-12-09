@@ -9,10 +9,10 @@ $(ZIPFILE): dist
 	zip -r $@ * && \
 	popd >/dev/null
 
-dist: *.py ../pipeline.py
+dist: *.py $(dir $(CURDIR))/lemur_ci/*.py
 	rm -fr dist
 	mkdir dist
-	cp *.py ../pipeline.py dist
+	cp -a *.py $(dir $(CURDIR))/lemur_ci dist
 
 clean:
 	rm -fr dist $(ZIPFILE)

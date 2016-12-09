@@ -5,13 +5,13 @@ import boto3
 import traceback
 import re
 import os
-import pipeline
 
 from base64 import b64decode
 from dateutil import parser
 from datetime import datetime as dt
 from dateutil.tz import tzlocal
 
+from lemur_ci import pipeline
 from github import Github
 from github.GithubObject import NotSet
 

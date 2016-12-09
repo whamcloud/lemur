@@ -4,7 +4,6 @@ import re
 import json
 import boto3
 import traceback
-import pipeline
 import tempfile
 import shutil
 import contextlib
@@ -12,6 +11,8 @@ import zipfile
 import gzip
 import xml.etree.ElementTree as ET
 from os import path
+
+from lemur_ci import pipeline
 
 from botocore.client import Config
 from boto3 import Session, client
