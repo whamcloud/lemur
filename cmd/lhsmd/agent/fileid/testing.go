@@ -49,5 +49,5 @@ func EnableTestMode() {
 
 // DisableTestMode re-enables normal operation.
 func DisableTestMode() {
-	mgr = &testManager{}
+	mgr = newManager(xattrUUID)
 }

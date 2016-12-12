@@ -6,8 +6,8 @@ package posix
 
 import (
 	"bufio"
+	"bytes"
 	"compress/gzip"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -86,12 +86,6 @@ type (
 		ArchiveDir  string
 		Compression CompressionOption
 		Checksums   ChecksumConfig
-	}
-
-	// FileID is used to identify a file in the backend
-	FileID struct {
-		UUID string
-		Sum  string `json:",omitempty"`
 	}
 )
 
@@ -332,65 +326,31 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 		m.Destination(fileID),
 		cw.Sum())
 
-	id := &FileID{
-		UUID: fileID,
-		Sum:  fmt.Sprintf("%x", cw.Sum()),
-	}
-
-	buf, err := EncodeFileID(id)
-	if err != nil {
-		return errors.Wrap(err, "encode file id failed")
-	}
-	action.SetFileID(buf)
-	action.SetActualLength(n)
+	action.SetUUID(fileID)
+	action.SetHash(cw.Sum())
 	return nil
-}
-
-// EncodeFileID is converts FileID to a json buffer.
-func EncodeFileID(id *FileID) ([]byte, error) {
-	buf, err := json.Marshal(id)
-	if err != nil {
-		return nil, errors.Wrap(err, "marshal failed")
-	}
-	return buf, nil
-
-}
-
-// ParseFileID unmarshalls the FileID struct from
-// json encoded data received from the agent.
-func ParseFileID(buf []byte) (*FileID, error) {
-	var id FileID
-	err := json.Unmarshal(buf, &id)
-	if err != nil {
-		return nil, errors.Wrap(err, "unmarshal failed")
-	}
-	return &id, nil
 }
 
 // Restore fulfills an HSM Restore request
 func (m *Mover) Restore(action dmplugin.Action) error {
-	debug.Printf("%s id:%d RESTORE %s %s", m.Name, action.ID(), action.PrimaryPath(), action.FileID())
+	debug.Printf("%s id:%d RESTORE %s %s", m.Name, action.ID(), action.PrimaryPath(), action.UUID())
 	rate.Mark(1)
 	start := time.Now()
 
 	// Initialize Reader for backing file
-	if action.FileID() == nil {
-		return errors.New("Missing file_id")
-	}
-	id, err := ParseFileID(action.FileID())
-	if err != nil {
-		return errors.Wrap(err, "parse file id")
+	if action.UUID() == "" {
+		return errors.New("Missing UUID")
 	}
 
 	enableUnzip := false
-	if filepath.Ext(id.UUID) == ".gz" {
-		debug.Printf("%s: id:%d decompressing %s", m.Name, action.ID(), id.UUID)
+	if filepath.Ext(action.UUID()) == ".gz" {
+		debug.Printf("%s: id:%d decompressing %s", m.Name, action.ID(), action.UUID())
 		enableUnzip = true
 	}
 
-	src, err := os.Open(m.Destination(id.UUID))
+	src, err := os.Open(m.Destination(action.UUID()))
 	if err != nil {
-		return errors.Wrapf(err, "%s: open failed", m.Destination(id.UUID))
+		return errors.Wrapf(err, "%s: open failed", m.Destination(action.UUID()))
 	}
 	defer src.Close()
 
@@ -426,9 +386,9 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 		return errors.Wrap(err, "copy failed")
 	}
 
-	if id.Sum != "" && !m.Checksums.DisableCompareOnRestore {
-		if id.Sum != fmt.Sprintf("%x", cw.Sum()) {
-			alert.Warnf("original checksum doesn't match new:  %s != %x", id.Sum, cw.Sum())
+	if action.Hash() != nil && !m.Checksums.DisableCompareOnRestore {
+		if bytes.Compare(action.Hash(), cw.Sum()) != 0 {
+			alert.Warnf("original checksum doesn't match new:  %x != %x", action.Hash(), cw.Sum())
 			return errors.New("Checksum mismatch!")
 		}
 	}
@@ -443,15 +403,11 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 
 // Remove fulfills an HSM Remove request
 func (m *Mover) Remove(action dmplugin.Action) error {
-	debug.Printf("%s id:%d REMOVE %s %s", m.Name, action.ID(), action.PrimaryPath(), action.FileID())
+	debug.Printf("%s id:%d REMOVE %s %s", m.Name, action.ID(), action.PrimaryPath(), action.UUID())
 	rate.Mark(1)
-	if action.FileID() == nil {
-		return errors.New("Missing file_id")
-	}
-	id, err := ParseFileID(action.FileID())
-	if err != nil {
-		return errors.Wrap(err, "parse file id failed")
+	if action.UUID() == "" {
+		return errors.New("Missing uuid")
 	}
 
-	return os.Remove(m.Destination(id.UUID))
+	return os.Remove(m.Destination(action.UUID()))
 }

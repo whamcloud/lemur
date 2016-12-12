@@ -21,7 +21,7 @@ import (
 	"github.com/intel-hpdd/logging/debug"
 )
 
-func testArchive(t *testing.T, mover *posix.Mover, path string, offset int64, length int64, fileID []byte, data []byte) *dmplugin.TestAction {
+func testArchive(t *testing.T, mover *posix.Mover, path string, offset int64, length int64, fileID string, data []byte) *dmplugin.TestAction {
 	action := dmplugin.NewTestAction(t, path, offset, length, fileID, data)
 	if err := mover.Archive(action); err != nil {
 		t.Fatal(err)
@@ -29,7 +29,7 @@ func testArchive(t *testing.T, mover *posix.Mover, path string, offset int64, le
 	return action
 }
 
-func testRemove(t *testing.T, mover *posix.Mover, fileID []byte, data []byte) *dmplugin.TestAction {
+func testRemove(t *testing.T, mover *posix.Mover, fileID string, data []byte) *dmplugin.TestAction {
 	action := dmplugin.NewTestAction(t, "", 0, 0, fileID, data)
 	if err := mover.Remove(action); err != nil {
 		t.Fatal(err)
@@ -37,7 +37,7 @@ func testRemove(t *testing.T, mover *posix.Mover, fileID []byte, data []byte) *d
 	return action
 }
 
-func testRestore(t *testing.T, mover *posix.Mover, offset int64, length int64, fileID []byte, data []byte) *dmplugin.TestAction {
+func testRestore(t *testing.T, mover *posix.Mover, offset int64, length int64, fileID string, data []byte) *dmplugin.TestAction {
 	tfile, cleanFile := testhelpers.TempFile(t, 0)
 	defer cleanFile()
 	action := dmplugin.NewTestAction(t, tfile, offset, length, fileID, data)
@@ -47,11 +47,12 @@ func testRestore(t *testing.T, mover *posix.Mover, offset int64, length int64, f
 	return action
 }
 
-func testRestoreFail(t *testing.T, mover *posix.Mover, offset int64, length int64, fileID []byte, data []byte, outer error) *dmplugin.TestAction {
+func testRestoreFail(t *testing.T, mover *posix.Mover, offset int64, length int64, fileID string, data []byte, outer error) *dmplugin.TestAction {
 	debug.Printf("restore %s", fileID)
 	tfile, cleanFile := testhelpers.TempFile(t, 0)
 	defer cleanFile()
 	action := dmplugin.NewTestAction(t, tfile, offset, length, fileID, data)
+	action.SetHash(data)
 	if err := mover.Restore(action); err == nil {
 		t.Fatalf("expected restore failure at: %s", outer)
 	} else {
@@ -60,13 +61,8 @@ func testRestoreFail(t *testing.T, mover *posix.Mover, offset int64, length int6
 	return action
 }
 
-func testDestinationFile(t *testing.T, mover *posix.Mover, buf []byte) string {
-	fileID, err := posix.ParseFileID(buf)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return mover.Destination(fileID.UUID)
+func testDestinationFile(t *testing.T, mover *posix.Mover, fileID string) string {
+	return mover.Destination(fileID)
 }
 
 func defaultChecksum(cfg *posix.ArchiveConfig) *posix.ArchiveConfig {
@@ -77,7 +73,7 @@ func defaultChecksum(cfg *posix.ArchiveConfig) *posix.ArchiveConfig {
 func TestPosixExtents(t *testing.T) {
 	WithPosixMover(t, nil, func(t *testing.T, mover *posix.Mover) {
 		type extent struct {
-			id     []byte
+			id     string
 			offset int64
 			length int64
 		}
@@ -102,13 +98,13 @@ func TestPosixExtents(t *testing.T) {
 			if offset+maxExtent > actualSize {
 				length = actualSize - offset
 			}
-			aa := dmplugin.NewTestAction(t, tfile, offset, length, nil, nil)
+			aa := dmplugin.NewTestAction(t, tfile, offset, length, "", nil)
 			if err := mover.Archive(aa); err != nil {
 				t.Fatal(err)
 			}
-			extents = append(extents, extent{aa.FileID(), offset, length})
+			extents = append(extents, extent{aa.UUID(), offset, length})
 
-			debug.Printf("%d/%d/%d: %s", offset, offset+length, actualSize, aa.FileID())
+			debug.Printf("%d/%d/%d: %s", offset, offset+length, actualSize, aa.UUID())
 		}
 
 		// Zap the test file like it was released before restoring
@@ -143,14 +139,14 @@ func TestPosixArchive(t *testing.T) {
 		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
-		action := testArchive(t, mover, tfile, 0, length, nil, nil)
+		action := testArchive(t, mover, tfile, 0, length, "", nil)
 
 		// Need to introduce a delay to  test new time based updates.
 		if action.Updates != 0 {
 			t.Fatalf("expected 0 updates, got %d", action.Updates)
 		}
 
-		testRestore(t, mover, 0, length, action.FileID(), nil)
+		testRestore(t, mover, 0, length, action.UUID(), nil)
 	})
 }
 
@@ -161,8 +157,8 @@ func TestPosixArchiveMaxSize(t *testing.T) {
 		defer cleanFile()
 
 		// we received MaxExtentLength from coordinator, so test this as well
-		action := testArchive(t, mover, tfile, 0, lustre.MaxExtentLength, nil, nil)
-		testRestore(t, mover, 0, lustre.MaxExtentLength, action.FileID(), nil)
+		action := testArchive(t, mover, tfile, 0, lustre.MaxExtentLength, "", nil)
+		testRestore(t, mover, 0, lustre.MaxExtentLength, action.UUID(), nil)
 	})
 }
 
@@ -172,8 +168,8 @@ func TestPosixArchiveDefaultChecksum(t *testing.T) {
 		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
-		action := testArchive(t, mover, tfile, 0, length, nil, nil)
-		testRestore(t, mover, 0, length, action.FileID(), nil)
+		action := testArchive(t, mover, tfile, 0, length, "", nil)
+		testRestore(t, mover, 0, length, action.UUID(), nil)
 	})
 }
 
@@ -188,15 +184,11 @@ func TestPosixArchiveDefaultChecksumCompress(t *testing.T) {
 		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
-		action := testArchive(t, mover, tfile, 0, length, nil, nil)
-		fileID, err := posix.ParseFileID(action.FileID())
-		if err != nil {
-			t.Fatal(err)
-		}
-		if filepath.Ext(fileID.UUID) != ".gz" {
+		action := testArchive(t, mover, tfile, 0, length, "", nil)
+		if filepath.Ext(action.UUID()) != ".gz" {
 			t.Fatal(errors.New("file not compressed"))
 		}
-		testRestore(t, mover, 0, length, action.FileID(), nil)
+		testRestore(t, mover, 0, length, action.UUID(), nil)
 	})
 }
 
@@ -206,28 +198,19 @@ func TestPosixArchiveRestoreBrokenFileID(t *testing.T) {
 		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
-		action := testArchive(t, mover, tfile, 0, length, nil, nil)
-		fileID, err := posix.ParseFileID(action.FileID())
-		if err != nil {
-			t.Fatal(err)
-		}
-		fileID.UUID = uuid.New()
-		buf, err := posix.EncodeFileID(fileID)
-		if err != nil {
-			t.Fatal(err)
-		}
-
+		action := testArchive(t, mover, tfile, 0, length, "", nil)
+		newID := uuid.New()
 		// Wrong UUID
-		action.SetFileID(buf)
-		testRestoreFail(t, mover, 0, length, action.FileID(), nil, errors.New(""))
+		action.SetUUID(newID)
+		testRestoreFail(t, mover, 0, length, action.UUID(), nil, errors.New(""))
 
 		// Missing FileID
-		action.SetFileID(nil)
-		testRestoreFail(t, mover, 0, length, action.FileID(), nil, errors.New(""))
+		action.SetUUID("")
+		testRestoreFail(t, mover, 0, length, action.UUID(), nil, errors.New(""))
 
 		// Garbage FildID
-		action.SetFileID([]byte(`{"Not a FileID"}`))
-		testRestoreFail(t, mover, 0, length, action.FileID(), nil, errors.New(""))
+		action.SetUUID("Not a FileID")
+		testRestoreFail(t, mover, 0, length, action.UUID(), nil, errors.New(""))
 	})
 }
 
@@ -238,9 +221,9 @@ func TestPosixArchiveRestoreError(t *testing.T) {
 		defer cleanFile()
 
 		// we received MaxExtentLength from coordinator, so test this as well
-		action := testArchive(t, mover, tfile, 0, length, nil, nil)
+		action := testArchive(t, mover, tfile, 0, length, "", nil)
 
-		failRestore := func(t *testing.T, mover *posix.Mover, offset int64, length int64, fileID []byte, data []byte) *dmplugin.TestAction {
+		failRestore := func(t *testing.T, mover *posix.Mover, offset int64, length int64, fileID string, data []byte) *dmplugin.TestAction {
 			tfile, cleanFile := testhelpers.TempFile(t, 0)
 			defer cleanFile()
 			os.Chmod(tfile, 0444)
@@ -257,7 +240,7 @@ func TestPosixArchiveRestoreError(t *testing.T) {
 			return action
 		}
 
-		failRestore(t, mover, 0, length, action.FileID(), nil)
+		failRestore(t, mover, 0, length, action.UUID(), nil)
 	})
 }
 
@@ -273,18 +256,13 @@ func TestPosixArchiveNoChecksum(t *testing.T) {
 		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
-		action := testArchive(t, mover, tfile, 0, lustre.MaxExtentLength, nil, nil)
+		action := testArchive(t, mover, tfile, 0, lustre.MaxExtentLength, "", nil)
 		// we received MaxExtentLength from coordinator, so test this as well
 
-		fileID, err := posix.ParseFileID(action.FileID())
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		testhelpers.CorruptFile(t, mover.Destination(fileID.UUID))
+		testhelpers.CorruptFile(t, mover.Destination(action.UUID()))
 
 		// Successfully restore corrupt data
-		testRestore(t, mover, 0, lustre.MaxExtentLength, action.FileID(), nil)
+		testRestore(t, mover, 0, lustre.MaxExtentLength, action.UUID(), nil)
 	})
 }
 
@@ -309,17 +287,12 @@ func TestPosixArchiveNoChecksumRestore(t *testing.T) {
 		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
-		action := testArchive(t, mover, tfile, 0, lustre.MaxExtentLength, nil, nil)
+		action := testArchive(t, mover, tfile, 0, lustre.MaxExtentLength, "", nil)
 		// we received MaxExtentLength from coordinator, so test this as well
 
-		fileID, err := posix.ParseFileID(action.FileID())
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		testhelpers.CorruptFile(t, mover.Destination(fileID.UUID))
+		testhelpers.CorruptFile(t, mover.Destination(action.UUID()))
 		// Successfully restore corrupt data
-		testRestore(t, mover, 0, lustre.MaxExtentLength, action.FileID(), nil)
+		testRestore(t, mover, 0, lustre.MaxExtentLength, action.UUID(), nil)
 	})
 }
 
@@ -330,12 +303,12 @@ func TestPosixArchiveChecksumAfter(t *testing.T) {
 		defer cleanFile()
 
 		// we received MaxExtentLength from coordinator, so test this as well
-		action := testArchive(t, mover, tfile, 0, lustre.MaxExtentLength, nil, nil)
+		action := testArchive(t, mover, tfile, 0, lustre.MaxExtentLength, "", nil)
 		// Disable checksum generation but should still check existing checksums
 		mover.ChecksumConfig().Disabled = true
-		testhelpers.CorruptFile(t, testDestinationFile(t, mover, action.FileID()))
+		testhelpers.CorruptFile(t, testDestinationFile(t, mover, action.UUID()))
 		// Don't  restore corrupt data
-		testRestoreFail(t, mover, 0, lustre.MaxExtentLength, action.FileID(), nil, errors.New(""))
+		testRestoreFail(t, mover, 0, lustre.MaxExtentLength, action.UUID(), action.Hash(), errors.New(""))
 	})
 }
 
@@ -345,17 +318,17 @@ func TestPosixCorruptArchive(t *testing.T) {
 		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
-		action := dmplugin.NewTestAction(t, tfile, 0, length, nil, nil)
+		action := dmplugin.NewTestAction(t, tfile, 0, length, "", nil)
 		if err := mover.Archive(action); err != nil {
 			t.Fatal(err)
 		}
 
-		path := testDestinationFile(t, mover, action.FileID())
+		path := testDestinationFile(t, mover, action.UUID())
 
 		testhelpers.CorruptFile(t, path)
 
 		// TODO check for specific CheckSum error
-		testRestoreFail(t, mover, 0, length, action.FileID(), nil, errors.New(""))
+		testRestoreFail(t, mover, 0, length, action.UUID(), action.Hash(), errors.New(""))
 
 	})
 }
@@ -366,21 +339,21 @@ func TestPosixRemove(t *testing.T) {
 		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
-		action := testArchive(t, mover, tfile, 0, length, nil, nil)
-		path := testDestinationFile(t, mover, action.FileID())
+		action := testArchive(t, mover, tfile, 0, length, "", nil)
+		path := testDestinationFile(t, mover, action.UUID())
 
 		if _, err := os.Stat(path); err != nil {
 			t.Fatalf("Destination file is missing: %v", err)
 		}
 
-		testRemove(t, mover, action.FileID(), nil)
+		testRemove(t, mover, action.UUID(), nil)
 
 		_, err := os.Stat(path)
 		if !os.IsNotExist(err) {
 			t.Fatalf("Unexpected or missing error: %v", err)
 		}
 
-		testRestoreFail(t, mover, 0, length, action.FileID(), nil, errors.New(""))
+		testRestoreFail(t, mover, 0, length, action.UUID(), nil, errors.New(""))
 	})
 }
 

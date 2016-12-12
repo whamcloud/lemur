@@ -29,12 +29,14 @@ type (
 
 	// Action represents an HSM action
 	Action struct {
-		id     ActionID
-		aih    hsm.ActionHandle
-		agent  *HsmAgent
-		start  time.Time
-		FileID []byte
-		Data   []byte
+		id    ActionID
+		aih   hsm.ActionHandle
+		agent *HsmAgent
+		start time.Time
+		UUID  string
+		Hash  []byte
+		URL   string
+		Data  []byte
 	}
 
 	// ActionData is extra data passed to the Agent by policy engine
@@ -115,20 +117,24 @@ func (action *Action) Prepare() error {
 
 	if len(data.FileID) > 0 {
 		debug.Printf("found fileID from user: %v %d", data.FileID, len(data.FileID))
-		action.FileID = data.FileID
+		action.UUID = string(data.FileID)
 	} else {
+		var uuid []byte
 		switch action.aih.Action() {
 		case llapi.HsmActionRestore, llapi.HsmActionRemove:
 			var err error
-			action.FileID, err = fileid.Get(action.agent.Root(), action.aih.Fid())
+			uuid, err = fileid.Get(action.agent.Root(), action.aih.Fid())
 			if err != nil {
 				debug.Printf("Error reading fileid: %v (%v) will retry", err, action)
 				// WTF, let's try again
 				time.Sleep(1 * time.Second)
-				action.FileID, err = fileid.Get(action.agent.Root(), action.aih.Fid())
+				uuid, err = fileid.Get(action.agent.Root(), action.aih.Fid())
 				if err != nil {
 					alert.Warnf("Error reading fileid: %v (%v)", err, action) // hmm, can't restore if there is no file id
 				}
+			}
+			if err == nil {
+				action.UUID = string(uuid)
 			}
 		}
 	}
@@ -143,7 +149,9 @@ func (action *Action) AsMessage() *pb.ActionItem {
 		PrimaryPath: fs.FidRelativePath(action.aih.Fid()),
 		Offset:      action.aih.Offset(),
 		Length:      action.aih.Length(),
-		FileId:      action.FileID,
+		Uuid:        action.UUID,
+		Hash:        action.Hash,
+		Url:         action.URL,
 		Data:        action.Data,
 	}
 
@@ -174,8 +182,8 @@ func (action *Action) Update(status *pb.ActionStatus) (bool, error) {
 		duration := time.Since(action.start)
 		debug.Printf("id:%d completed status: %v in %v", status.Id, status.Error, duration)
 
-		if status.FileId != nil {
-			fileid.Update(action.agent.Root(), action.aih.Fid(), status.FileId)
+		if status.Uuid != "" {
+			fileid.Update(action.agent.Root(), action.aih.Fid(), []byte(status.Uuid))
 		}
 		action.agent.stats.CompleteAction(action, int(status.Error))
 		err := action.aih.End(status.Offset, status.Length, 0, int(status.Error))
@@ -184,8 +192,8 @@ func (action *Action) Update(status *pb.ActionStatus) (bool, error) {
 			return true, err // Completed, but Failed. Internal HSM state is not updated
 		}
 		<-action.agent.rpcsInFlight
-		if action.aih.Action() == llapi.HsmActionArchive && action.agent.config.Snapshots.Enabled && status.FileId != nil {
-			createSnapshot(action.agent.Root(), action.aih.ArchiveID(), action.aih.Fid(), status.FileId)
+		if action.aih.Action() == llapi.HsmActionArchive && action.agent.config.Snapshots.Enabled && status.Uuid != "" {
+			createSnapshot(action.agent.Root(), action.aih.ArchiveID(), action.aih.Fid(), []byte(status.Uuid))
 		}
 		return true, nil // Completed
 	}

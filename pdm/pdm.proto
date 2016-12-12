@@ -35,7 +35,7 @@ message ActionItem {
     string write_path = 4; // Path for writing data (for restore)
     int64 offset = 5; // Start IO at offset
     int64 length = 6; // Number of bytes to copy
-    bytes file_id = 7; // Archive ID of file (provided with Restore command) DEPRECATED
+    bytes deprecated1 = 7; // Archive ID of file (provided with Restore command) DEPRECATED
     bytes data = 8; // Arbitrary data passed to action. Data Mover specific.
     string uuid = 9; // trusted.lhsm_uuid if set
     bytes hash = 10; // trusted.lhsm_hash if set
@@ -49,7 +49,7 @@ message ActionStatus {
     int64 offset = 4;
     int64  length = 5;
     Handle handle = 6;
-    bytes file_id = 7; // Included with completion of Archive DEPRECATED
+    bytes depcreated1 = 7; // Included with completion of Archive DEPRECATED
     int32 flags = 8; // Additial flags (used for errors only?)
     string uuid = 9; // Included with completion of Archive
     bytes hash = 10; // Included with completion of Archive

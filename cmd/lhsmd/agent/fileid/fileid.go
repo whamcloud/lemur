@@ -5,15 +5,15 @@
 package fileid
 
 import (
-	"github.com/intel-hpdd/logging/debug"
 	"github.com/intel-hpdd/go-lustre"
 	"github.com/intel-hpdd/go-lustre/fs"
 	"github.com/intel-hpdd/go-lustre/pkg/xattr"
+	"github.com/intel-hpdd/logging/debug"
 )
 
-const xattrFileID = "trusted.hsm_file_id"
+const xattrUUID = "trusted.lhsm_uuid"
 
-var mgr manager = &fileIDManager{}
+var mgr manager = newManager(xattrUUID)
 
 type (
 	manager interface {
@@ -21,24 +21,31 @@ type (
 		set(string, []byte) error
 		get(fs.RootDir, *lustre.Fid) ([]byte, error)
 	}
-	fileIDManager struct{}
+	attrManager struct {
+		attr string
+	}
 )
 
-func (m *fileIDManager) update(mnt fs.RootDir, fid *lustre.Fid, fileID []byte) error {
+// Manager returns a new attrManager
+func newManager(attr string) *attrManager {
+	return &attrManager{attr: attr}
+}
+
+func (m *attrManager) update(mnt fs.RootDir, fid *lustre.Fid, fileID []byte) error {
 	p := fs.FidPath(mnt, fid)
 
 	return m.set(p, fileID)
 }
 
-func (m *fileIDManager) set(p string, fileID []byte) error {
-	return xattr.Lsetxattr(p, xattrFileID, fileID, 0)
+func (m *attrManager) set(p string, fileID []byte) error {
+	return xattr.Lsetxattr(p, m.attr, fileID, 0)
 }
 
-func (m *fileIDManager) get(mnt fs.RootDir, fid *lustre.Fid) ([]byte, error) {
+func (m *attrManager) get(mnt fs.RootDir, fid *lustre.Fid) ([]byte, error) {
 	buf := make([]byte, 256)
 	p := fs.FidPath(mnt, fid)
 
-	sz, err := xattr.Lgetxattr(p, xattrFileID, buf)
+	sz, err := xattr.Lgetxattr(p, m.attr, buf)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +59,7 @@ func Update(mnt fs.RootDir, fid *lustre.Fid, fileID []byte) error {
 
 // Set sets a fileid attribute on a file
 func Set(p string, fileID []byte) error {
-	debug.Printf("setting %s=%s on %s", xattrFileID, fileID, p)
+	debug.Printf("setting %s=%s on %s", xattrUUID, fileID, p)
 	return mgr.set(p, fileID)
 }
 

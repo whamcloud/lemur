@@ -23,20 +23,22 @@ type TestAction struct {
 	offset       int64
 	length       int64
 	data         []byte
-	fileID       []byte
+	uuid         string
+	hash         []byte
+	url          string
 	ActualLength int
 	Updates      int
 }
 
 // NewTestAction returns a stub action that can be used for testing.
-func NewTestAction(t Fataler, path string, offset int64, length int64, fileID []byte, data []byte) *TestAction {
+func NewTestAction(t Fataler, path string, offset int64, length int64, uuid string, data []byte) *TestAction {
 	return &TestAction{
 		t:      t,
 		id:     1,
 		path:   path,
 		offset: offset,
 		length: length,
-		fileID: fileID,
+		uuid:   uuid,
 		data:   data,
 	}
 }
@@ -88,14 +90,34 @@ func (a *TestAction) WritePath() string {
 	return a.path
 }
 
-// FileID returns the action item's file id
-func (a *TestAction) FileID() []byte {
-	return a.fileID
+// UUID returns the action item's file id
+func (a *TestAction) UUID() string {
+	return a.uuid
 }
 
-// SetFileID sets the action's file id
-func (a *TestAction) SetFileID(id []byte) {
-	a.fileID = id
+// Hash returns the action item's file id
+func (a *TestAction) Hash() []byte {
+	return a.hash
+}
+
+// URL returns the action item's file id
+func (a *TestAction) URL() string {
+	return a.url
+}
+
+// SetUUID returns the action item's file id
+func (a *TestAction) SetUUID(u string) {
+	a.uuid = u
+}
+
+// SetHash sets the action's file id
+func (a *TestAction) SetHash(id []byte) {
+	a.hash = id
+}
+
+// SetURL returns the action item's file id
+func (a *TestAction) SetURL(u string) {
+	a.url = u
 }
 
 // SetActualLength sets the action's actual file length

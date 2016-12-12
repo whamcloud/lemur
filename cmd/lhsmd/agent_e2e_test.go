@@ -57,7 +57,7 @@ type (
 	}
 
 	testMoverData struct {
-		FileID      []byte
+		UUID        string
 		Length      int64
 		Errval      int
 		UpdateCount int
@@ -75,8 +75,8 @@ func (t *testMover) Archive(a dmplugin.Action) error {
 		return errors.Wrap(err, fmt.Sprintf("parsing '%s'", string(a.Data())))
 	}
 
-	if data.FileID != nil {
-		a.SetFileID(data.FileID)
+	if data.UUID != "" {
+		a.SetUUID(data.UUID)
 	}
 	if data.Length > 0 {
 		a.SetActualLength(data.Length)
@@ -271,8 +271,8 @@ func TestArchiveEndToEnd(t *testing.T) {
 
 	for i, expected := range cases {
 		testFid := testGenFid(t, i)
-		if expected.FileID == nil {
-			expected.FileID = []byte(fmt.Sprintf("testid-%x", i))
+		if expected.UUID == "" {
+			expected.UUID = fmt.Sprintf("testid-%x", i)
 		}
 		adata, err := agent.MarshalActionData(nil, &expected)
 		if err != nil {
@@ -310,7 +310,7 @@ func TestArchiveEndToEnd(t *testing.T) {
 				}
 
 				buf, _ := fileid.Get(fs.RootDir{}, testFid)
-				if string(buf) != string(expected.FileID) {
+				if string(buf) != expected.UUID {
 					t.Fatalf("fileID invalid '%s'", buf)
 				}
 				if update.Length != expected.Length {

@@ -86,7 +86,7 @@ func (m *Mover) fileIDtoBucketPath(fileID string) (string, string, error) {
 
 // Archive fulfills an HSM Archive request
 func (m *Mover) Archive(action dmplugin.Action) error {
-	debug.Printf("%s id:%d archive %s %s", m.name, action.ID(), action.PrimaryPath(), action.FileID())
+	debug.Printf("%s id:%d archive %s %s", m.name, action.ID(), action.PrimaryPath(), action.UUID())
 	rate.Mark(1)
 	start := time.Now()
 
@@ -130,22 +130,23 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 		Path:   fileKey,
 	}
 
-	action.SetFileID([]byte(u.String()))
+	action.SetUUID(fileID)
+	action.SetURL(u.String())
 	action.SetActualLength(total)
 	return nil
 }
 
 // Restore fulfills an HSM Restore request
 func (m *Mover) Restore(action dmplugin.Action) error {
-	debug.Printf("%s id:%d restore %s %s", m.name, action.ID(), action.PrimaryPath(), action.FileID())
+	debug.Printf("%s id:%d restore %s %s", m.name, action.ID(), action.PrimaryPath(), action.UUID())
 	rate.Mark(1)
 
 	start := time.Now()
-	if action.FileID() == nil {
+	if action.UUID() == "" {
 		return errors.Errorf("Missing file_id on action %d", action.ID())
 	}
-	bucket, srcObj, err := m.fileIDtoBucketPath(string(action.FileID()))
-
+	fileKey := m.destination(action.UUID())
+	bucket, srcObj, err := m.fileIDtoBucketPath(fileKey)
 	if err != nil {
 		return errors.Wrap(err, "fileIDtoBucketPath failed")
 	}
@@ -192,13 +193,13 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 
 // Remove fulfills an HSM Remove request
 func (m *Mover) Remove(action dmplugin.Action) error {
-	debug.Printf("%s id:%d remove %s %s", m.name, action.ID(), action.PrimaryPath(), action.FileID())
+	debug.Printf("%s id:%d remove %s %s", m.name, action.ID(), action.PrimaryPath(), action.UUID())
 	rate.Mark(1)
-	if action.FileID() == nil {
+	if action.UUID() == "" {
 		return errors.New("Missing file_id")
 	}
 
-	bucket, srcObj, err := m.fileIDtoBucketPath(string(action.FileID()))
+	bucket, srcObj, err := m.fileIDtoBucketPath(string(action.UUID()))
 
 	_, err = m.s3Svc.DeleteObject(&s3.DeleteObjectInput{
 		Bucket: aws.String(bucket),

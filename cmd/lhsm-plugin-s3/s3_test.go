@@ -17,7 +17,7 @@ import (
 	"github.com/intel-hpdd/logging/debug"
 )
 
-func testArchive(t *testing.T, mover *Mover, path string, offset int64, length int64, fileID []byte, data []byte) *dmplugin.TestAction {
+func testArchive(t *testing.T, mover *Mover, path string, offset int64, length int64, fileID string, data []byte) *dmplugin.TestAction {
 	action := dmplugin.NewTestAction(t, path, offset, length, fileID, data)
 	if err := mover.Archive(action); err != nil {
 		t.Fatal(err)
@@ -25,7 +25,7 @@ func testArchive(t *testing.T, mover *Mover, path string, offset int64, length i
 	return action
 }
 
-func testRemove(t *testing.T, mover *Mover, fileID []byte, data []byte) *dmplugin.TestAction {
+func testRemove(t *testing.T, mover *Mover, fileID string, data []byte) *dmplugin.TestAction {
 	action := dmplugin.NewTestAction(t, "", 0, 0, fileID, data)
 	if err := mover.Remove(action); err != nil {
 		t.Fatal(err)
@@ -33,7 +33,7 @@ func testRemove(t *testing.T, mover *Mover, fileID []byte, data []byte) *dmplugi
 	return action
 }
 
-func testRestore(t *testing.T, mover *Mover, offset int64, length int64, fileID []byte, data []byte) *dmplugin.TestAction {
+func testRestore(t *testing.T, mover *Mover, offset int64, length int64, fileID string, data []byte) *dmplugin.TestAction {
 	tfile, cleanFile := testhelpers.TempFile(t, 0)
 	defer cleanFile()
 	action := dmplugin.NewTestAction(t, tfile, offset, length, fileID, data)
@@ -43,7 +43,7 @@ func testRestore(t *testing.T, mover *Mover, offset int64, length int64, fileID 
 	return action
 }
 
-func testRestoreFail(t *testing.T, mover *Mover, offset int64, length int64, fileID []byte, data []byte) *dmplugin.TestAction {
+func testRestoreFail(t *testing.T, mover *Mover, offset int64, length int64, fileID string, data []byte) *dmplugin.TestAction {
 	tfile, cleanFile := testhelpers.TempFile(t, 0)
 	defer cleanFile()
 	action := dmplugin.NewTestAction(t, tfile, offset, length, fileID, data)
@@ -67,7 +67,7 @@ func testDestinationFile(t *testing.T, mover *Mover, buf []byte) string {
 func TestS3Extents(t *testing.T) {
 	WithS3Mover(t, nil, func(t *testing.T, mover *Mover) {
 		type extent struct {
-			id     []byte
+			id     string
 			offset int64
 			length int64
 		}
@@ -93,13 +93,13 @@ func TestS3Extents(t *testing.T) {
 			if offset+maxExtent > actualSize {
 				length = actualSize - offset
 			}
-			aa := dmplugin.NewTestAction(t, tfile, offset, length, nil, nil)
+			aa := dmplugin.NewTestAction(t, tfile, offset, length, "", nil)
 			if err := mover.Archive(aa); err != nil {
 				t.Fatal(err)
 			}
-			extents = append(extents, extent{aa.FileID(), offset, length})
+			extents = append(extents, extent{aa.UUID(), offset, length})
 
-			debug.Printf("ARCHIVE %d/%d/%d: %s", offset, offset+length, actualSize, aa.FileID())
+			debug.Printf("ARCHIVE %d/%d/%d: %s", offset, offset+length, actualSize, aa.UUID())
 		}
 
 		// Zap the test file like it was released before restoring
@@ -114,7 +114,7 @@ func TestS3Extents(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			debug.Printf("RESTORE %d/%d/%d: %s", extent.offset, extent.offset+extent.length, actualSize, ra.FileID())
+			debug.Printf("RESTORE %d/%d/%d: %s", extent.offset, extent.offset+extent.length, actualSize, ra.UUID())
 		}
 
 		endSum, err := checksum.FileSha1Sum(tfile)
@@ -136,7 +136,7 @@ func TestS3Archive(t *testing.T) {
 		defer cleanFile()
 
 		start := time.Now()
-		action := testArchive(t, mover, tfile, 0, length, nil, nil)
+		action := testArchive(t, mover, tfile, 0, length, "", nil)
 
 		// TODO: parameterize the update interval
 		expectedUpdates := int((time.Since(start) / time.Second) / 10)
@@ -146,14 +146,14 @@ func TestS3Archive(t *testing.T) {
 		}
 
 		start = time.Now()
-		restore := testRestore(t, mover, 0, length, action.FileID(), nil)
+		restore := testRestore(t, mover, 0, length, action.UUID(), nil)
 		// TODO: parameterize the update interval
 		duration := time.Since(start)
 		expectedUpdates = int((duration / time.Second) / 10)
 		if restore.Updates != expectedUpdates {
 			t.Errorf("expected %d updates, got %d, duration: %v", expectedUpdates, restore.Updates, duration)
 		}
-		testRemove(t, mover, action.FileID(), nil)
+		testRemove(t, mover, action.UUID(), nil)
 	})
 }
 
@@ -164,9 +164,9 @@ func TestS3ArchiveMaxSize(t *testing.T) {
 		defer cleanFile()
 
 		// we received MaxExtentLength from coordinator, so test this as well
-		action := testArchive(t, mover, tfile, 0, lustre.MaxExtentLength, nil, nil)
-		testRestore(t, mover, 0, lustre.MaxExtentLength, action.FileID(), nil)
-		testRemove(t, mover, action.FileID(), nil)
+		action := testArchive(t, mover, tfile, 0, lustre.MaxExtentLength, "", nil)
+		testRestore(t, mover, 0, lustre.MaxExtentLength, action.UUID(), nil)
+		testRemove(t, mover, action.UUID(), nil)
 	})
 }
 
@@ -267,10 +267,10 @@ func TestS3Remove(t *testing.T) {
 		tfile, cleanFile := testhelpers.TempFile(t, length)
 		defer cleanFile()
 
-		action := testArchive(t, mover, tfile, 0, length, nil, nil)
+		action := testArchive(t, mover, tfile, 0, length, "", nil)
 
-		testRemove(t, mover, action.FileID(), nil)
-		testRestoreFail(t, mover, 0, length, action.FileID(), nil)
+		testRemove(t, mover, action.UUID(), nil)
+		testRestoreFail(t, mover, 0, length, action.UUID(), nil)
 	})
 }
 
