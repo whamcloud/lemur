@@ -333,7 +333,7 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 
 // Restore fulfills an HSM Restore request
 func (m *Mover) Restore(action dmplugin.Action) error {
-	debug.Printf("%s id:%d RESTORE %s %s", m.Name, action.ID(), action.PrimaryPath(), action.UUID())
+	debug.Printf("%s id:%d RESTORE %s %s %x", m.Name, action.ID(), action.PrimaryPath(), action.UUID(), action.Hash())
 	rate.Mark(1)
 	start := time.Now()
 

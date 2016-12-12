@@ -309,7 +309,7 @@ func TestArchiveEndToEnd(t *testing.T) {
 					continue
 				}
 
-				buf, _ := fileid.Get(fs.RootDir{}, testFid)
+				buf, _ := fileid.UUID.Get(fs.RootDir{}, testFid)
 				if string(buf) != expected.UUID {
 					t.Fatalf("fileID invalid '%s'", buf)
 				}
@@ -349,7 +349,7 @@ func TestRestoreEndToEnd(t *testing.T) {
 	for i, expected := range cases {
 		testFid := testGenFid(t, i)
 
-		fileid.Set(fs.FidRelativePath(testFid), []byte("moo"))
+		fileid.UUID.Set(fs.FidRelativePath(testFid), []byte("moo"))
 		// Inject an action
 		adata, err := agent.MarshalActionData(nil, &expected)
 		if err != nil {
@@ -420,7 +420,7 @@ func TestRemoveEndToEnd(t *testing.T) {
 
 	for i, expected := range cases {
 		testFid := testGenFid(t, i)
-		fileid.Set(fs.FidRelativePath(testFid), []byte("moo"))
+		fileid.UUID.Set(fs.FidRelativePath(testFid), []byte("moo"))
 		// Inject an action
 		adata, err := agent.MarshalActionData(nil, &expected)
 		if err != nil {

@@ -119,23 +119,27 @@ func (action *Action) Prepare() error {
 		debug.Printf("found fileID from user: %v %d", data.FileID, len(data.FileID))
 		action.UUID = string(data.FileID)
 	} else {
-		var uuid []byte
 		switch action.aih.Action() {
 		case llapi.HsmActionRestore, llapi.HsmActionRemove:
-			var err error
-			uuid, err = fileid.Get(action.agent.Root(), action.aih.Fid())
+			uuid, err := fileid.UUID.Get(action.agent.Root(), action.aih.Fid())
 			if err != nil {
-				debug.Printf("Error reading fileid: %v (%v) will retry", err, action)
-				// WTF, let's try again
-				time.Sleep(1 * time.Second)
-				uuid, err = fileid.Get(action.agent.Root(), action.aih.Fid())
-				if err != nil {
-					alert.Warnf("Error reading fileid: %v (%v)", err, action) // hmm, can't restore if there is no file id
-				}
-			}
-			if err == nil {
+				alert.Warnf("Error reading UUID: %v (%v)", err, action)
+			} else {
 				action.UUID = string(uuid)
 			}
+
+			action.Hash, err = fileid.Hash.Get(action.agent.Root(), action.aih.Fid())
+			if err != nil {
+				alert.Warnf("Error reading Hash: %v (%v)", err, action)
+			}
+
+			url, err := fileid.URL.Get(action.agent.Root(), action.aih.Fid())
+			if err != nil {
+				alert.Warnf("Error reading URL: %v (%v)", err, action)
+			} else {
+				action.URL = string(url)
+			}
+
 		}
 	}
 	return nil
@@ -183,7 +187,13 @@ func (action *Action) Update(status *pb.ActionStatus) (bool, error) {
 		debug.Printf("id:%d completed status: %v in %v", status.Id, status.Error, duration)
 
 		if status.Uuid != "" {
-			fileid.Update(action.agent.Root(), action.aih.Fid(), []byte(status.Uuid))
+			fileid.UUID.Update(action.agent.Root(), action.aih.Fid(), []byte(status.Uuid))
+		}
+		if status.Hash != nil {
+			fileid.Hash.Update(action.agent.Root(), action.aih.Fid(), status.Hash)
+		}
+		if status.Url != "" {
+			fileid.URL.Update(action.agent.Root(), action.aih.Fid(), []byte(status.Url))
 		}
 		action.agent.stats.CompleteAction(action, int(status.Error))
 		err := action.aih.End(status.Offset, status.Length, 0, int(status.Error))

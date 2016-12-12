@@ -12,14 +12,14 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/intel-hpdd/lemur/cmd/lhsmd/agent/fileid"
-	"github.com/intel-hpdd/logging/alert"
-	"github.com/intel-hpdd/logging/debug"
 	"github.com/intel-hpdd/go-lustre"
 	"github.com/intel-hpdd/go-lustre/fs"
 	"github.com/intel-hpdd/go-lustre/hsm"
 	"github.com/intel-hpdd/go-lustre/llapi"
 	"github.com/intel-hpdd/go-lustre/status"
+	"github.com/intel-hpdd/lemur/cmd/lhsmd/agent/fileid"
+	"github.com/intel-hpdd/logging/alert"
+	"github.com/intel-hpdd/logging/debug"
 )
 
 func createSnapDir(p string) (string, error) {
@@ -74,7 +74,7 @@ func createSnapshots(mnt fs.RootDir, archive uint, fileID []byte, names []string
 			if err != nil {
 				return errors.Wrap(err, "create stub file")
 			}
-			err = fileid.Set(f, fileID)
+			err = fileid.UUID.Set(f, fileID)
 			if err != nil {
 				return errors.Wrapf(err, "%s: set fileid", f)
 			}

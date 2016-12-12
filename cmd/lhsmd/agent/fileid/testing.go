@@ -42,12 +42,18 @@ func (m *testManager) get(mnt fs.RootDir, fid *lustre.Fid) ([]byte, error) {
 // EnableTestMode swaps out the real implementation for a test-friendly
 // mock.
 func EnableTestMode() {
-	mgr = &testManager{
+	UUID = Attribute{&testManager{
 		files: make(fileMap),
-	}
+	}}
+	Hash = Attribute{&testManager{
+		files: make(fileMap),
+	}}
+	URL = Attribute{&testManager{
+		files: make(fileMap),
+	}}
 }
 
 // DisableTestMode re-enables normal operation.
 func DisableTestMode() {
-	mgr = newManager(xattrUUID)
+	defaultAttrs()
 }
