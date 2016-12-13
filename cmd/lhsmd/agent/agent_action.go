@@ -130,12 +130,12 @@ func (action *Action) Prepare() error {
 
 			action.Hash, err = fileid.Hash.Get(action.agent.Root(), action.aih.Fid())
 			if err != nil {
-				alert.Warnf("Error reading Hash: %v (%v)", err, action)
+				debug.Printf("Error reading Hash: %v (%v)", err, action)
 			}
 
 			url, err := fileid.URL.Get(action.agent.Root(), action.aih.Fid())
 			if err != nil {
-				alert.Warnf("Error reading URL: %v (%v)", err, action)
+				debug.Printf("Error reading URL: %v (%v)", err, action)
 			} else {
 				action.URL = string(url)
 			}
