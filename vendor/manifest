@@ -274,9 +274,9 @@
 			"importpath": "golang.org/x/net/trace",
 			"repository": "https://go.googlesource.com/net",
 			"vcs": "git",
-			"revision": "f4fe4abe3c785295ddf81c7f1823bcd3bad391b6",
+			"revision": "45e771701b814666a7eb299e6c7a57d0b1799e91",
 			"branch": "master",
-			"path": "trace",
+			"path": "/trace",
 			"notests": true
 		},
 		{
@@ -316,7 +316,7 @@
 			"importpath": "gopkg.in/yaml.v2",
 			"repository": "https://gopkg.in/yaml.v2",
 			"vcs": "git",
-			"revision": "31c299268d302dd0aa9a0dcf765a3d58971ac83f",
+			"revision": "a5b47d31c556af34a302ce5d659e6fea44d90de0",
 			"branch": "v2",
 			"notests": true
 		}

@@ -1,10 +1,12 @@
-GVT_BIN := $(shell if which gvt >/dev/null 2>&1; then true; else echo get-gvt; fi)
-GO_SOURCES := $(shell find .. -name *.go -and -not -path *vendor* -and -not -path *output*)
-GO_SRC_DIRS := $(shell echo $(GO_SOURCES) | tr ' ' '\n' | sed -e 's/^..\///' -e 's/\/.*$$//' | sort | uniq | tr '\n' ' ')
+export PATH := $(GOPATH)/bin:$(PATH)
+GVT_BIN = $(shell PATH=$(PATH); if which gvt 2>/dev/null; then true; else echo get-gvt; fi)
+GO_SOURCES := $(shell find $(dir $(CURDIR)) -name '*.go' -and -not -path '*vendor*' -and -not -path '*output*')
+GO_SRC_DIRS := $(addprefix .,$(sort $(subst $(dir $(CURDIR)),,$(dir $(GO_SOURCES)))))
+IMPORT_PATH := $(subst $(GOPATH)/src/,,$(dir $(CURDIR)))
 
 # Explicit repo imports which need to be added because they can't be inferred
-# from imports of repo subdirs or are in the UAT dir.
-EXPLICIT_IMPORTS := github.com/intel-hpdd/logging github.com/DATA-DOG/godog
+# from imports of repo subdirs. These are needed for slurp.
+EXPLICIT_IMPORTS :=
 
 # These patterns match imports which we don't need to ship, and therefore
 # don't want to include in the vendor tree.
@@ -24,42 +26,26 @@ github.com/briandowns # github.com/intel-hpdd/logging/applog
 endef
 export EXCLUDES
 
+define IMPORT_LIST_FN
+$$(deps=; for dep in $$(go list -f '{{ join .Deps "\n" }}' $(GO_SRC_DIRS) | sort | uniq); do if localdep=$$(go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}' $$dep 2>/dev/null); then deps="$$deps\n$$localdep"; else deps="$$deps\n$$dep"; fi; done; echo $$deps | egrep -v "($$EXCLUDE_LIST$(IMPORT_PATH)|vendor)" | sort | uniq)
+endef
+export IMPORT_LIST_FN
 
 manifest: $(GVT_BIN) $(GO_SOURCES)
-	# First, build the naive import set recursively.
-	pushd .. >/dev/null; \
-	imports="$(EXPLICIT_IMPORTS) $$(go list -f '{{ join .Deps "\n" }}' $(addsuffix /...,$(addprefix ./,$(GO_SRC_DIRS))) | grep -v vendor | xargs go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}' | sort | uniq)"; \
-	for import in $$imports; do \
-		$(GVT_BIN) fetch $$import; \
+	@pushd .. >/dev/null; \
+	echo "Building list of dependencies in $(GO_SRC_DIRS) and checking for missing vendors..."; \
+	EXCLUDE_LIST=$$(echo $$"$$EXCLUDES" | sed -e 's/[[:space:]]*#.*$$//' | tr '\n' '|'); \
+	IMPORT_LIST="$$(if [ '$(EXPLICIT_IMPORTS)' != "" ]; then echo '$(EXPLICIT_IMPORTS) '; fi)$(IMPORT_LIST_FN)"; \
+	while [ "$$IMPORT_LIST" != "" ]; do \
+		echo "Vendoring $$(echo $$IMPORT_LIST | wc -w) dependencies."; \
+		for import in $$IMPORT_LIST; do \
+			$(GVT_BIN) fetch -no-recurse $$import; \
+		done; \
+		IMPORT_LIST=$(IMPORT_LIST_FN); \
 	done; \
+	echo "Done."; \
 	popd >/dev/null; \
 	touch $@
 
-	# Next, run through the vendored imports and remove those we
-	# know our production code doesn't need.
-	# It would be better if we could prevent these from being imported
-	# in the first place, but then we'd need to build the recursive
-	# imports list ourselves instead of letting gvt do it.
-	pushd .. >/dev/null; \
-	EXCLUDE_LIST=$$(echo $$"$$EXCLUDES" | sed -e 's/\s*#.*//'); \
-	for vendored in $$($(GVT_BIN) list -f "{{.Importpath}}"); do \
-		for exclude in $$EXCLUDE_LIST; do \
-			if [[ $$vendored == *$$exclude* ]]; then \
-				$(GVT_BIN) delete $$vendored; \
-				continue 2; \
-			fi; \
-		done; \
-	done; \
-	popd >/dev/null
-
-	# Finally, run through the excludes and nuke any remaining cruft.
-	EXCLUDE_LIST=$$(echo $$"$$EXCLUDES" | sed -e 's/\s*#.*//'); \
-	for exclude in $$EXCLUDE_LIST; do \
-		if [ -n "$$exclude" ] && [[ $$exclude != /* ]]; then \
-			rm -fr $$exclude; \
-		fi; \
-	done
-
 get-gvt:
 	go get -u github.com/FiloSottile/gvt
-GVT_BIN = $(shell which gvt)
