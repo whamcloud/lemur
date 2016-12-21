@@ -126,6 +126,16 @@ func layoutFromLum(lum *C.struct_lov_user_md_v1) (*DataLayout, error) {
 	return l, nil
 }
 
+// DefaultDataLayout returns default layout.
+func DefaultDataLayout() *DataLayout {
+	return &DataLayout{
+		StripePattern: C.LOV_PATTERN_RAID0,
+		StripeSize:    1 << 20,
+		StripeCount:   1,
+		StripeOffset:  -1,
+	}
+}
+
 // FileDataLayout retrieves the file's data layout
 func FileDataLayout(name string) (*DataLayout, error) {
 	cName := C.CString(name)
@@ -140,7 +150,12 @@ func FileDataLayout(name string) (*DataLayout, error) {
 	return layoutFromLum(lum)
 }
 
-// FileDataLayoutEA retrieves the file's data layout from the extended attribute.
+// FileDataLayoutEA retrieves the file's data layout from the extended
+// attribute. This would be my preferred method, but with released files this
+// always returns 0 for stripe_count instead of the original value. Instead
+// we're using llapi_file_get_stripe() above which does include stripe_count for
+// released files. Also, this appears to return layout_gen as 0. Leaving this
+// here in case this is fixed someday.
 func FileDataLayoutEA(name string) (*DataLayout, error) {
 	maxLumSize := C.lov_user_md_size(C.LOV_MAX_STRIPE_COUNT, C.LOV_USER_MAGIC_V3)
 	b1 := make([]byte, maxLumSize)

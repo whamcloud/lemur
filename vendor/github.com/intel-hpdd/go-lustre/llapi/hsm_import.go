@@ -111,6 +111,10 @@ func hsmImport(name string, archive uint, fi os.FileInfo, layout *DataLayout) (*
 		return nil, errStatError
 	}
 
+	if layout == nil {
+		layout = DefaultDataLayout()
+	}
+
 	layout.StripePattern = layout.StripePattern | C.LOV_PATTERN_F_RELEASED
 	fd, err := FileOpenPool(name, unix.O_CREAT|unix.O_WRONLY, stat.Mode, layout)
 	if err != nil {
