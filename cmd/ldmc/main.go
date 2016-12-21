@@ -5,10 +5,10 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
-	"github.com/intel-hpdd/logging/alert"
 	"github.com/intel-hpdd/logging/debug"
 
 	"gopkg.in/urfave/cli.v1"
@@ -41,7 +41,8 @@ func main() {
 	}
 	app.Before = configureLogging
 	if err := app.Run(os.Args); err != nil {
-		alert.Abort(err)
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
 	}
 }
 

@@ -5,6 +5,7 @@
 package agent
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"sync/atomic"
@@ -128,9 +129,15 @@ func (action *Action) Prepare() error {
 				action.UUID = string(uuid)
 			}
 
-			action.Hash, err = fileid.Hash.Get(action.agent.Root(), action.aih.Fid())
+			buf, err := fileid.Hash.Get(action.agent.Root(), action.aih.Fid())
 			if err != nil {
 				debug.Printf("Error reading Hash: %v (%v)", err, action)
+			}
+			hash := make([]byte, hex.DecodedLen(len(buf)))
+			_, err = hex.Decode(hash, buf)
+			action.Hash = hash
+			if err != nil {
+				debug.Printf("Error decoding Hash: %v (%v)", err, action)
 			}
 
 			url, err := fileid.URL.Get(action.agent.Root(), action.aih.Fid())
@@ -190,7 +197,9 @@ func (action *Action) Update(status *pb.ActionStatus) (bool, error) {
 			fileid.UUID.Update(action.agent.Root(), action.aih.Fid(), []byte(status.Uuid))
 		}
 		if status.Hash != nil {
-			fileid.Hash.Update(action.agent.Root(), action.aih.Fid(), status.Hash)
+			buf := make([]byte, hex.EncodedLen(len(status.Hash)))
+			hex.Encode(buf, status.Hash)
+			fileid.Hash.Update(action.agent.Root(), action.aih.Fid(), buf)
 		}
 		if status.Url != "" {
 			fileid.URL.Update(action.agent.Root(), action.aih.Fid(), []byte(status.Url))

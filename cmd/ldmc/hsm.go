@@ -147,6 +147,66 @@ func init() {
 				},
 				Action: hsmStatusAction,
 			},
+			{
+				Name:      "import",
+				Usage:     "Import an HSM-backed file.",
+				ArgsUsage: "path",
+				Flags: []cli.Flag{
+					cli.UintFlag{
+						Name:  "id, i",
+						Usage: "Numeric ID of archive backend",
+					},
+					cli.StringFlag{
+						Name:  "uuid",
+						Usage: "File's UUID",
+					},
+					cli.StringFlag{
+						Name:  "hash",
+						Usage: "Checksum hash value",
+					},
+					cli.StringFlag{
+						Name:  "uid",
+						Usage: "Owner uid",
+					},
+					cli.StringFlag{
+						Name:  "gid",
+						Usage: "Owner gid",
+					},
+					cli.Int64Flag{
+						Name:  "size",
+						Usage: "Size of file in bytes",
+					},
+					cli.UintFlag{
+						Name:  "mode",
+						Value: 0644,
+						Usage: "File mode",
+					},
+					cli.StringFlag{
+						Name:  "timefmt",
+						Value: "2006-01-02 15:04:05.999999999 -0700",
+						Usage: "Format for time stamp see golang time.Parse documentation",
+					},
+					cli.StringFlag{
+						Name:  "mtime",
+						Usage: "Modification time (default: current time)",
+					},
+					cli.StringFlag{
+						Name:  "atime",
+						Usage: "Last access time (default: set to mtime)",
+					},
+					cli.IntFlag{
+						Name:  "stripe_count",
+						Value: 1,
+						Usage: "Set number of stripes in file",
+					},
+					cli.IntFlag{
+						Name:  "stripe_size",
+						Value: 1 << 20,
+						Usage: "Set stripe size in bytes",
+					},
+				},
+				Action: hsmImportAction,
+			},
 		},
 	}
 	commands = append(commands, hsmCommand)
