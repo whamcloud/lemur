@@ -19,7 +19,7 @@ var version string // Set by build environment
 
 func main() {
 	app := cli.NewApp()
-	app.Usage = "Data Movement Control for Lustre* software"
+	app.Usage = "HSM-related actions"
 	app.Commands = commands
 	app.Version = version
 	app.Authors = []cli.Author{

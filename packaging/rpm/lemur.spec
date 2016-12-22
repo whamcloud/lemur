@@ -46,12 +46,12 @@ installations.
 
 # TODO: This has to be GPL because it links against liblustreapi. Can we
 # fix that?
-%package -n ldmc
+%package -n lhsm
 Summary: Lustre HSM Tools - Data Movement Control
 License: GPLv2
 Requires: lustre-client >= %{?MIN_LUSTRE_VERSION}%{?!MIN_LUSTRE_VERSION:2.6.0}
 
-%description -n ldmc
+%description -n lhsm
 CLI for Lustre data movement control.
 
 %prep
@@ -136,6 +136,6 @@ mv %{buildroot}/%{_bindir}/lhsmd %{buildroot}/%{_sbindir}
 %{_libexecdir}/%{pkg_prefix}-testing/%{pkg_prefix}-uat-runner
 %{_datarootdir}/%{pkg_prefix}/test/features/*.feature
 
-%files -n ldmc
+%files -n lhsm
 %defattr(-,root,root)
-%{_bindir}/ldmc
+%{_bindir}/lhsm
