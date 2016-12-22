@@ -202,6 +202,10 @@ func init() {
 					Value: 1 << 20,
 					Usage: "Set stripe size in bytes",
 				},
+				cli.StringFlag{
+					Name:  "pool",
+					Usage: "Set the start OST Pool name",
+				},
 			},
 		},
 		{
@@ -218,6 +222,10 @@ func init() {
 					Name:  "stripe_size",
 					Usage: "Override stripe size (bytes) in target copy.",
 				},
+				cli.StringFlag{
+					Name:  "pool",
+					Usage: "Set the start OST Pool name",
+				},
 			},
 		},
 		{
@@ -233,6 +241,10 @@ func init() {
 				cli.IntFlag{
 					Name:  "stripe_size",
 					Usage: "Override stripe size (bytes) in target copy.",
+				},
+				cli.StringFlag{
+					Name:  "pool",
+					Usage: "Set the start OST Pool name",
 				},
 			},
 		},

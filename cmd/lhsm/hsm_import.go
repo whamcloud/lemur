@@ -160,6 +160,7 @@ func hsmImportAction(c *cli.Context) error {
 	layout := llapi.DefaultDataLayout()
 	layout.StripeCount = c.Int("stripe_count")
 	layout.StripeSize = c.Int("stripe_size")
+	layout.PoolName = c.String("pool")
 
 	debug.Printf("%v, %v, %v, %v", archive, uuid, hash, args[0])
 	_, err = hsm.Import(args[0], archive, fi, layout)
@@ -178,7 +179,7 @@ func hsmImportAction(c *cli.Context) error {
 	return nil
 }
 
-func clone(srcPath, targetPath string, stripeCount, stripeSize int, requiredState llapi.HsmStateFlag) error {
+func clone(srcPath, targetPath string, stripeCount, stripeSize int, poolName string, requiredState llapi.HsmStateFlag) error {
 	srcStat, err := os.Stat(srcPath)
 	if err != nil {
 		return errors.Wrap(err, srcPath)
@@ -221,6 +222,11 @@ func clone(srcPath, targetPath string, stripeCount, stripeSize int, requiredStat
 		layout.StripeSize = stripeSize
 
 	}
+
+	if poolName != "" {
+		layout.PoolName = poolName
+	}
+
 	//debug.Printf("%v, %v, %v, %v", archive, uuid, hash, srcPath)
 	_, err = hsm.Import(targetPath, uint(archive), srcStat, layout)
 	if err != nil {
@@ -246,7 +252,7 @@ func hsmCloneAction(c *cli.Context) error {
 		return errors.New("HSM clone requires source and destination argument")
 	}
 
-	return clone(args[0], args[1], c.Int("stripe_count"), c.Int("stripe_size"), llapi.HsmFileArchived)
+	return clone(args[0], args[1], c.Int("stripe_count"), c.Int("stripe_size"), c.String("pool"), llapi.HsmFileArchived)
 }
 
 // tempName returns a tempname based on path provided
@@ -260,7 +266,7 @@ func hsmRestripeAction(c *cli.Context) error {
 		return errors.New("Can only restripe one file at a time.")
 	}
 	tempFile := tempName(args[0])
-	err := clone(args[0], tempFile, c.Int("stripe_count"), c.Int("stripe_size"), llapi.HsmFileReleased)
+	err := clone(args[0], tempFile, c.Int("stripe_count"), c.Int("stripe_size"), c.String("pool"), llapi.HsmFileReleased)
 	if err != nil {
 		os.Remove(tempFile)
 		return errors.Wrap(err, "Unable to restripe")
