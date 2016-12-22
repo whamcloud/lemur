@@ -5,8 +5,10 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/user"
+	"path"
 	"strconv"
 	"syscall"
 	"time"
@@ -173,5 +175,99 @@ func hsmImportAction(c *cli.Context) error {
 		fileid.Hash.Set(args[0], []byte(hash))
 	}
 
+	return nil
+}
+
+func clone(srcPath, targetPath string, stripeCount, stripeSize int, requiredState llapi.HsmStateFlag) error {
+	srcStat, err := os.Stat(srcPath)
+	if err != nil {
+		return errors.Wrap(err, srcPath)
+	}
+
+	if srcStat.IsDir() {
+		return errors.Errorf("can't clone a directory: %s", srcPath)
+	}
+
+	tgtStat, err := os.Stat(targetPath)
+	if err == nil {
+		if tgtStat.IsDir() {
+			targetPath = path.Join(targetPath, srcStat.Name())
+			_, err = os.Stat(targetPath)
+			if err == nil {
+				return errors.Errorf("%s: already exists, can't overwrite", targetPath)
+			}
+		}
+	}
+
+	state, archive, err := llapi.GetHsmFileStatus(srcPath)
+	if err != nil {
+		return errors.Wrap(err, "unable to get HSM status")
+	}
+
+	if !state.HasFlag(requiredState) {
+		return errors.Errorf("%s: file not in in %s state. ", srcPath, requiredState)
+	}
+
+	layout, err := llapi.FileDataLayout(srcPath)
+	if err != nil {
+		return errors.Wrap(err, "failed to get layout")
+	}
+
+	if stripeCount != 0 {
+		layout.StripeCount = stripeCount
+	}
+
+	if stripeSize != 0 {
+		layout.StripeSize = stripeSize
+
+	}
+	//debug.Printf("%v, %v, %v, %v", archive, uuid, hash, srcPath)
+	_, err = hsm.Import(targetPath, uint(archive), srcStat, layout)
+	if err != nil {
+		return errors.Wrap(err, "Import failed")
+	}
+
+	uuid, err := fileid.UUID.Get(srcPath)
+	if err == nil && len(uuid) > 0 {
+		fileid.UUID.Set(targetPath, uuid)
+	}
+
+	hash, err := fileid.Hash.Get(srcPath)
+	if err == nil && len(hash) > 0 {
+		fileid.Hash.Set(targetPath, hash)
+	}
+	return nil
+}
+
+func hsmCloneAction(c *cli.Context) error {
+	logContext(c)
+	args := c.Args()
+	if len(args) != 2 {
+		return errors.New("HSM clone requires source and destination argument")
+	}
+
+	return clone(args[0], args[1], c.Int("stripe_count"), c.Int("stripe_size"), llapi.HsmFileArchived)
+}
+
+// tempName returns a tempname based on path provided
+func tempName(p string) string {
+	return fmt.Sprintf("%s#%x", p, os.Getpid())
+}
+func hsmRestripeAction(c *cli.Context) error {
+	logContext(c)
+	args := c.Args()
+	if len(args) != 1 {
+		return errors.New("Can only restripe one file at a time.")
+	}
+	tempFile := tempName(args[0])
+	err := clone(args[0], tempFile, c.Int("stripe_count"), c.Int("stripe_size"), llapi.HsmFileReleased)
+	if err != nil {
+		os.Remove(tempFile)
+		return errors.Wrap(err, "Unable to restripe")
+	}
+	err = os.Rename(tempFile, args[0])
+	if err != nil {
+		return errors.Wrap(err, "Unable to rename")
+	}
 	return nil
 }

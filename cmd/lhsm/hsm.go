@@ -30,6 +30,7 @@ func init() {
 			Name:      "archive",
 			Usage:     "Initiate HSM archive of specified paths",
 			ArgsUsage: "[path [path...]]",
+			Action:    hsmRequestAction(hsm.RequestArchive),
 			Flags: []cli.Flag{
 				cli.IntFlag{
 					Name:  "id, i",
@@ -40,60 +41,60 @@ func init() {
 					Usage: "Null-separated paths are read from stdin (e.g. piped from find -print0)",
 				},
 			},
-			Action: hsmRequestAction(hsm.RequestArchive),
 		},
 		{
 			Name:      "release",
 			Usage:     "Release local data of HSM-archived paths",
 			ArgsUsage: "[path [path...]]",
+			Action:    hsmRequestAction(hsm.RequestRelease),
 			Flags: []cli.Flag{
 				cli.BoolFlag{
 					Name:  "null, 0",
 					Usage: "Null-separated paths are read from stdin (e.g. piped from find -print0)",
 				},
 			},
-			Action: hsmRequestAction(hsm.RequestRelease),
 		},
 		{
 			Name:      "restore",
 			Usage:     "Explicitly restore local data of HSM-archived paths",
 			ArgsUsage: "[path [path...]]",
+			Action:    hsmRequestAction(hsm.RequestRestore),
 			Flags: []cli.Flag{
 				cli.BoolFlag{
 					Name:  "null, 0",
 					Usage: "Null-separated paths are read from stdin (e.g. piped from find -print0)",
 				},
 			},
-			Action: hsmRequestAction(hsm.RequestRestore),
 		},
 		{
 			Name:      "remove",
 			Usage:     "Remove HSM-archived data of specified paths (local data is not removed)",
 			ArgsUsage: "[path [path...]]",
+			Action:    hsmRequestAction(hsm.RequestRemove),
 			Flags: []cli.Flag{
 				cli.BoolFlag{
 					Name:  "null, 0",
 					Usage: "Null-separated paths are read from stdin (e.g. piped from find -print0)",
 				},
 			},
-			Action: hsmRequestAction(hsm.RequestRemove),
 		},
 		{
 			Name:      "cancel",
 			Usage:     "Cancel HSM operations being performed on specified paths",
 			ArgsUsage: "[path [path...]]",
+			Action:    hsmRequestAction(hsm.RequestCancel),
 			Flags: []cli.Flag{
 				cli.BoolFlag{
 					Name:  "null, 0",
 					Usage: "Null-separated paths are read from stdin (e.g. piped from find -print0)",
 				},
 			},
-			Action: hsmRequestAction(hsm.RequestCancel),
 		},
 		{
 			Name:      "set",
 			Usage:     "Set HSM flags or archive ID for specified paths",
 			ArgsUsage: "[path [path...]]",
+			Action:    hsmSetAction,
 			Flags: []cli.Flag{
 				cli.BoolFlag{
 					Name:  "null, 0",
@@ -114,12 +115,12 @@ func init() {
 					Value: &cli.StringSlice{},
 				},
 			},
-			Action: hsmSetAction,
 		},
 		{
 			Name:      "status",
 			Usage:     "Display HSM status for specified paths",
 			ArgsUsage: "[path [path...]]",
+			Action:    hsmStatusAction,
 			Flags: []cli.Flag{
 				cli.BoolFlag{
 					Name:  "action, a",
@@ -142,12 +143,12 @@ func init() {
 					Usage: "Null-separated paths are read from stdin (e.g. piped from find -print0)",
 				},
 			},
-			Action: hsmStatusAction,
 		},
 		{
 			Name:      "import",
 			Usage:     "Import an HSM-backed file.",
 			ArgsUsage: "path",
+			Action:    hsmImportAction,
 			Flags: []cli.Flag{
 				cli.UintFlag{
 					Name:  "id, i",
@@ -202,7 +203,38 @@ func init() {
 					Usage: "Set stripe size in bytes",
 				},
 			},
-			Action: hsmImportAction,
+		},
+		{
+			Name:      "clone",
+			Usage:     "Create a relased copy of an HSM-backed file.",
+			ArgsUsage: "source_file target_file",
+			Action:    hsmCloneAction,
+			Flags: []cli.Flag{
+				cli.IntFlag{
+					Name:  "stripe_count",
+					Usage: "Override the number of stripes in the target copy.",
+				},
+				cli.IntFlag{
+					Name:  "stripe_size",
+					Usage: "Override stripe size (bytes) in target copy.",
+				},
+			},
+		},
+		{
+			Name:      "restripe",
+			Usage:     "Change stripe parameters of a released file.",
+			ArgsUsage: "file",
+			Action:    hsmRestripeAction,
+			Flags: []cli.Flag{
+				cli.IntFlag{
+					Name:  "stripe_count",
+					Usage: "Override the number of stripes in the target copy.",
+				},
+				cli.IntFlag{
+					Name:  "stripe_size",
+					Usage: "Override stripe size (bytes) in target copy.",
+				},
+			},
 		},
 	}
 	commands = append(commands, hsmCommands...)

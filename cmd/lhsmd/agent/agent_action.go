@@ -122,14 +122,14 @@ func (action *Action) Prepare() error {
 	} else {
 		switch action.aih.Action() {
 		case llapi.HsmActionRestore, llapi.HsmActionRemove:
-			uuid, err := fileid.UUID.Get(action.agent.Root(), action.aih.Fid())
+			uuid, err := fileid.UUID.GetByFid(action.agent.Root(), action.aih.Fid())
 			if err != nil {
 				alert.Warnf("Error reading UUID: %v (%v)", err, action)
 			} else {
 				action.UUID = string(uuid)
 			}
 
-			buf, err := fileid.Hash.Get(action.agent.Root(), action.aih.Fid())
+			buf, err := fileid.Hash.GetByFid(action.agent.Root(), action.aih.Fid())
 			if err != nil {
 				debug.Printf("Error reading Hash: %v (%v)", err, action)
 			}
@@ -140,7 +140,7 @@ func (action *Action) Prepare() error {
 				debug.Printf("Error decoding Hash: %v (%v)", err, action)
 			}
 
-			url, err := fileid.URL.Get(action.agent.Root(), action.aih.Fid())
+			url, err := fileid.URL.GetByFid(action.agent.Root(), action.aih.Fid())
 			if err != nil {
 				debug.Printf("Error reading URL: %v (%v)", err, action)
 			} else {
@@ -194,15 +194,15 @@ func (action *Action) Update(status *pb.ActionStatus) (bool, error) {
 		debug.Printf("id:%d completed status: %v in %v", status.Id, status.Error, duration)
 
 		if status.Uuid != "" {
-			fileid.UUID.Update(action.agent.Root(), action.aih.Fid(), []byte(status.Uuid))
+			fileid.UUID.UpdateByFid(action.agent.Root(), action.aih.Fid(), []byte(status.Uuid))
 		}
 		if status.Hash != nil {
 			buf := make([]byte, hex.EncodedLen(len(status.Hash)))
 			hex.Encode(buf, status.Hash)
-			fileid.Hash.Update(action.agent.Root(), action.aih.Fid(), buf)
+			fileid.Hash.UpdateByFid(action.agent.Root(), action.aih.Fid(), buf)
 		}
 		if status.Url != "" {
-			fileid.URL.Update(action.agent.Root(), action.aih.Fid(), []byte(status.Url))
+			fileid.URL.UpdateByFid(action.agent.Root(), action.aih.Fid(), []byte(status.Url))
 		}
 		action.agent.stats.CompleteAction(action, int(status.Error))
 		err := action.aih.End(status.Offset, status.Length, 0, int(status.Error))

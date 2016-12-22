@@ -4,12 +4,7 @@
 
 package fileid
 
-import (
-	"fmt"
-
-	"github.com/intel-hpdd/go-lustre"
-	"github.com/intel-hpdd/go-lustre/fs"
-)
+import "fmt"
 
 type (
 	fileMap map[string][]byte
@@ -19,8 +14,7 @@ type (
 	}
 )
 
-func (m *testManager) update(mnt fs.RootDir, fid *lustre.Fid, fileID []byte) error {
-	p := fs.FidRelativePath(fid)
+func (m *testManager) update(p string, fileID []byte) error {
 	return m.set(p, fileID)
 }
 
@@ -30,9 +24,7 @@ func (m *testManager) set(p string, fileID []byte) error {
 	return nil
 }
 
-func (m *testManager) get(mnt fs.RootDir, fid *lustre.Fid) ([]byte, error) {
-	p := fs.FidRelativePath(fid)
-
+func (m *testManager) get(p string) ([]byte, error) {
 	if attr, ok := m.files[p]; ok {
 		return attr, nil
 	}

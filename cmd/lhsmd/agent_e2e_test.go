@@ -309,7 +309,7 @@ func TestArchiveEndToEnd(t *testing.T) {
 					continue
 				}
 
-				buf, _ := fileid.UUID.Get(fs.RootDir{}, testFid)
+				buf, _ := fileid.UUID.GetByFid(fs.RootDir{}, testFid)
 				if string(buf) != expected.UUID {
 					t.Fatalf("fileID invalid '%s'", buf)
 				}
