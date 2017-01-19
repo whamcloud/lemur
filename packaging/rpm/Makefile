@@ -39,7 +39,7 @@ $(WORKDIR)/$(SPECFILE):
 $(WORKDIR)/$(SOURCE):
 	cd ../../ && \
 	tar --owner=$(USER) --group=$(USER) \
-	    --exclude=.git --exclude=*.swp \
+	    --exclude=.git --exclude=*.swp --exclude=packaging/ci/* \
 	    --transform 's|./|$(NAME)-$(VERSION)/|' -czf $@ ./ && \
 	chown $(USER).$(USER) $@
 
