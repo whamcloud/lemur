@@ -17,26 +17,23 @@ import (
 
 	"github.com/intel-hpdd/lemur/dmplugin"
 	"github.com/intel-hpdd/lemur/dmplugin/dmio"
-	"github.com/intel-hpdd/logging/alert"
 	"github.com/intel-hpdd/logging/debug"
 	"github.com/pborman/uuid"
 )
 
 // Mover is an S3 data mover
 type Mover struct {
-	name   string
-	s3Svc  *s3.S3
-	bucket string
-	prefix string
+	name  string
+	s3Svc *s3.S3
+	cfg   *archiveConfig
 }
 
 // S3Mover returns a new *Mover
-func S3Mover(s3Svc *s3.S3, archiveID uint32, bucket string, prefix string) *Mover {
+func S3Mover(cfg *archiveConfig, s3Svc *s3.S3, archiveID uint32) *Mover {
 	return &Mover{
-		name:   fmt.Sprintf("s3-%d", archiveID),
-		s3Svc:  s3Svc,
-		bucket: bucket,
-		prefix: prefix,
+		name:  fmt.Sprintf("s3-%d", archiveID),
+		s3Svc: s3Svc,
+		cfg:   cfg,
 	}
 }
 
@@ -45,18 +42,18 @@ func newFileID() string {
 }
 
 func (m *Mover) destination(id string) string {
-	return path.Join(m.prefix,
+	return path.Join(m.cfg.Prefix,
 		"o",
 		id)
 }
 
 func (m *Mover) newUploader() *s3manager.Uploader {
-	// can configure stuff here with custom setters, e.g.
-	// var partSize10 = func(u *Uploader) {
-	//     u.PartSize = 1024 * 1024 * 10
-	// }
-	// s3manager.NewUploaderWithClient(m.s3Svc, partSize10)
-	return s3manager.NewUploaderWithClient(m.s3Svc)
+	// can configure stuff here with custom setters
+	var partSize = func(u *s3manager.Uploader) {
+		u.PartSize = m.cfg.UploadPartSize
+	}
+	return s3manager.NewUploaderWithClient(m.s3Svc, partSize)
+
 }
 
 func (m *Mover) newDownloader() *s3manager.Downloader {
@@ -79,7 +76,7 @@ func (m *Mover) fileIDtoBucketPath(fileID string) (string, string, error) {
 		bucket = u.Host
 	} else {
 		path = m.destination(fileID)
-		bucket = m.bucket
+		bucket = m.cfg.Bucket
 	}
 	debug.Printf("Parsed %s -> %s/%s", fileID, bucket, path)
 	return bucket, path, nil
@@ -109,13 +106,13 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 	uploader := m.newUploader()
 	out, err := uploader.Upload(&s3manager.UploadInput{
 		Body:        progressReader,
-		Bucket:      aws.String(m.bucket),
+		Bucket:      aws.String(m.cfg.Bucket),
 		Key:         aws.String(fileKey),
 		ContentType: aws.String("application/octet-stream"),
 	})
 	if err != nil {
 		if multierr, ok := err.(s3manager.MultiUploadFailure); ok {
-			alert.Warn("Upload error:", multierr.Code(), multierr.Message(), multierr.UploadID())
+			return errors.Errorf("Upload error on %s: %s (%s)", multierr.UploadID(), multierr.Code(), multierr.Message())
 		}
 		return errors.Wrap(err, "upload failed")
 	}
@@ -127,7 +124,7 @@ func (m *Mover) Archive(action dmplugin.Action) error {
 
 	u := url.URL{
 		Scheme: "s3",
-		Host:   m.bucket,
+		Host:   m.cfg.Bucket,
 		Path:   fileKey,
 	}
 
@@ -176,7 +173,7 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	downloader := m.newDownloader()
 	n, err := downloader.Download(progressWriter,
 		&s3.GetObjectInput{
-			Bucket: aws.String(m.bucket),
+			Bucket: aws.String(m.cfg.Bucket),
 			Key:    aws.String(srcObj),
 		})
 	if err != nil {

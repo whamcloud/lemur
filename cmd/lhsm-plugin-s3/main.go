@@ -14,9 +14,11 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/defaults"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/dustin/go-humanize"
 	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
@@ -30,21 +32,28 @@ import (
 
 type (
 	archiveConfig struct {
-		Name   string `hcl:",key"`
-		ID     int
-		Region string
-		Bucket string
-		Prefix string
+		Name               string `hcl:",key"`
+		ID                 int
+		AWSAccessKeyID     string `hcl:"aws_access_key_id"`
+		AWSSecretAccessKey string `hcl:"aws_secret_access_key"`
+		Endpoint           string
+		Region             string
+		Bucket             string
+		Prefix             string
+		UploadPartSize     int64 `hcl:"upload_part_size"`
+
+		s3Creds *credentials.Credentials
 	}
 
 	archiveSet []*archiveConfig
 
 	s3Config struct {
 		NumThreads         int        `hcl:"num_threads"`
-		Region             string     `hcl:"region"`
-		Endpoint           string     `hcl:"endpoint"`
 		AWSAccessKeyID     string     `hcl:"aws_access_key_id"`
 		AWSSecretAccessKey string     `hcl:"aws_secret_access_key"`
+		Endpoint           string     `hcl:"endpoint"`
+		Region             string     `hcl:"region"`
+		UploadPartSize     int64      `hcl:"upload_part_size"`
 		Archives           archiveSet `hcl:"archive"`
 	}
 )
@@ -59,7 +68,7 @@ func (c *s3Config) String() string {
 }
 
 func (a *archiveConfig) String() string {
-	return fmt.Sprintf("%d:%s:%s/%s", a.ID, a.Region, a.Bucket, a.Prefix)
+	return fmt.Sprintf("%d:%s:%s:%s/%s", a.ID, a.Endpoint, a.Region, a.Bucket, a.Prefix)
 }
 
 func (a *archiveConfig) checkValid() error {
@@ -74,6 +83,10 @@ func (a *archiveConfig) checkValid() error {
 
 	}
 
+	if a.UploadPartSize < s3manager.MinUploadPartSize {
+		errors = append(errors, fmt.Sprintf("Archive %s: upload_part_size %d is less than minimum (%d)", a.Name, a.UploadPartSize, s3manager.MinUploadPartSize))
+	}
+
 	if len(errors) > 0 {
 		return fmt.Errorf("Errors: %s", strings.Join(errors, ", "))
 	}
@@ -81,8 +94,65 @@ func (a *archiveConfig) checkValid() error {
 	return nil
 }
 
+func (a *archiveConfig) checkS3Access() error {
+	if _, err := a.s3Creds.Get(); err != nil {
+		return errors.Wrap(err, "No S3 credentials found; cannot initialize data mover")
+	}
+
+	if _, err := s3Svc(a).ListObjects(&s3.ListObjectsInput{
+		Bucket: aws.String(a.Bucket),
+	}); err != nil {
+		return errors.Wrap(err, "Unable to list S3 bucket objects")
+	}
+
+	return nil
+}
+
+// this does an in-place merge, replacing any unset archive-level value
+// with the global value for that setting
+func (a *archiveConfig) mergeGlobals(g *s3Config) {
+	if a.AWSAccessKeyID == "" {
+		a.AWSAccessKeyID = g.AWSAccessKeyID
+	}
+
+	if a.AWSSecretAccessKey == "" {
+		a.AWSSecretAccessKey = g.AWSSecretAccessKey
+	}
+
+	if a.Endpoint == "" {
+		a.Endpoint = g.Endpoint
+	}
+
+	if a.Region == "" {
+		a.Region = g.Region
+	}
+
+	if a.UploadPartSize == 0 {
+		a.UploadPartSize = g.UploadPartSize
+	} else {
+		// Allow this to be configured in MiB
+		a.UploadPartSize *= 1024 * 1024
+	}
+
+	// Set the default credentials provider
+	a.s3Creds = defaults.CredChain(
+		aws.NewConfig().WithRegion(a.Region), defaults.Handlers(),
+	)
+	// If these were set on a per-archive basis, override the defaults.
+	if a.AWSAccessKeyID != "" && a.AWSSecretAccessKey != "" {
+		a.s3Creds = credentials.NewStaticCredentials(
+			a.AWSAccessKeyID, a.AWSSecretAccessKey, "",
+		)
+	}
+}
+
 func (c *s3Config) Merge(other *s3Config) *s3Config {
 	result := new(s3Config)
+
+	result.UploadPartSize = c.UploadPartSize
+	if other.UploadPartSize > 0 {
+		result.UploadPartSize = other.UploadPartSize
+	}
 
 	result.NumThreads = c.NumThreads
 	if other.NumThreads > 0 {
@@ -140,15 +210,14 @@ func init() {
 	// }
 }
 
-func s3Svc(region string, endpoint string) *s3.S3 {
-	// TODO: Allow more per-archive configuration options?
-	cfg := aws.NewConfig().WithRegion(region)
+func s3Svc(ac *archiveConfig) *s3.S3 {
+	cfg := aws.NewConfig().WithRegion(ac.Region).WithCredentials(ac.s3Creds)
 	if debug.Enabled() {
 		cfg.WithLogger(debug.Writer())
 		cfg.WithLogLevel(aws.LogDebug)
 	}
-	if endpoint != "" {
-		cfg.WithEndpoint(endpoint)
+	if ac.Endpoint != "" {
+		cfg.WithEndpoint(ac.Endpoint)
 		cfg.WithS3ForcePathStyle(true)
 	}
 	return s3.New(session.New(cfg))
@@ -156,7 +225,8 @@ func s3Svc(region string, endpoint string) *s3.S3 {
 
 func getMergedConfig(plugin *dmplugin.Plugin) (*s3Config, error) {
 	baseCfg := &s3Config{
-		Region: "us-east-1",
+		Region:         "us-east-1",
+		UploadPartSize: s3manager.DefaultUploadPartSize,
 	}
 
 	var cfg s3Config
@@ -166,27 +236,12 @@ func getMergedConfig(plugin *dmplugin.Plugin) (*s3Config, error) {
 		return nil, fmt.Errorf("Failed to load config: %s", err)
 	}
 
+	// Allow this to be configured in MiB
+	if cfg.UploadPartSize != 0 {
+		cfg.UploadPartSize *= 1024 * 1024
+	}
+
 	return baseCfg.Merge(&cfg), nil
-}
-
-func checkS3Configuration(cfg *s3Config, bucket string) error {
-	// Check to make sure that the SDK can find some credentials
-	// before continuing; otherwise there will be long timeouts and
-	// mysterious failures on HSM actions.
-	// Hopefully this will work for non-AWS S3 implementations as well.
-	s3Creds := defaults.CredChain(aws.NewConfig().WithRegion(cfg.Region), defaults.Handlers())
-	if _, err := s3Creds.Get(); err != nil {
-		return errors.Wrap(err, "No S3 credentials found; cannot initialize data mover")
-	}
-
-	svc := s3Svc(cfg.Region, cfg.Endpoint)
-	if _, err := svc.ListObjects(&s3.ListObjectsInput{
-		Bucket: aws.String(bucket),
-	}); err != nil {
-		return errors.Wrap(err, "Unable to list S3 bucket objects")
-	}
-
-	return nil
 }
 
 func main() {
@@ -203,33 +258,21 @@ func main() {
 		alert.Abort(errors.Wrap(err, "Unable to determine plugin configuration"))
 	}
 
-	debug.Printf("S3Mover configuration:\n%v", cfg)
-
 	if len(cfg.Archives) == 0 {
 		alert.Abort(errors.New("Invalid configuration: No archives defined"))
 	}
 
-	for _, archive := range cfg.Archives {
-		debug.Print(archive)
-		if err = archive.checkValid(); err != nil {
+	for _, ac := range cfg.Archives {
+		ac.mergeGlobals(cfg)
+		if err = ac.checkValid(); err != nil {
 			alert.Abort(errors.Wrap(err, "Invalid configuration"))
+		}
+		if err = ac.checkS3Access(); err != nil {
+			alert.Abort(errors.Wrap(err, "S3 access check failed"))
 		}
 	}
 
-	// Set the configured AWS credentials in the environment for use
-	// by the SDK. If there are no explicitly configured credentials,
-	// then the SDK will look for them in other ways
-	// (e.g. ~/.aws/credentials, ec2 role, etc.).
-	if cfg.AWSAccessKeyID != "" {
-		os.Setenv("AWS_ACCESS_KEY_ID", cfg.AWSAccessKeyID)
-	}
-	if cfg.AWSSecretAccessKey != "" {
-		os.Setenv("AWS_SECRET_ACCESS_KEY", cfg.AWSSecretAccessKey)
-	}
-
-	if err = checkS3Configuration(cfg, cfg.Archives[0].Bucket); err != nil {
-		alert.Abort(errors.Wrap(err, "S3 config check failed"))
-	}
+	debug.Printf("S3Mover configuration:\n%v", cfg)
 
 	// All base filesystem operations will be relative to current directory
 	err = os.Chdir(plugin.Base())
@@ -241,18 +284,11 @@ func main() {
 		plugin.Stop()
 	})
 
-	for _, a := range cfg.Archives {
-		// Allow each archive to set its own region, but default
-		// to the region set for the plugin.
-		region := cfg.Region
-		if a.Region != "" {
-			region = a.Region
-		}
-		s3Svc := s3Svc(region, cfg.Endpoint)
+	for _, ac := range cfg.Archives {
 		plugin.AddMover(&dmplugin.Config{
-			Mover:      S3Mover(s3Svc, uint32(a.ID), a.Bucket, a.Prefix),
+			Mover:      S3Mover(ac, s3Svc(ac), uint32(ac.ID)),
 			NumThreads: cfg.NumThreads,
-			ArchiveID:  uint32(a.ID),
+			ArchiveID:  uint32(ac.ID),
 		})
 	}
 

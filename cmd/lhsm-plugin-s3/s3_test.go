@@ -129,7 +129,17 @@ func TestS3Extents(t *testing.T) {
 }
 
 func TestS3Archive(t *testing.T) {
-	WithS3Mover(t, nil, func(t *testing.T, mover *Mover) {
+	// Quick hack to let us test against radosgw; a better solution
+	// would be to figure out some kind of fallback.
+	embiggenUploadPartSize := func(cfg *archiveConfig) *archiveConfig {
+		cfg.UploadPartSize = 128 * 1024 * 1024
+		return cfg
+	}
+	if os.Getenv("LHSM_TEST_RADOSGW") == "" {
+		embiggenUploadPartSize = nil
+	}
+
+	WithS3Mover(t, embiggenUploadPartSize, func(t *testing.T, mover *Mover) {
 		// trigger two updates (at current interval of 10MB
 		var length int64 = 20 * 1024 * 1024
 		tfile, cleanFile := testhelpers.TempFile(t, length)
@@ -283,18 +293,17 @@ func WithS3Mover(t *testing.T, updateConfig func(*archiveConfig) *archiveConfig,
 		region = "us-east-1"
 	}
 
-	s3Endpoint := os.Getenv("AWS_S3_ENDPOINT")
-
 	bucket := os.Getenv(bucketVar)
 	if bucket == "" {
 		t.Skipf("Set %q in environment to test S3 mover.", bucketVar)
 	}
 
 	config := &archiveConfig{
-		Name:   "test-s3",
-		Region: region,
-		Bucket: bucket,
-		Prefix: "ptest",
+		Name:     "test-s3",
+		Region:   region,
+		Bucket:   bucket,
+		Prefix:   "ptest",
+		Endpoint: os.Getenv("AWS_S3_ENDPOINT"),
 	}
 
 	if updateConfig != nil {
@@ -302,8 +311,7 @@ func WithS3Mover(t *testing.T, updateConfig func(*archiveConfig) *archiveConfig,
 	}
 
 	defer testhelpers.ChdirTemp(t)()
-	svc := s3Svc(config.Region, s3Endpoint)
-	mover := S3Mover(svc, 1, config.Bucket, config.Prefix)
+	mover := S3Mover(config, s3Svc(config), 1)
 
 	tester(t, mover)
 }

@@ -3,4 +3,5 @@ archive "2" {
 	region = "us-west-1"
 	bucket = "hpdd-test-bucket"
 	prefix = "archive-test"
+	upload_part_size = 16
 }
