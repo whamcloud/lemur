@@ -5,6 +5,7 @@
 package external
 
 import (
+	"fmt"
 	"io"
 	"log"
 )
@@ -40,4 +41,9 @@ func (w *Writer) Write(data []byte) (int, error) {
 	w.log.Output(3, string(data))
 
 	return len(data), nil
+}
+
+// Log implements the aws.Logger interface, among others
+func (w *Writer) Log(v ...interface{}) {
+	w.log.Output(3, fmt.Sprint(v...))
 }

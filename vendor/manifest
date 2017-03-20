@@ -188,7 +188,7 @@
 			"importpath": "github.com/intel-hpdd/logging",
 			"repository": "https://github.com/intel-hpdd/logging.git",
 			"vcs": "git",
-			"revision": "90624c07e3fb8bb27703ef96a81ce6c3c462a2f3",
+			"revision": "0ce155fc7407a2ede045ec54733e6676325886bd",
 			"branch": "master",
 			"notests": true
 		},
