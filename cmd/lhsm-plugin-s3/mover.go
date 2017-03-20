@@ -81,6 +81,7 @@ func (m *Mover) fileIDtoBucketPath(fileID string) (string, string, error) {
 		path = m.destination(fileID)
 		bucket = m.bucket
 	}
+	debug.Printf("Parsed %s -> %s/%s", fileID, bucket, path)
 	return bucket, path, nil
 }
 
@@ -145,8 +146,7 @@ func (m *Mover) Restore(action dmplugin.Action) error {
 	if action.UUID() == "" {
 		return errors.Errorf("Missing file_id on action %d", action.ID())
 	}
-	fileKey := m.destination(action.UUID())
-	bucket, srcObj, err := m.fileIDtoBucketPath(fileKey)
+	bucket, srcObj, err := m.fileIDtoBucketPath(action.UUID())
 	if err != nil {
 		return errors.Wrap(err, "fileIDtoBucketPath failed")
 	}
