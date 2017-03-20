@@ -169,7 +169,7 @@ func getMergedConfig(plugin *dmplugin.Plugin) (*s3Config, error) {
 	return baseCfg.Merge(&cfg), nil
 }
 
-func checkS3Configuration(cfg *s3Config) error {
+func checkS3Configuration(cfg *s3Config, bucket string) error {
 	// Check to make sure that the SDK can find some credentials
 	// before continuing; otherwise there will be long timeouts and
 	// mysterious failures on HSM actions.
@@ -180,8 +180,10 @@ func checkS3Configuration(cfg *s3Config) error {
 	}
 
 	svc := s3Svc(cfg.Region, cfg.Endpoint)
-	if _, err := svc.ListBuckets(&s3.ListBucketsInput{}); err != nil {
-		return errors.Wrap(err, "Unable to list S3 buckets")
+	if _, err := svc.ListObjects(&s3.ListObjectsInput{
+		Bucket: aws.String(bucket),
+	}); err != nil {
+		return errors.Wrap(err, "Unable to list S3 bucket objects")
 	}
 
 	return nil
@@ -225,7 +227,7 @@ func main() {
 		os.Setenv("AWS_SECRET_ACCESS_KEY", cfg.AWSSecretAccessKey)
 	}
 
-	if err = checkS3Configuration(cfg); err != nil {
+	if err = checkS3Configuration(cfg, cfg.Archives[0].Bucket); err != nil {
 		alert.Abort(errors.Wrap(err, "S3 config check failed"))
 	}
 
