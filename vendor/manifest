@@ -137,7 +137,7 @@
 			"importpath": "github.com/hashicorp/hcl",
 			"repository": "https://github.com/hashicorp/hcl",
 			"vcs": "git",
-			"revision": "ef8133da8cda503718a74741312bf50821e6de79",
+			"revision": "630949a3c5fa3c613328e1b8256052cbc2327c9b",
 			"branch": "master",
 			"notests": true
 		},
