@@ -7,6 +7,7 @@ package rpc
 import (
 	"fmt"
 	"net"
+	"os"
 	"sync"
 	"time"
 
@@ -60,7 +61,13 @@ func (t *rpcTransport) Init(conf *agent.Config, a *agent.HsmAgent) error {
 		return nil
 	}
 
-	debug.Print("Initializing grpc transport")
+	debug.Printf("Initializing grpc transport: %s", conf.Transport.ConnectionString())
+
+	// Ensure path is a directory and create if needed
+	if err := os.MkdirAll(conf.Transport.SocketDir, 0755); err != nil {
+		return errors.Wrap(err, "MkdirAll")
+	}
+
 	sock, err := net.Listen("unix", conf.Transport.ConnectionString())
 	if err != nil {
 		return errors.Errorf("Failed to listen: %v", err)
