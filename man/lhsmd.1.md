@@ -1,4 +1,4 @@
-% LHSMD (1) User Manaual
+% LHSMD (1) User Manual
 % Intel Corporation
 % REPLACE_DATE
 
@@ -12,15 +12,27 @@ lhsmd [-config *FILE*] [-debug]
 
 # DESCRIPTION
 
-Lhsmd is a Lustre HSM Agent. It handles HSM requests from the Lustre coordinator, and
-forwards the data movement request to data mover plugins. The configuration of the
-plugins specifies which Lustre Archive ID is associated with an a each archive endpoint.
-More than one plugin can be used at the same time, and each data mover can support
-multiple archive IDs and endpoints.
+Lhsmd is a Lustre HSM Agent. It handles HSM requests from the Lustre
+coordinator, and forwards the requests to the configured data mover
+plugins based on the archive id of the request. The configuration of
+the plugins specifies which Lustre Archive ID is associated with an a
+each archive endpoint.  More than one plugin can be used at the same
+time, and each data mover can support multiple archive IDs and
+endpoints.
 
 The agent configuration file specifies which Lustre filesystem is being managed,
-which plugins to start, and settings for optionality functionality such as HSM snapshots and storing
-metrics in InfluxDB.
+which plugins to start, and options  storing
+metrics in an InfluxDB database. By default, example config files are
+provided in `/etc/lhsmd`. These can be copied to the correct, non
+".example" name and customized accordingly.
+
+Although the agent can be run directly on the command for debugging
+purposes, for production use we recommend using systemd (or equivalent) to
+manage and run the lhsmd service to ensure only one agent runs per
+host.
+
+	# systemctl enable lhsmd
+	# systemctl start lhsmd
 
 # OPTIONS
 
@@ -37,20 +49,20 @@ The default location for the agent configuration file is `/etc/lhsmd/agent`. The
 
 `client_device`
 :     Required option, the `client_device` the mount target for the Lustre filesystem the agent will be using. The
-      agent will create mount points of the filesystem for itself and for each of the confgured plugins.
+      agent will create mount points of the filesystem for itself and for each of the configured plugins.
 
 `mount_root`
 :     The `mount_root` is the location for the Lustre mount points created by the agent.
 
 `enabled_plugins`
-:     A list of plugins to start. If the plugin name is not an aboslute path, the agent will search for a binary    
+:     A list of plugins to start. If the plugin name is not an absolute path, the agent will search for a binary
       matching the plugin name provided here.
 
 `plugin_dir`
 :     An additional directory to search for plugins.
 
 `handler_count`
-:     Number of threads that will be used to process HSM requests in the agent. (The number of threads in the   
+:     Number of threads that will be used to process HSM requests in the agent. (The number of threads in the
       plugins is configured separately)
 
 `snapshots`

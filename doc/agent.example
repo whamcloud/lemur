@@ -17,6 +17,11 @@ client_device = "required"
 # enabled_plugins = ["lhsm-plugin-posix", "lhsm-plugin-s3"]
 
 ##
+## Directory to look for the plugins
+##
+# plugin_dir = "/usr/libexec/lhsmd"
+
+##
 ## Number of threads handling incoming HSM requests.
 ##
 # handler_count = 4

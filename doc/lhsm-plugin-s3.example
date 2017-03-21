@@ -1,5 +1,11 @@
 ## Sample configuration for the S3 data mover plugin.
 ##
+## The S3 connection options (endpoint and keys) can be specific
+## globally or for each archive individually. This allows archives
+## to differnt S3 services or just different accounts in the same
+## service.
+##
+
 ## Set AWS region
 # region = "us-east-1"
 
@@ -17,6 +23,11 @@
 # aws_access_key_id = ""
 # aws_secret_access_key = ""
 
+## Files larger than this size will be sent using
+## multi-part put.
+
+# update_part_size = 5242880
+
 
 ## Maximum number of concurrent copies.
 ##
@@ -26,7 +37,13 @@
 ## One or more archive definition is required.
 ##
 # archive  "s3-test" {
-#    id = 2                   # Must be unique to this endpoint
-#    bucket = "rmr-hsm-test"  # S3 Bucket used for this archive
-#    prefix = "archive"       # Optional prefix
+#    id = 2                      # Must be unique to this endpoint
+#    endpoint = ""               # Defaults to AWS Endpoints
+#    region = "us-east-1"        # Always needs to be set even when
+#                                # not using AWS
+#    bucket = "test-bucket"      # S3 Bucket used for this archive
+#    prefix = "archive"          # Optional prefix
+#    aws_access_key_id = ""
+#    aws_secret_access_key = ""
+#    update_part_size = 5242880  # Size break used for multi-part upload
 # }

@@ -1,4 +1,4 @@
-% LHSMD (1) User Manaual
+% LHSMD (1) User Manual
 % Intel Corporation
 % REPLACE_DATE
 
@@ -23,7 +23,7 @@ These are the configuration options available.
 `archive`
 :    Each `archive` section configures an archive endpoint that will be registered with the agent
      and corresponds with a Lustre Archive ID. It is important that each Archive ID be used with the
-     same endpoint on each data mover newUploader
+     same endpoint on each data mover.
 
      `id`
      :     The ID associated with this archive.
