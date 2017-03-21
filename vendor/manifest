@@ -13,25 +13,16 @@
 			"importpath": "github.com/aws/aws-sdk-go/aws",
 			"repository": "https://github.com/aws/aws-sdk-go",
 			"vcs": "git",
-			"revision": "b2dc98bb584e48b0f5f39c93110633173c5da43c",
+			"revision": "695fe24acaf9afe80b0ce261d4637f42ba0b4c7d",
 			"branch": "master",
 			"path": "/aws",
-			"notests": true
-		},
-		{
-			"importpath": "github.com/aws/aws-sdk-go/private/endpoints",
-			"repository": "https://github.com/aws/aws-sdk-go",
-			"vcs": "git",
-			"revision": "b2dc98bb584e48b0f5f39c93110633173c5da43c",
-			"branch": "master",
-			"path": "private/endpoints",
 			"notests": true
 		},
 		{
 			"importpath": "github.com/aws/aws-sdk-go/private/protocol",
 			"repository": "https://github.com/aws/aws-sdk-go",
 			"vcs": "git",
-			"revision": "b2dc98bb584e48b0f5f39c93110633173c5da43c",
+			"revision": "695fe24acaf9afe80b0ce261d4637f42ba0b4c7d",
 			"branch": "master",
 			"path": "private/protocol",
 			"notests": true
@@ -40,7 +31,7 @@
 			"importpath": "github.com/aws/aws-sdk-go/private/waiter",
 			"repository": "https://github.com/aws/aws-sdk-go",
 			"vcs": "git",
-			"revision": "b2dc98bb584e48b0f5f39c93110633173c5da43c",
+			"revision": "695fe24acaf9afe80b0ce261d4637f42ba0b4c7d",
 			"branch": "master",
 			"path": "/private/waiter",
 			"notests": true
@@ -49,7 +40,7 @@
 			"importpath": "github.com/aws/aws-sdk-go/service/kms",
 			"repository": "https://github.com/aws/aws-sdk-go",
 			"vcs": "git",
-			"revision": "b2dc98bb584e48b0f5f39c93110633173c5da43c",
+			"revision": "695fe24acaf9afe80b0ce261d4637f42ba0b4c7d",
 			"branch": "master",
 			"path": "service/kms",
 			"notests": true
@@ -58,7 +49,7 @@
 			"importpath": "github.com/aws/aws-sdk-go/service/s3",
 			"repository": "https://github.com/aws/aws-sdk-go",
 			"vcs": "git",
-			"revision": "b2dc98bb584e48b0f5f39c93110633173c5da43c",
+			"revision": "695fe24acaf9afe80b0ce261d4637f42ba0b4c7d",
 			"branch": "master",
 			"path": "/service/s3",
 			"notests": true
@@ -67,7 +58,7 @@
 			"importpath": "github.com/aws/aws-sdk-go/service/sts",
 			"repository": "https://github.com/aws/aws-sdk-go",
 			"vcs": "git",
-			"revision": "b2dc98bb584e48b0f5f39c93110633173c5da43c",
+			"revision": "695fe24acaf9afe80b0ce261d4637f42ba0b4c7d",
 			"branch": "master",
 			"path": "service/sts",
 			"notests": true
@@ -76,7 +67,7 @@
 			"importpath": "github.com/aws/aws-sdk-go/vendor/github.com/go-ini/ini",
 			"repository": "https://github.com/aws/aws-sdk-go",
 			"vcs": "git",
-			"revision": "b2dc98bb584e48b0f5f39c93110633173c5da43c",
+			"revision": "695fe24acaf9afe80b0ce261d4637f42ba0b4c7d",
 			"branch": "master",
 			"path": "vendor/github.com/go-ini/ini",
 			"notests": true
@@ -85,7 +76,7 @@
 			"importpath": "github.com/aws/aws-sdk-go/vendor/github.com/jmespath/go-jmespath",
 			"repository": "https://github.com/aws/aws-sdk-go",
 			"vcs": "git",
-			"revision": "b2dc98bb584e48b0f5f39c93110633173c5da43c",
+			"revision": "695fe24acaf9afe80b0ce261d4637f42ba0b4c7d",
 			"branch": "master",
 			"path": "vendor/github.com/jmespath/go-jmespath",
 			"notests": true
