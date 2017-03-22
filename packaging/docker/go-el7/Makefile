@@ -4,7 +4,17 @@ REPO ?= $(notdir $(CURDIR))
 
 IMAGE := $(shell latest=$$(docker images | awk "/$(REPO).*$(FEDORA_GOLANG)/ {print \$$2}"); if [ "$$latest" == $(FEDORA_GOLANG) ]; then true; else echo $(REPO)/$(FEDORA_GOLANG); fi)
 
+RPM_OUT := $(dir $(dir $(CURDIR)))output-go-$(FEDORA_GOLANG)
+
 $(FEDORA_GOLANG): $(IMAGE)
+
+rpms: $(RPM_OUT)
+	@echo "Copying built RPMs to $(RPM_OUT)..."
+	@docker run --rm -v $(RPM_OUT):/out:z $(REPO):latest sh -c 'cp -a /root/rpmbuild/RPMS/* /out'
+	@echo "Copied go-$(FEDORA_GOLANG) RPMs to $(RPM_OUT)"
+
+$(RPM_OUT): $(IMAGE)
+	@rm -fr $@ && mkdir -p $@
 
 $(IMAGE): Dockerfile
 	@echo "Building $(IMAGE) for $(FEDORA_GOLANG)"
