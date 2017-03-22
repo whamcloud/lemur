@@ -1,3 +1,5 @@
+[![GoDoc](https://godoc.org/github.com/intel-hpdd/lemur/dmplugin?status.svg)](https://godoc.org/github.com/intel-hpdd/lemur/dmplugin)
+
 # HPDD HSM Agent and Data Movers for Lustre
 
 Lemur is new, open source implementation of HSM tools for the [Lustre Filesystem](http://lustre.org) based on this
