@@ -1,3 +1,3 @@
 client_device = "0@lo:/test"
 
-enabled_plugins = ["lhsm-plugin-posix", "lhsm-plugin-s3", "lhsm-plugin-noop"]
+enabled_plugins = ["lhsm-plugin-posix", "lhsm-plugin-s3", "lhsm-plugin-noop","lhsm-plugin-ali"]

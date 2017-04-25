@@ -1,17 +1,18 @@
-// Copyright (c) 2016 Intel Corporation. All rights reserved.
-// Use of this source code is governed by a MIT-style
-// license that can be found in the LICENSE file.
-
 package harness
 
 import (
 	"bufio"
-	"crypto/sha1"
+//	"crypto/sha1"
 	"io/ioutil"
 	"os"
-
+	"os/exec"
+	"strconv"
+	"path"
 	"github.com/pkg/errors"
 	"github.com/intel-hpdd/logging/debug"
+	"fmt"
+	 "bytes"
+	 "encoding/binary"  
 )
 
 // FileChecksum is a calculated checksum
@@ -25,12 +26,70 @@ type TestFile struct {
 
 // GetFileChecksum returns a checksum of the file's data
 func GetFileChecksum(filePath string) (FileChecksum, error) {
-	buf, err := ioutil.ReadFile(filePath)
+	head_cmd := exec.Command("head", "-c", "1", filePath)
+	head_buf, head_err := head_cmd.Output()
+	if head_err != nil {
+		return FileChecksum{}, errors.Wrapf(head_err, "Couldn't trigger the restore for %s by head_cmd.Path:%s", filePath,head_cmd.Path)
+	} else{
+		debug.Printf("head_cmd.Path:%s,head_buf:%s-firstchar",head_cmd.Path,head_buf[0:1])
+		return FileChecksum{}, nil
+	}
+
+//As we will use hash verfication from cloud level, no need to get hash here, just for triggering the restore from release
+	cmd := exec.Command("sha1sum", filePath)
+        mybuf, myerr := cmd.Output()
+	if myerr != nil {
+		debug.Printf("cmd.Path:%s,mybuf:%s,myerr:%s",cmd.Path,mybuf,myerr)
+		return FileChecksum{}, errors.Wrapf(myerr, "Couldn't get checksum for %s by cmd.Path:%s", filePath,cmd.Path)
+	} else{
+//		debug.Printf("cmd.Path:%s,mybuf:%s",cmd.Path,mybuf)
+	}
+	
+	mybuf2 := fmt.Sprintf("%s",mybuf[0:40])
+	
+	mychecksum := BufToBytes(mybuf2)
+	
+//	debug.Printf("mychecksum-x:%x",mychecksum)
+//	debug.Printf("mychecksum-d:%d",mychecksum)
+
+	var mychecksum2 FileChecksum
+	
+	for a := 0; a < 20; a++ {
+		mychecksum2[a] = mychecksum[a]
+	}
+
+//	debug.Printf("mychecksum2-x:%x",mychecksum2)
+//	debug.Printf("mychecksum2-d:%d",mychecksum2)
+
+	return mychecksum2, nil
+
+/*	buf, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return FileChecksum{}, errors.Wrapf(err, "Couldn't get checksum for %s", filePath)
 	}
-
+//	debug.Printf("sha1.Sum(buf)x:%x",sha1.Sum(buf))
+//	debug.Printf("sha1.Sum(buf)d:%d",sha1.Sum(buf))
 	return sha1.Sum(buf), nil
+*/	
+}
+
+func BufToBytes(mybuf string) []byte {	
+	var mybuf2 string
+	bytesBuffer := bytes.NewBuffer([]byte{})
+	for a := 0; a < 20; a++ {
+	      mybuf2 = fmt.Sprintf("%s",mybuf[2*a:2*a+2])
+	      i, myerr :=strconv.ParseInt(mybuf2, 16, 64)
+	      if myerr != nil {
+			debug.Printf("convert mybuf2:%s failed",mybuf2)
+	      }
+//	      debug.Printf("mybuf2:%s",mybuf2)
+//	      debug.Printf("i:x:%x",i)
+//	      debug.Printf("i:d:%d",i)
+	      tmp := int8(i)
+	      binary.Write(bytesBuffer, binary.BigEndian, tmp)
+	}	
+	
+	return bytesBuffer.Bytes()
 }
 
 // NewTestFile generates a new test file
@@ -55,11 +114,11 @@ func NewTestFile(dir, prefix string) (*TestFile, error) {
 	}
 	defer in.Close()
 
-	if _, err2 := bufio.NewReader(in).WriteTo(out); err2 != nil {
-		return nil, errors.Wrap(err2, "Failed to write data to test file")
+	if _, err := bufio.NewReader(in).WriteTo(out); err != nil {
+		return nil, errors.Wrap(err, "Failed to write data to test file")
 	}
 
-	debug.Printf("Created test file: %s", out.Name())
+	debug.Printf("Created test file: %s from srcPath:%s", out.Name(),srcPath)
 	sum, err := GetFileChecksum(out.Name())
 	if err != nil {
 		return nil, err
@@ -71,6 +130,71 @@ func NewTestFile(dir, prefix string) (*TestFile, error) {
 	}, out.Close()
 }
 
+func ExistTestFile(dir, prefix string, action string, isStatusChecking int) (*TestFile, error) {
+	// Let's try copying the contents of the test executable
+	// out as the test file. More interesting than an empty
+	// file or a bunch of zeros.
+
+	if (action == "release" || action == "released" ) {
+		debug.Printf("%s-%s",path.Join(dir, prefix),action )
+			
+		return &TestFile{
+                	Path:     path.Join(dir, prefix),
+                	Checksum: FileChecksum{},
+        	}, nil
+
+	}
+
+	if (action == "remove" || action == "removed" ) {
+		debug.Printf("%s-%s",path.Join(dir, prefix),action )
+			
+		return &TestFile{
+                	Path:     path.Join(dir, prefix),
+                	Checksum: FileChecksum{},
+        	}, nil
+
+	}
+
+	if (action == "archive" || action == "archived" ) {
+		debug.Printf("%s-%s",path.Join(dir, prefix),action )
+			
+		return &TestFile{
+                	Path:     path.Join(dir, prefix),
+                	Checksum: FileChecksum{},
+        	}, nil
+
+	}
+
+	if isStatusChecking == 1 {
+		//no need to get checksum
+		return &TestFile{
+                	Path:     path.Join(dir, prefix),
+                	Checksum: FileChecksum{},
+        	}, nil
+	}
+
+
+	in, err := os.Open(path.Join(dir, prefix))
+	debug.Printf("Preparing: %s-%s", in.Name(),action)
+
+
+	sum, err := GetFileChecksum(in.Name())
+	if err != nil {
+		return nil, err
+	}
+	
+//	debug.Printf("Preparing done: %s-%s-%x", in.Name(),action, sum)
+
+	
+	return &TestFile{
+		Path:     in.Name(),
+		Checksum: sum,
+	}, in.Close()
+
+
+}
+
+
 // CreateTestfile creates a test file and adds its path to the context's
 // cleanup queue.
 func (ctx *ScenarioContext) CreateTestfile(dir, key string) (string, error) {
@@ -79,10 +203,26 @@ func (ctx *ScenarioContext) CreateTestfile(dir, key string) (string, error) {
 		return "", errors.Wrap(err, "Could not generate test file")
 	}
 
-	ctx.AddCleanup(func() error {
+/*	ctx.AddCleanup(func() error {
 		return os.Remove(tf.Path)
-	})
+	})*/
 	ctx.TestFiles[key] = tf
 
 	return tf.Path, nil
 }
+
+func (ctx *ScenarioContext) CreateExistfile(dir, key string,action string,isStatusChecking int) (string, error) {
+        tf, err := ExistTestFile(dir, key, action, isStatusChecking)
+        if err != nil {
+                return "", errors.Wrap(err, "Could not generate exist file for tool")
+        }
+
+/*        ctx.AddCleanup(func() error {
+                return os.Remove(tf.Path)
+        })
+*/
+        ctx.TestFiles[key] = tf
+
+        return tf.Path, nil
+}
+

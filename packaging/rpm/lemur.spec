@@ -14,7 +14,7 @@ License: GPLv2
 Summary: Lustre HSM Tools - Lustre HSM Agent
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 
-BuildRequires: golang >= 1.6
+BuildRequires: golang >= 1.4
 BuildRequires: pandoc
 Requires: lustre-client >= %{?MIN_LUSTRE_VERSION}%{?!MIN_LUSTRE_VERSION:2.6.0}
 %{?systemd_requires}
@@ -124,6 +124,7 @@ mv %{buildroot}/%{_bindir}/lhsmd %{buildroot}/%{_sbindir}
 %defattr(-,root,root)
 %{plugin_dir}/lhsm-plugin-posix
 %{plugin_dir}/lhsm-plugin-s3
+%{plugin_dir}/lhsm-plugin-ali
 %{_mandir}/man1/lhsm-plugin-s3.1.gz
 %{_mandir}/man1/lhsm-plugin-posix.1.gz
 %{_sysconfdir}/lhsmd/lhsm-plugin-posix.example

@@ -1,7 +1,3 @@
-// Copyright (c) 2016 Intel Corporation. All rights reserved.
-// Use of this source code is governed by a MIT-style
-// license that can be found in the LICENSE file.
-
 package steps
 
 import (
@@ -11,8 +7,8 @@ import (
 )
 
 func init() {
-	addStep(`^I configure the (posix|s3) data mover$`, iConfigureADataMover)
-	addStep(`^the (posix|s3) data mover should be (running|stopped)$`, theDataMoverShouldBe)
+	addStep(`^I configure the (posix|s3|ali) data mover$`, iConfigureADataMover)
+	addStep(`^the (posix|s3|ali) data mover should be (running|stopped)$`, theDataMoverShouldBe)
 }
 
 func iConfigureADataMover(dmType string) error {
