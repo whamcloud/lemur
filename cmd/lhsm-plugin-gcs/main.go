@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 
 	"github.com/dustin/go-humanize"
@@ -84,7 +85,7 @@ func init() {
 }
 
 // CheckValid determines if the archive configuration is a valid one.
-func (a *archiveConfig) CheckValid() error {
+func (a *archiveConfig) checkValid() error {
 	var errs []string
 
 	if a.Bucket == "" {
@@ -97,6 +98,25 @@ func (a *archiveConfig) CheckValid() error {
 
 	if len(errs) > 0 {
 		return errors.Errorf("Errors: %s", strings.Join(errs, ", "))
+	}
+
+	return nil
+}
+
+func (a *archiveConfig) checkGCSAccess(cfg *gcsConfig) error {
+
+	ctx := context.Background()
+	// Creates a client.
+	client, err := storage.NewClient(ctx, option.WithCredentialsFile(cfg.Credentials))
+	if err != nil {
+		return errors.Wrap(err, "Failed to create client")
+	}
+
+	b := client.Bucket(a.Bucket)
+
+	it := b.Objects(ctx, nil)
+	if _, err := it.Next(); err != iterator.Done && err != nil {
+		return errors.Wrap(err, "Unable to list GCS bucket objects")
 	}
 
 	return nil
@@ -137,8 +157,11 @@ func noop() {
 
 	for _, archive := range cfg.Archives {
 		debug.Print(archive)
-		if err := archive.CheckValid(); err != nil {
+		if err := archive.checkValid(); err != nil {
 			alert.Abort(errors.Wrap(err, "Invalid configuration"))
+		}
+		if err := archive.checkGCSAccess(cfg); err != nil {
+			alert.Abort(errors.Wrap(err, "GCS access check failed"))
 		}
 	}
 
