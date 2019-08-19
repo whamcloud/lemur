@@ -127,6 +127,7 @@ mv %{buildroot}/%{_bindir}/lhsmd %{buildroot}/%{_sbindir}
 %{plugin_dir}/lhsm-plugin-gcs
 %{_mandir}/man1/lhsm-plugin-s3.1.gz
 %{_mandir}/man1/lhsm-plugin-posix.1.gz
+%{_mandir}/man1/lhsm-plugin-gcs.1.gz
 %{_sysconfdir}/lhsmd/lhsm-plugin-posix.example
 %{_sysconfdir}/lhsmd/lhsm-plugin-s3.example
 %{_sysconfdir}/lhsmd/lhsm-plugin-gcs.example
