@@ -42,9 +42,9 @@ type (
 	archiveSet []*archiveConfig
 
 	gcsConfig struct {
-		NumThreads  int        `hcl:"num_threads"`
-		Credentials string     `hcl:"credentials"`
-		Archives    archiveSet `hcl:"archive"`
+		NumThreads        int        `hcl:"num_threads"`
+		ServiceAccountKey string     `hcl:"service_account_key"`
+		Archives          archiveSet `hcl:"archive"`
 	}
 )
 
@@ -107,7 +107,7 @@ func (a *archiveConfig) checkGCSAccess(cfg *gcsConfig) error {
 
 	ctx := context.Background()
 	// Creates a client.
-	client, err := storage.NewClient(ctx, option.WithCredentialsFile(cfg.Credentials))
+	client, err := storage.NewClient(ctx, option.WithCredentialsFile(cfg.ServiceAccountKey))
 	if err != nil {
 		return errors.Wrap(err, "Failed to create client")
 	}
@@ -149,7 +149,7 @@ func noop() {
 		alert.Abort(errors.Wrap(err, "Unable to determine plugin configuration"))
 	}
 
-	debug.Printf("GCSMover configuration:\n%v", cfg)
+	debug.Printf("GCS Mover configuration:\n%v", cfg)
 
 	if len(cfg.Archives) == 0 {
 		alert.Abort(errors.New("Invalid configuration: No archives defined"))
@@ -179,7 +179,7 @@ func noop() {
 
 	ctx := context.Background()
 	// Creates a client.
-	client, err := storage.NewClient(ctx, option.WithCredentialsFile(cfg.Credentials))
+	client, err := storage.NewClient(ctx, option.WithCredentialsFile(cfg.ServiceAccountKey))
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
 	}

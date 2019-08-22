@@ -2,7 +2,7 @@
 ##
 ## Credentials file in Json format from the service account
 
-# credentials = ""
+# service_account_key = ""
 
 ## Maximum number of concurrent copies.
 ##

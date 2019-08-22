@@ -16,7 +16,7 @@ to be run directly, and should only be run by `lhsmd`.
 The default location for the mover configuration file is `/etc/lhsmd/lhsm-plugin-gcs`.
 These are the configuration options available.
 
-`credentials`
+`service_account_key`
 :      The service account key with permissions to create, get and delete objects to the provided GCS
        bucket. This option is provided for convenience. Typically permissions to a bucket are
        provided through a service account applied to the VM instance.
