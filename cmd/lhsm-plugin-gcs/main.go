@@ -7,6 +7,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"golang.org/x/oauth2/google"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 
@@ -36,6 +38,8 @@ type (
 		ID     int
 		Bucket string
 		Prefix string
+
+		Credentials *google.Credentials
 	}
 
 	// ArchiveSet is a list of mover configs.
@@ -103,11 +107,11 @@ func (a *archiveConfig) checkValid() error {
 	return nil
 }
 
-func (a *archiveConfig) checkGCSAccess(cfg *gcsConfig) error {
+func (a *archiveConfig) checkGCSAccess() error {
 
 	ctx := context.Background()
 	// Creates a client.
-	client, err := storage.NewClient(ctx, option.WithCredentialsFile(cfg.ServiceAccountKey))
+	client, err := storage.NewClient(ctx, option.WithCredentials(a.Credentials))
 	if err != nil {
 		return errors.Wrap(err, "Failed to create client")
 	}
@@ -117,6 +121,32 @@ func (a *archiveConfig) checkGCSAccess(cfg *gcsConfig) error {
 	it := b.Objects(ctx, nil)
 	if _, err := it.Next(); err != iterator.Done && err != nil {
 		return errors.Wrap(err, "Unable to list GCS bucket objects")
+	}
+
+	return nil
+}
+
+func (a *archiveConfig) createCredentials(ctx context.Context, cfg *gcsConfig) error {
+
+	var errs error
+
+	if cfg.ServiceAccountKey != "" {
+		data, err := ioutil.ReadFile(cfg.ServiceAccountKey)
+		if err != nil {
+			return errors.Wrap(err, "Unable to read the service account key file")
+		}
+
+		a.Credentials, errs = google.CredentialsFromJSON(ctx, data, "https://www.googleapis.com/auth/devstorage.read_write")
+		if errs != nil {
+			return errors.Wrap(errs, "Failed to get credentials from service account key file")
+		}
+
+	} else {
+		a.Credentials, errs = google.FindDefaultCredentials(ctx, storage.ScopeReadWrite)
+		if errs != nil {
+			return errors.Wrap(errs, "No default credentials found")
+		}
+
 	}
 
 	return nil
@@ -155,12 +185,18 @@ func noop() {
 		alert.Abort(errors.New("Invalid configuration: No archives defined"))
 	}
 
+	//Create context
+	ctx := context.Background()
+
 	for _, archive := range cfg.Archives {
 		debug.Print(archive)
+		if err := archive.createCredentials(ctx, cfg); err != nil {
+			alert.Abort(errors.Wrap(err, "Unable create credentials"))
+		}
 		if err := archive.checkValid(); err != nil {
 			alert.Abort(errors.Wrap(err, "Invalid configuration"))
 		}
-		if err := archive.checkGCSAccess(cfg); err != nil {
+		if err := archive.checkGCSAccess(); err != nil {
 			alert.Abort(errors.Wrap(err, "GCS access check failed"))
 		}
 	}
@@ -177,14 +213,13 @@ func noop() {
 		plugin.Stop()
 	})
 
-	ctx := context.Background()
-	// Creates a client.
-	client, err := storage.NewClient(ctx, option.WithCredentialsFile(cfg.ServiceAccountKey))
-	if err != nil {
-		log.Fatalf("Failed to create client: %v", err)
-	}
-
 	for _, archive := range cfg.Archives {
+		// Creates a client.
+		client, err := storage.NewClient(ctx, option.WithCredentials(archive.Credentials))
+		if err != nil {
+			log.Fatalf("Failed to create client: %v", err)
+		}
+
 		plugin.AddMover(&dmplugin.Config{
 			Mover:      GcsMover(archive, ctx, client),
 			NumThreads: cfg.NumThreads,
