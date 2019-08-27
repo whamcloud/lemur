@@ -165,7 +165,7 @@ func getMergedConfig(plugin *dmplugin.Plugin) (*gcsConfig, error) {
 	return cfg, nil
 }
 
-func noop() {
+func main() {
 
 	plugin, err := dmplugin.New(path.Base(os.Args[0]), func(path string) (fsroot.Client, error) {
 		return fsroot.New(path)
@@ -244,8 +244,4 @@ func interruptHandler(once func()) {
 			}
 		}
 	}()
-}
-
-func main() {
-	noop()
 }
