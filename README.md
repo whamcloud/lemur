@@ -8,7 +8,7 @@ is developed by the Intel High Performance Data Division, one of the main
 contributors to the Lustre Filesystem. We welcome community involvement and
 contributions. If you would like to raise an issue or file a bug, please use the
 LMR project on our community [Jira
-server](https://jira.hpdd.intel.com/browse/LMR) instead of Github issues.
+server](https://jira.whamcloud.com/projects/LMR) instead of Github issues.
 
 
 ## Build
