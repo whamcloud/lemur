@@ -124,10 +124,13 @@ mv %{buildroot}/%{_bindir}/lhsmd %{buildroot}/%{_sbindir}
 %defattr(-,root,root)
 %{plugin_dir}/lhsm-plugin-posix
 %{plugin_dir}/lhsm-plugin-s3
+%{plugin_dir}/lhsm-plugin-gcs
 %{_mandir}/man1/lhsm-plugin-s3.1.gz
 %{_mandir}/man1/lhsm-plugin-posix.1.gz
+%{_mandir}/man1/lhsm-plugin-gcs.1.gz
 %{_sysconfdir}/lhsmd/lhsm-plugin-posix.example
 %{_sysconfdir}/lhsmd/lhsm-plugin-s3.example
+%{_sysconfdir}/lhsmd/lhsm-plugin-gcs.example
 
 %files -n %{pkg_prefix}-testing
 %defattr(-,root,root)

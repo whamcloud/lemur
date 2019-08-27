@@ -1,0 +1,18 @@
+## Sample configuration for the GCS data mover plugin.
+##
+## Credentials file in Json format from the service account
+
+# service_account_key = ""
+
+## Maximum number of concurrent copies.
+##
+# num_threads = 8
+
+##
+## One or more archive definition is required.
+##
+# archive  "gcs-test" {
+#    id = 2                      # Must be unique to this endpoint
+#    bucket = "lustre-test"      # GCS Bucket used for this archive
+#    prefix = "archive"          # Optional prefix
+# }

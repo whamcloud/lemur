@@ -1,0 +1,5 @@
+archive "2" {
+	id = 2
+	bucket = "hpdd-test-bucket"
+	prefix = "archive-test"
+}
